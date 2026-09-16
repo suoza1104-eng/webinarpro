@@ -242,9 +242,30 @@ const Sala = {
     if(!this._visHandlerBound){
       this._visHandlerBound = true;
       document.addEventListener('visibilitychange', ()=>{
-        if(document.visibilityState !== 'visible' || !this.video || this.userPaused) return;
-        if(this.hls) this.hls.startLoad();
-        if(this.video.paused) this.video.play().catch(()=>{});
+        if(!this.video) return;
+        if(document.visibilityState === 'hidden'){
+          this._hiddenAt = Date.now();
+          this._posAtHidden = this.video.currentTime;
+          return;
+        }
+        if(this.userPaused || !this._hiddenAt) return;
+        const hiddenSecs = (Date.now() - this._hiddenAt) / 1000;
+        this._hiddenAt = null;
+
+        if(hiddenSecs > 8){
+          const duration = this.room?.video?.duracaoSegundos || this.video.duration;
+          const newPos = this._posAtHidden + hiddenSecs;
+          if(duration && newPos >= duration){
+            if(this.hls){ this.hls.destroy(); this.hls = null; }
+            this.showEnded();
+          } else {
+            if(this.hls){ this.hls.destroy(); this.hls = null; }
+            this.startLive(newPos);
+          }
+        } else {
+          if(this.hls) this.hls.startLoad();
+          if(this.video.paused) this.video.play().catch(()=>{});
+        }
       });
     }
 
