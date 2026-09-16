@@ -72,11 +72,11 @@ function saveLS(key, val){
 
 const App = {
   currentView:'dashboard',
-  webinars: loadLS('wp_webinars', []),
-  videos: loadLS('wp_videos', []),
-  users: loadLS('wp_users', []),
+  webinars: loadLS('wp_webinars_v2', []),
+  videos: loadLS('wp_videos_v2', []),
+  users: loadLS('wp_users_v2', []),
   historico: [],
-  chatMsgs: loadLS('wp_chatmsgs', []),
+  chatMsgs: loadLS('wp_chatmsgs_v2', []),
   faqs: [
     {q:'Serve para quadro trifásico?', a:'Sim, o método vale para mono e trifásico.'},
     {q:'Tem certificado?', a:'Sim, certificado incluso na Comunidade FERA.'}
@@ -246,13 +246,13 @@ const App = {
     const w = {...this.webinars[i]};
     w.nome = w.nome + ' (cópia)';
     this.webinars.unshift(w);
-    saveLS('wp_webinars', this.webinars);
+    saveLS('wp_webinars_v2', this.webinars);
     this.renderWebinars();
     this.toast('Webinar duplicado');
   },
   delWebinar(i){
     this.webinars.splice(i,1);
-    saveLS('wp_webinars', this.webinars);
+    saveLS('wp_webinars_v2', this.webinars);
     this.renderWebinars();
     this.toast('Webinar excluído');
   },
@@ -353,7 +353,7 @@ const App = {
     const novo = {nome:nomes[0], data: new Date().toLocaleString('pt-BR'), tamanho:(Math.random()*3+0.3).toFixed(2)+' GB', uploading:true};
     this.videos.unshift(novo);
     this.renderVideos();
-    setTimeout(()=>{ novo.uploading=false; saveLS('wp_videos', this.videos); this.renderVideos(); this.toast('Vídeo publicado com sucesso ✓'); }, 1600);
+    setTimeout(()=>{ novo.uploading=false; saveLS('wp_videos_v2', this.videos); this.renderVideos(); this.toast('Vídeo publicado com sucesso ✓'); }, 1600);
   },
   buildChatList(){ this.renderChatList(); },
   addChatMsg(){
@@ -363,7 +363,7 @@ const App = {
     if(!m) return this.toast('Escreva uma mensagem primeiro');
     this.chatMsgs.push({t,n,m});
     this.chatMsgs.sort((a,b)=>a.t.localeCompare(b.t));
-    saveLS('wp_chatmsgs', this.chatMsgs);
+    saveLS('wp_chatmsgs_v2', this.chatMsgs);
     document.getElementById('chatTime').value='';
     document.getElementById('chatName').value='';
     document.getElementById('chatMsg').value='';
@@ -375,7 +375,7 @@ const App = {
       <button class="c-del" onclick="App.delChatMsg(${i})">${ICONS.trash}</button></div>
     `).join('');
   },
-  delChatMsg(i){ this.chatMsgs.splice(i,1); saveLS('wp_chatmsgs', this.chatMsgs); this.renderChatList(); },
+  delChatMsg(i){ this.chatMsgs.splice(i,1); saveLS('wp_chatmsgs_v2', this.chatMsgs); this.renderChatList(); },
   renderOfertaPreview(){
     const t = document.getElementById('w_ofertaTitulo'); if(t) document.getElementById('ofertaPreviewImg').textContent = (t.value||'').slice(0,20) || 'F.E.R.A';
     const po = document.getElementById('w_precoOriginal'); if(po) document.getElementById('ofertaPreviewOriginal').textContent = 'De ' + po.value;
@@ -390,11 +390,11 @@ const App = {
     el.parentElement.querySelectorAll('.radio-card').forEach(c=>c.classList.remove('sel'));
     el.classList.add('sel');
   },
-  sales: loadLS('wp_sales', []),
+  sales: loadLS('wp_sales_v2', []),
   renderSalesList(){
     document.getElementById('salesList').innerHTML = this.sales.map((s,i)=>`
       <div class="sale-item"><span class="s-time">${s.t}</span><span style="flex:1;">${s.n} comprou</span>
-      <button onclick="App.sales.splice(${i},1);saveLS('wp_sales',App.sales);App.renderSalesList();">${ICONS.trash}</button></div>
+      <button onclick="App.sales.splice(${i},1);saveLS('wp_sales_v2',App.sales);App.renderSalesList();">${ICONS.trash}</button></div>
     `).join('');
   },
   addSale(){
@@ -402,17 +402,17 @@ const App = {
     const n = document.getElementById('saleName').value.trim();
     if(!n) return this.toast('Escreva um nome primeiro');
     this.sales.push({t, n});
-    saveLS('wp_sales', this.sales);
+    saveLS('wp_sales_v2', this.sales);
     document.getElementById('saleTime').value=''; document.getElementById('saleName').value='';
     this.renderSalesList();
   },
-  keywords: loadLS('wp_keywords', []),
+  keywords: loadLS('wp_keywords_v2', []),
   renderKeywords(){
     document.getElementById('keywordTbody').innerHTML = this.keywords.map((k,i)=>`
       <tr><td>${k.rem}</td><td>${k.kw}</td><td>${k.resp}</td><td>${k.delay}</td>
       <td style="text-align:right;"><div class="iconbar" style="justify-content:flex-end;">
         <button title="Editar">${ICONS.edit}</button>
-        <button title="Excluir" onclick="App.keywords.splice(${i},1);saveLS('wp_keywords',App.keywords);App.renderKeywords();">${ICONS.trash}</button>
+        <button title="Excluir" onclick="App.keywords.splice(${i},1);saveLS('wp_keywords_v2',App.keywords);App.renderKeywords();">${ICONS.trash}</button>
       </div></td></tr>`).join('');
   },
   addKeyword(){
@@ -422,7 +422,7 @@ const App = {
     const delay = document.getElementById('kw_delay').value.trim();
     if(!kw || !resp) return this.toast('Preencha a palavra-chave e a resposta');
     this.keywords.push({rem, kw, resp, delay:(delay||'5')+'s'});
-    saveLS('wp_keywords', this.keywords);
+    saveLS('wp_keywords_v2', this.keywords);
     ['kw_remetente','kw_palavra','kw_resposta','kw_delay'].forEach(id=>document.getElementById(id).value='');
     this.renderKeywords();
   },
@@ -454,7 +454,7 @@ const App = {
     if(!this.wz.nome){ this.toast('Dê um nome ao webinar antes de publicar'); return; }
     const now = new Date();
     this.webinars.unshift({nome:this.wz.nome, data: now.toLocaleDateString('pt-BR')+', '+now.toLocaleDateString('pt-BR',{weekday:'long'})+', 19h', status:'Ativo', tipo:this.wz.tipo});
-    saveLS('wp_webinars', this.webinars);
+    saveLS('wp_webinars_v2', this.webinars);
     document.getElementById('wizardBanner').innerHTML = `<div class="wizard-created-banner">${ICONS.check} Webinar publicado com sucesso!</div>`;
     this.renderWebinars();
     setTimeout(()=>this.showView('webinars'), 900);
@@ -657,13 +657,13 @@ const App = {
     const tipo = document.getElementById('nu_tipo').value;
     if(!nome || !email) return this.toast('Preencha nome e e-mail');
     this.users.push({nome,email,tipo});
-    saveLS('wp_users', this.users);
+    saveLS('wp_users_v2', this.users);
     this.renderUsers();
     this.closeNewUser();
     document.getElementById('nu_nome').value='';document.getElementById('nu_email').value='';
     this.toast('Usuário criado');
   },
-  delUser(i){ this.users.splice(i,1); saveLS('wp_users', this.users); this.renderUsers(); this.toast('Usuário removido'); },
+  delUser(i){ this.users.splice(i,1); saveLS('wp_users_v2', this.users); this.renderUsers(); this.toast('Usuário removido'); },
 
   // ---------- CONFIGURAÇÕES ----------
   integList: [],
