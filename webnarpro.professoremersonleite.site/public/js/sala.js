@@ -123,23 +123,59 @@ const Sala = {
 
     document.getElementById('publicPage').style.display = 'block';
     document.getElementById('pubMsgsSuporte').innerHTML = '<div class="empty-state">Envie uma mensagem privada para o suporte.</div>';
-    this.showCover();
+
+    if(this.isReplay){
+      this.showCover();
+      return true;
+    }
+
+    const startedAt = Number(localStorage.getItem('wp_start_' + this.slug) || 0);
+    if(!startedAt){
+      this.showCover();
+      return true;
+    }
+
+    const elapsed = (Date.now() - startedAt) / 1000;
+    const duration = this.room.video?.duracaoSegundos;
+    if(elapsed < this.COUNTDOWN_SECONDS){
+      this.startCountdown(Math.ceil(this.COUNTDOWN_SECONDS - elapsed));
+    } else if(duration && (elapsed - this.COUNTDOWN_SECONDS) >= duration){
+      this.showEnded();
+    } else {
+      this.startLive(elapsed - this.COUNTDOWN_SECONDS);
+    }
     return true;
   },
 
+  COUNTDOWN_SECONDS: 8,
+
   showCover(){
     document.getElementById('pubVideo').innerHTML = `
-      <div class="pub-cover" onclick="Sala.startCountdown()">
+      <div class="pub-cover" onclick="Sala.beginSession()">
         <div class="pub-play-btn"><svg viewBox="0 0 24 24"><path d="M9 7l9 5-9 5V7z"/></svg></div>
         <div class="pub-cover-text">SUA AULA JÁ COMEÇOU<span>CLIQUE PARA ASSISTIR</span></div>
       </div>`;
   },
 
-  startCountdown(){
+  showEnded(){
+    document.getElementById('pubVideo').innerHTML = `
+      <div class="pub-live" style="flex-direction:column;gap:14px;">
+        <div class="pub-brand-badge" style="position:static;">⚡ WebnarPRO</div>
+        <div style="font-family:var(--font-display);font-size:15px;text-align:center;padding:0 20px;">Esta aula já terminou.</div>
+        <a class="btn btn-primary" href="/${encodeURIComponent(this.slug)}/replay">Assistir a gravação</a>
+      </div>`;
+  },
+
+  beginSession(){
+    if(!this.isReplay) localStorage.setItem('wp_start_' + this.slug, String(Date.now()));
+    this.startCountdown(this.COUNTDOWN_SECONDS);
+  },
+
+  startCountdown(initialSecs){
     if(this.room?.video?.fullscreen){
       try{ document.documentElement.requestFullscreen?.(); }catch(e){}
     }
-    let secs = 8;
+    let secs = initialSecs != null ? initialSecs : this.COUNTDOWN_SECONDS;
     const box = document.getElementById('pubVideo');
     const render = ()=>{
       const mm = String(Math.floor(secs/60)).padStart(2,'0');
@@ -155,12 +191,12 @@ const Sala = {
     render();
     this._countdown = setInterval(()=>{
       secs--;
-      if(secs <= 0){ clearInterval(this._countdown); this.startLive(); return; }
+      if(secs <= 0){ clearInterval(this._countdown); this.startLive(0); return; }
       render();
     }, 1000);
   },
 
-  startLive(){
+  startLive(seekTo){
     if(!this.room.video){
       document.getElementById('pubVideo').innerHTML = `<div class="pub-live"><div class="pub-brand-badge">⚡ WebnarPRO</div>Vídeo ainda não configurado para este webinar.</div>`;
       return;
@@ -174,6 +210,11 @@ const Sala = {
 
     const el = document.getElementById('pubVideoEl');
     this.video = el;
+
+    if(seekTo > 0){
+      this.maxPlayedTime = seekTo;
+      el.addEventListener('loadedmetadata', ()=>{ el.currentTime = Math.min(seekTo, el.duration || seekTo); }, { once: true });
+    }
 
     if(el.canPlayType('application/vnd.apple.mpegurl')){
       el.src = cfg.url;
@@ -199,7 +240,7 @@ const Sala = {
       this.checkHeartbeat(el.currentTime, el.duration);
     });
 
-    if(cfg.autoplay){
+    if(cfg.autoplay || seekTo > 0){
       el.play().catch(()=>{ /* navegador bloqueou autoplay — visitante clica no vídeo pra iniciar */ });
     }
   },

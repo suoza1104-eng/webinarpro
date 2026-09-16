@@ -93,13 +93,14 @@ router.get('/webinars/:slug/room', requireLeadAuth, async (req, res) => {
   let video = null;
   if (w.video_id) {
     const [videoRows] = await pool.query(
-      'SELECT bunny_video_id, status_processamento FROM videos WHERE id = ? LIMIT 1',
+      'SELECT bunny_video_id, status_processamento, duracao_segundos FROM videos WHERE id = ? LIMIT 1',
       [w.video_id],
     );
     if (videoRows.length > 0 && videoRows[0].bunny_video_id) {
       video = {
         url: bunny.playbackUrl(videoRows[0].bunny_video_id),
         status: videoRows[0].status_processamento,
+        duracaoSegundos: videoRows[0].duracao_segundos,
         autoplay: !!w.video_autoplay,
         fullscreen: !!w.video_fullscreen,
         ocultarBarraProgresso: !!w.ocultar_barra_progresso,
