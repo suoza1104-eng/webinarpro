@@ -1,6 +1,7 @@
 const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
 const pinoHttp = require('pino-http');
 const path = require('path');
@@ -22,6 +23,7 @@ app.use(cors({
   credentials: true,
 }));
 app.use(express.json());
+app.use(cookieParser());
 app.use(pinoHttp({ logger }));
 
 const globalLimiter = rateLimit({ windowMs: 60 * 1000, limit: 100 });

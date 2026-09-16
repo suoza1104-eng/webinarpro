@@ -22,6 +22,7 @@ const ICONS = {
   more:'<svg viewBox="0 0 24 24"><circle cx="12" cy="5.5" r="1.4" fill="currentColor"/><circle cx="12" cy="12" r="1.4" fill="currentColor"/><circle cx="12" cy="18.5" r="1.4" fill="currentColor"/></svg>',
   trash:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M9 7V4h6v3"/><path d="M6 7l1 13a2 2 0 002 2h6a2 2 0 002-2l1-13"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>',
   eye:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="2.7"/></svg>',
+  eyeOff:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3l18 18"/><path d="M10.6 10.6a2.7 2.7 0 003.8 3.8"/><path d="M9.9 5.1A10.4 10.4 0 0112 5c6 0 10 7 10 7a13.5 13.5 0 01-3.1 3.9M6.4 6.4C4 8 2 12 2 12s2.5 4.5 6.6 6.2"/></svg>',
   check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M4 12.5l5 5L20 6"/></svg>',
   flag:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="6" y1="3" x2="6" y2="21"/><path d="M6 4h11l-3 4 3 4H6"/></svg>',
   play:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="16" height="12" rx="2"/><path d="M8 7l6 3-6 3V7z" fill="currentColor" stroke="none"/></svg>',
@@ -92,18 +93,69 @@ const App = {
   wz:{step:0, nome:'', titulo:'', url:'', apresentador:'', tipo:'Único', duracao:150, espectadores:500, produto:'Comunidade FERA', preco:'R$ 997,00', video:null},
 
   // ---------- BOOT / AUTENTICAÇÃO ----------
+  currentUser: null,
+
   async init(){
     this.wireGlobalUI();
-    if(!this.token){ this.showLogin(); return; }
+    this.setupPasswordToggles();
+    if(!this.token){
+      const refreshed = await this.tryRefresh();
+      if(!refreshed){ this.showLogin(); return; }
+    }
     try{
+      if(!this.currentUser) this.currentUser = await this.apiFetch('/api/auth/me');
       await this.loadWebinars();
       await this.loadVideos();
     }catch(e){
       this.showLogin();
       return;
     }
+    this.applyCurrentUserToUI();
     this.hideLogin();
     this.renderApp();
+  },
+
+  setupPasswordToggles(){
+    document.querySelectorAll('input[type="password"]').forEach(input=>{
+      if(input.dataset.pwToggled) return;
+      input.dataset.pwToggled = '1';
+      const wrap = document.createElement('div');
+      wrap.className = 'password-field';
+      input.parentNode.insertBefore(wrap, input);
+      wrap.appendChild(input);
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'pw-toggle';
+      btn.innerHTML = ICONS.eye;
+      btn.onclick = ()=>{
+        const show = input.type === 'password';
+        input.type = show ? 'text' : 'password';
+        btn.innerHTML = show ? ICONS.eyeOff : ICONS.eye;
+      };
+      wrap.appendChild(btn);
+    });
+  },
+
+  applyCurrentUserToUI(){
+    if(!this.currentUser) return;
+    const nameEl = document.querySelector('.u-name');
+    const roleEl = document.querySelector('.u-role');
+    if(nameEl) nameEl.textContent = this.currentUser.nome;
+    if(roleEl) roleEl.textContent = this.currentUser.tipo === 'administrador' ? 'Administrador' : 'Atendente';
+  },
+
+  async tryRefresh(){
+    try{
+      const res = await fetch('/api/auth/refresh', { method: 'POST' });
+      if(!res.ok) return false;
+      const data = await res.json();
+      this.token = data.accessToken;
+      this.currentUser = data.user;
+      localStorage.setItem('wp_token', this.token);
+      return true;
+    }catch(e){
+      return false;
+    }
   },
 
   renderApp(){
@@ -140,6 +192,7 @@ const App = {
   async doLogin(){
     const email = document.getElementById('loginEmail').value.trim();
     const senha = document.getElementById('loginSenha').value;
+    const lembrar = document.getElementById('loginLembrar').checked;
     const errEl = document.getElementById('loginError');
     errEl.style.display = 'none';
     if(!email || !senha){ errEl.textContent = 'Preencha e-mail e senha.'; errEl.style.display = 'block'; return; }
@@ -150,17 +203,15 @@ const App = {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, senha }),
+        body: JSON.stringify({ email, senha, lembrar }),
       });
       const data = await res.json();
       if(!res.ok) throw new Error(data.error || 'Falha no login');
 
       this.token = data.accessToken;
+      this.currentUser = data.user;
       localStorage.setItem('wp_token', this.token);
-      const nameEl = document.querySelector('.u-name');
-      const roleEl = document.querySelector('.u-role');
-      if(nameEl) nameEl.textContent = data.user.nome;
-      if(roleEl) roleEl.textContent = data.user.tipo === 'administrador' ? 'Administrador' : 'Atendente';
+      this.applyCurrentUserToUI();
 
       await this.loadWebinars();
       await this.loadVideos();
@@ -174,18 +225,24 @@ const App = {
     }
   },
 
-  logout(){
+  async logout(){
+    try{ await fetch('/api/auth/logout', { method: 'POST' }); }catch(e){}
     localStorage.removeItem('wp_token');
     this.token = null;
+    this.currentUser = null;
     this.showLogin();
   },
 
-  async apiFetch(path, opts={}){
+  async apiFetch(path, opts={}, _retried){
     const headers = Object.assign({}, opts.headers);
     if(!(opts.body instanceof FormData)) headers['Content-Type'] = 'application/json';
     if(this.token) headers['Authorization'] = 'Bearer ' + this.token;
     const res = await fetch(path, Object.assign({}, opts, { headers }));
-    if(res.status === 401){ this.logout(); throw new Error('Sessão expirada — faça login novamente'); }
+    if(res.status === 401){
+      if(!_retried && await this.tryRefresh()) return this.apiFetch(path, opts, true);
+      this.logout();
+      throw new Error('Sessão expirada — faça login novamente');
+    }
     let data = null;
     try{ data = await res.json(); }catch(e){}
     if(!res.ok){
@@ -193,6 +250,49 @@ const App = {
       throw new Error(msg);
     }
     return data;
+  },
+
+  openProfile(){
+    document.getElementById('profileError').style.display = 'none';
+    document.getElementById('profileSuccess').style.display = 'none';
+    document.getElementById('profileSenhaAtual').value = '';
+    document.getElementById('profileSenhaNova').value = '';
+    document.getElementById('profileSenhaConfirma').value = '';
+    document.getElementById('profileNome').value = this.currentUser?.nome || '';
+    document.getElementById('profileEmail').value = this.currentUser?.email || '';
+    document.getElementById('profileModal').classList.add('open');
+  },
+  closeProfile(){
+    document.getElementById('profileModal').classList.remove('open');
+  },
+  async changePassword(){
+    const errEl = document.getElementById('profileError');
+    const okEl = document.getElementById('profileSuccess');
+    errEl.style.display = 'none';
+    okEl.style.display = 'none';
+
+    const senhaAtual = document.getElementById('profileSenhaAtual').value;
+    const novaSenha = document.getElementById('profileSenhaNova').value;
+    const confirma = document.getElementById('profileSenhaConfirma').value;
+
+    if(!senhaAtual || !novaSenha){ errEl.textContent = 'Preencha a senha atual e a nova senha.'; errEl.style.display = 'block'; return; }
+    if(novaSenha !== confirma){ errEl.textContent = 'A confirmação não bate com a nova senha.'; errEl.style.display = 'block'; return; }
+
+    const btn = document.getElementById('profileSaveBtn');
+    btn.disabled = true; btn.textContent = 'Salvando...';
+    try{
+      await this.apiFetch('/api/auth/password', { method: 'PUT', body: JSON.stringify({ senhaAtual, novaSenha }) });
+      okEl.textContent = 'Senha alterada com sucesso!';
+      okEl.style.display = 'block';
+      document.getElementById('profileSenhaAtual').value = '';
+      document.getElementById('profileSenhaNova').value = '';
+      document.getElementById('profileSenhaConfirma').value = '';
+    }catch(e){
+      errEl.textContent = e.message;
+      errEl.style.display = 'block';
+    }finally{
+      btn.disabled = false; btn.textContent = 'Salvar nova senha';
+    }
   },
 
   async loadWebinars(){
