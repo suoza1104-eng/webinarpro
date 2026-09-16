@@ -1,3 +1,9 @@
+function escapeHtml(str){
+  const div = document.createElement('div');
+  div.textContent = str == null ? '' : String(str);
+  return div.innerHTML;
+}
+
 const Sala = {
   slug: null,
   isReplay: false,
@@ -232,7 +238,7 @@ const Sala = {
     const box = document.getElementById('saleToast');
     const el = document.createElement('div');
     el.className = 'sale-item';
-    el.innerHTML = `<span>🛒</span><span>${s.nomeExibido} — ${s.tituloNotificacao}</span>`;
+    el.innerHTML = `<span>🛒</span><span>${escapeHtml(s.nomeExibido)} — ${escapeHtml(s.tituloNotificacao)}</span>`;
     box.appendChild(el);
     setTimeout(()=>el.remove(), 6000);
   },
@@ -247,13 +253,13 @@ const Sala = {
 
   pushSupport(nome, txt){
     const box = document.getElementById('pubMsgsChat');
-    box.insertAdjacentHTML('beforeend', `<div class="pub-chat-support">${nome}<br>${txt}</div>`);
+    box.insertAdjacentHTML('beforeend', `<div class="pub-chat-support">${escapeHtml(nome)}<br>${escapeHtml(txt)}</div>`);
     box.scrollTop = box.scrollHeight;
   },
 
   pushMsg(nome, txt, mine){
     const box = document.getElementById('pubMsgsChat');
-    box.insertAdjacentHTML('beforeend', `<div class="pub-chat-msg ${mine ? 'mine' : ''}"><span class="name">${nome}:</span>${txt}</div>`);
+    box.insertAdjacentHTML('beforeend', `<div class="pub-chat-msg ${mine ? 'mine' : ''}"><span class="name">${escapeHtml(nome)}:</span>${escapeHtml(txt)}</div>`);
     box.scrollTop = box.scrollHeight;
   },
 
@@ -266,7 +272,7 @@ const Sala = {
     if(this.activeTab === 'suporte'){
       const box = document.getElementById('pubMsgsSuporte');
       if(box.querySelector('.empty-state')) box.innerHTML = '';
-      box.insertAdjacentHTML('beforeend', `<div class="pub-chat-msg mine"><span class="name">Você:</span>${val}</div>`);
+      box.insertAdjacentHTML('beforeend', `<div class="pub-chat-msg mine"><span class="name">Você:</span>${escapeHtml(val)}</div>`);
       box.scrollTop = box.scrollHeight;
       return;
     }
