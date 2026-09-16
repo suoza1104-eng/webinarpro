@@ -739,10 +739,10 @@ const App = {
     ];
     document.getElementById('summaryList').innerHTML = items.map(([k,v])=>`
       <div class="summary-item"><div class="s-k">${k}</div><div class="s-v">${v}</div></div>`).join('');
-    const slug = this.wz.url || (this.wz.nome||'meu-webinar').toLowerCase().replace(/[^a-z0-9]+/g,'-');
-    document.getElementById('linkPrincipal').value = 'https://suaempresa.webnarpro.com.br/' + slug + '/';
-    document.getElementById('linkMagic').value = 'https://suaempresa.webnarpro.com.br/' + slug + '/evento?nome=NOME_USUARIO&email=EMAIL_USUARIO&telefone=TELEFONE_USUARIO';
-    document.getElementById('linkReplay').value = 'https://suaempresa.webnarpro.com.br/' + slug + '/?replay=true';
+    const placeholder = 'Clique em "Publicar Webinar" para gerar o link';
+    document.getElementById('linkPrincipal').value = placeholder;
+    document.getElementById('linkMagic').value = placeholder;
+    document.getElementById('linkReplay').value = placeholder;
   },
   copyLink(id){
     const el = document.getElementById(id);
