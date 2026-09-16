@@ -546,6 +546,9 @@ const App = {
         video_fullscreen: document.getElementById('chkFullscreen').checked,
         ocultar_barra_progresso: document.getElementById('chkOcultarBarra').checked,
         bloquear_avanco_video: document.getElementById('chkBloquearAvanco').checked,
+        modo_youtube: document.getElementById('chkModoYoutube').checked,
+        modo_youtube_bloqueio_segundo: document.getElementById('inputBloqueioSegundo').value
+          ? Number(document.getElementById('inputBloqueioSegundo').value) : null,
       })});
     }catch(e){
       this.toast('Erro ao salvar configuração de vídeo: ' + e.message);

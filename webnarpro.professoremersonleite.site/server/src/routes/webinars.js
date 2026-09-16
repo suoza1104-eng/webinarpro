@@ -168,6 +168,8 @@ const videoConfigSchema = z.object({
   video_fullscreen: z.boolean().optional(),
   ocultar_barra_progresso: z.boolean().optional(),
   bloquear_avanco_video: z.boolean().optional(),
+  modo_youtube: z.boolean().optional(),
+  modo_youtube_bloqueio_segundo: z.number().int().nonnegative().nullable().optional(),
 });
 
 router.put('/:id/video', async (req, res) => {
@@ -189,6 +191,8 @@ router.put('/:id/video', async (req, res) => {
     video_fullscreen: 'video_fullscreen',
     ocultar_barra_progresso: 'ocultar_barra_progresso',
     bloquear_avanco_video: 'bloquear_avanco_video',
+    modo_youtube: 'modo_youtube',
+    modo_youtube_bloqueio_segundo: 'modo_youtube_bloqueio_segundo',
   };
   const fields = Object.keys(data).filter((k) => fieldMap[k]);
   if (fields.length === 0) return res.status(400).json({ error: 'Nenhum campo para atualizar' });

@@ -81,7 +81,8 @@ router.post('/webinars/:slug/register', registerLimiter, async (req, res) => {
 router.get('/webinars/:slug/room', requireLeadAuth, async (req, res) => {
   const [rows] = await pool.query(
     `SELECT w.id, w.status, w.video_id, w.video_autoplay, w.video_fullscreen,
-            w.ocultar_barra_progresso, w.bloquear_avanco_video
+            w.ocultar_barra_progresso, w.bloquear_avanco_video,
+            w.modo_youtube, w.modo_youtube_bloqueio_segundo
      FROM webinars w WHERE w.slug = ? LIMIT 1`,
     [req.params.slug],
   );
@@ -105,6 +106,8 @@ router.get('/webinars/:slug/room', requireLeadAuth, async (req, res) => {
         fullscreen: !!w.video_fullscreen,
         ocultarBarraProgresso: !!w.ocultar_barra_progresso,
         bloquearAvancoVideo: !!w.bloquear_avanco_video,
+        modoYoutube: !!w.modo_youtube,
+        bloqueioSegundo: w.modo_youtube_bloqueio_segundo,
       };
     }
   }

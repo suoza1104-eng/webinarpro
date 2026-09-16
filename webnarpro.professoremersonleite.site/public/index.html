@@ -324,6 +324,17 @@
                   <div class="toggle-row"><div><div class="t-title">Ocultar barra de progresso do player</div><div class="t-sub">Reforça a sensação de transmissão ao vivo</div></div><label class="toggle"><input type="checkbox" checked id="chkOcultarBarra"><span class="track"><span class="thumb"></span></span></label></div>
                   <div class="toggle-row"><div><div class="t-title">Bloquear avanço do vídeo</div></div><label class="toggle"><input type="checkbox" checked id="chkBloquearAvanco"><span class="track"><span class="thumb"></span></span></label></div>
                 </div>
+                <div class="card" style="margin-top:14px;">
+                  <div class="toggle-row" style="padding-bottom:14px;">
+                    <div><div class="t-title">Modo YouTube</div><div class="t-sub">Espectador pode rever o que já passou e ajustar a velocidade pra alcançar o momento atual — mas nunca adiantar. Substitui os controles de barra/avanço acima.</div></div>
+                    <label class="toggle"><input type="checkbox" id="chkModoYoutube" onchange="document.getElementById('bloqueioSegundoField').style.display=this.checked?'block':'none'"><span class="track"><span class="thumb"></span></span></label>
+                  </div>
+                  <div class="field" id="bloqueioSegundoField" style="display:none;margin-bottom:0;">
+                    <label>Travar avanço a partir de (segundos no vídeo)</label>
+                    <input class="input" type="number" min="0" id="inputBloqueioSegundo" placeholder="Ex: 1800 (30 min) — deixe em branco pra não travar" style="width:100%;">
+                    <div class="hint">Antes desse ponto, vale a lógica de rever/acelerar. Depois dele, só avança em tempo real — útil pra proteger o pitch de oferta.</div>
+                  </div>
+                </div>
               </div>
               <div>
                 <label style="display:block;font-size:11px;color:var(--text-faint);margin-bottom:10px;">PRÉVIA DA SALA</label>
