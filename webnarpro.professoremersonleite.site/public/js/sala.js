@@ -245,7 +245,6 @@ const Sala = {
           <div class="yt-controls" id="ytControls">
             <div class="yt-scrub" id="ytScrub">
               <div class="yt-scrub-track"></div>
-              <div class="yt-scrub-unlocked" id="ytUnlocked"></div>
               <div class="yt-scrub-played" id="ytPlayed"></div>
               <div class="yt-scrub-thumb" id="ytThumb"></div>
             </div>
@@ -258,8 +257,10 @@ const Sala = {
                 <button class="yt-speed-btn" id="ytSpeedBtn" onclick="Sala.ytToggleSpeedMenu()">1x</button>
                 <div class="yt-speed-menu" id="ytSpeedMenu"></div>
               </div>
-              <button class="yt-btn" id="ytMuteBtn" onclick="Sala.ytToggleMute()">🔊</button>
-              <input type="range" class="yt-volume" id="ytVolume" min="0" max="1" step="0.05" value="1" oninput="Sala.ytSetVolume(this.value)">
+              <div class="yt-vol-wrap">
+                <button class="yt-btn" id="ytMuteBtn" onclick="Sala.ytToggleMute()">🔊</button>
+                <input type="range" class="yt-volume" id="ytVolume" min="0" max="1" step="0.05" value="1" oninput="Sala.ytSetVolume(this.value)">
+              </div>
             </div>
           </div>
         </div>`;
@@ -268,7 +269,7 @@ const Sala = {
         <div class="pub-live" style="padding:0;">
           <div class="pub-live-badge">AO VIVO</div>
           <video id="pubVideoEl" playsinline style="width:100%;height:100%;object-fit:contain;background:#000;"></video>
-          <div style="position:absolute;bottom:8px;right:10px;display:flex;align-items:center;gap:6px;background:rgba(0,0,0,.5);border-radius:6px;padding:4px 8px;">
+          <div class="yt-vol-wrap" style="position:absolute;bottom:8px;right:10px;background:rgba(0,0,0,.5);border-radius:6px;padding:4px 8px;">
             <button class="yt-btn" id="ytMuteBtn" onclick="Sala.ytToggleMute()">🔊</button>
             <input type="range" class="yt-volume" id="ytVolume" min="0" max="1" step="0.05" value="1" oninput="Sala.ytSetVolume(this.value)">
           </div>
@@ -398,9 +399,7 @@ const Sala = {
     const seekFromEvent = (e)=>{
       const rect = scrub.getBoundingClientRect();
       const frac = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
-      const duration = cfg.duracaoSegundos || el.duration || 0;
-      const target = Math.min(frac * duration, this.getUnlockedTime());
-      el.currentTime = target;
+      el.currentTime = frac * this.getUnlockedTime();
     };
     let dragging = false;
     scrub.addEventListener('mousedown', (e)=>{ dragging = true; seekFromEvent(e); });
@@ -427,20 +426,17 @@ const Sala = {
   ytTick(){
     const el = this.video;
     if(!el) return;
-    const cfg = this.room.video;
-    const duration = cfg.duracaoSegundos || el.duration || 0;
     const unlocked = this.getUnlockedTime();
 
-    const unlockedEl = document.getElementById('ytUnlocked');
     const playedEl = document.getElementById('ytPlayed');
     const thumbEl = document.getElementById('ytThumb');
     const timeEl = document.getElementById('ytTime');
     const liveBtn = document.getElementById('ytLiveBtn');
-    if(!unlockedEl || !duration) return;
+    if(!playedEl || !unlocked) return;
 
-    const unlockedPct = Math.min(100, (unlocked / duration) * 100);
-    const playedPct = Math.min(100, (el.currentTime / duration) * 100);
-    unlockedEl.style.width = unlockedPct + '%';
+    // A barra sempre representa [0, unlocked] — a extremidade direita é sempre o "momento atual",
+    // igual uma live do YouTube (cresce com o tempo, nunca mostra o que ainda não é permitido ver).
+    const playedPct = Math.min(100, (el.currentTime / unlocked) * 100);
     playedEl.style.width = playedPct + '%';
     thumbEl.style.left = playedPct + '%';
     timeEl.textContent = this.formatTime(el.currentTime) + ' / ' + this.formatTime(unlocked);

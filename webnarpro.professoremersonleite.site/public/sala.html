@@ -34,7 +34,6 @@
   .yt-wrap:hover .yt-controls, .yt-wrap.yt-show .yt-controls{opacity:1;pointer-events:auto;}
   .yt-scrub{position:relative;height:14px;display:flex;align-items:center;cursor:pointer;margin-bottom:4px;}
   .yt-scrub-track{position:absolute;left:0;right:0;height:4px;border-radius:2px;background:rgba(255,255,255,.25);}
-  .yt-scrub-unlocked{position:absolute;left:0;height:4px;border-radius:2px;background:rgba(255,255,255,.45);width:0;}
   .yt-scrub-played{position:absolute;left:0;height:4px;border-radius:2px;background:var(--red);width:0;}
   .yt-scrub-thumb{position:absolute;top:50%;width:12px;height:12px;border-radius:50%;background:var(--red);
     transform:translate(-50%,-50%);left:0;box-shadow:0 0 0 3px rgba(255,255,255,.15);}
@@ -58,7 +57,10 @@
   .yt-speed-menu button:hover{background:rgba(255,255,255,.1);}
   .yt-speed-menu button.sel{color:var(--yellow);}
   .yt-speed-menu button:disabled{opacity:.35;cursor:not-allowed;}
-  .yt-volume{width:70px;accent-color:#fff;cursor:pointer;}
+  .yt-vol-wrap{display:flex;align-items:center;overflow:hidden;}
+  .yt-volume{width:0;opacity:0;accent-color:#fff;cursor:pointer;transition:width .15s ease,opacity .15s ease,margin-left .15s ease;}
+  .yt-vol-wrap:hover .yt-volume, .yt-vol-wrap:focus-within .yt-volume{width:64px;opacity:1;margin-left:6px;}
+  @media (hover:none){ .yt-vol-wrap .yt-volume{display:none;} }
 </style>
 </head>
 <body data-theme="dark">
