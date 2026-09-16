@@ -158,11 +158,16 @@ const Sala = {
   },
 
   showEnded(){
+    if(this._countdown) clearInterval(this._countdown);
+    const apresentador = this.info?.nomeApresentador;
     document.getElementById('pubVideo').innerHTML = `
-      <div class="pub-live" style="flex-direction:column;gap:14px;">
+      <div class="pub-live" style="flex-direction:column;gap:10px;">
         <div class="pub-brand-badge" style="position:static;">⚡ WebnarPRO</div>
-        <div style="font-family:var(--font-display);font-size:15px;text-align:center;padding:0 20px;">Esta aula já terminou.</div>
-        <a class="btn btn-primary" href="/${encodeURIComponent(this.slug)}/replay">Assistir a gravação</a>
+        <div style="font-family:var(--font-display);font-size:18px;text-align:center;padding:0 20px;">A aula chegou ao fim</div>
+        <div style="font-size:12.5px;color:var(--text-dim);text-align:center;padding:0 20px;">
+          Obrigado por assistir${apresentador ? ' até aqui com ' + escapeHtml(apresentador) : ''}!
+        </div>
+        ${this.isReplay ? '' : `<a class="btn btn-primary" style="margin-top:8px;" href="/${encodeURIComponent(this.slug)}/replay">Assistir novamente</a>`}
       </div>`;
   },
 
@@ -254,6 +259,8 @@ const Sala = {
       this.checkScheduledContent(el.currentTime);
       this.checkHeartbeat(el.currentTime, el.duration);
     });
+
+    el.addEventListener('ended', ()=>this.showEnded());
 
     if(cfg.autoplay || seekTo > 0){
       el.play().catch(()=>{ /* navegador bloqueou autoplay — visitante clica no vídeo pra iniciar */ });
