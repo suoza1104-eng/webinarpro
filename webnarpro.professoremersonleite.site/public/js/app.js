@@ -72,8 +72,9 @@ function saveLS(key, val){
 
 const App = {
   currentView:'dashboard',
-  webinars: loadLS('wp_webinars_v2', []),
-  videos: loadLS('wp_videos_v2', []),
+  token: localStorage.getItem('wp_token') || null,
+  webinars: [],
+  videos: [],
   users: loadLS('wp_users_v2', []),
   historico: [],
   chatMsgs: loadLS('wp_chatmsgs_v2', []),
@@ -90,8 +91,22 @@ const App = {
   planIdx: 1,
   wz:{step:0, nome:'', titulo:'', url:'', apresentador:'', tipo:'Único', duracao:150, espectadores:500, produto:'Comunidade FERA', preco:'R$ 997,00', video:null},
 
-  // ---------- BOOT ----------
-  init(){
+  // ---------- BOOT / AUTENTICAÇÃO ----------
+  async init(){
+    this.wireGlobalUI();
+    if(!this.token){ this.showLogin(); return; }
+    try{
+      await this.loadWebinars();
+      await this.loadVideos();
+    }catch(e){
+      this.showLogin();
+      return;
+    }
+    this.hideLogin();
+    this.renderApp();
+  },
+
+  renderApp(){
     this.initTheme();
     this.renderNav();
     this.renderWebinars();
@@ -110,11 +125,106 @@ const App = {
     this.renderKeywords();
     this.renderOfertaPreview();
     this.calcSim();
-    this.wireGlobalUI();
     this.showView('dashboard');
   },
 
+  showLogin(){
+    document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('appShell').style.display = 'none';
+  },
+  hideLogin(){
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('appShell').style.display = 'flex';
+  },
+
+  async doLogin(){
+    const email = document.getElementById('loginEmail').value.trim();
+    const senha = document.getElementById('loginSenha').value;
+    const errEl = document.getElementById('loginError');
+    errEl.style.display = 'none';
+    if(!email || !senha){ errEl.textContent = 'Preencha e-mail e senha.'; errEl.style.display = 'block'; return; }
+
+    const btn = document.getElementById('loginSubmitBtn');
+    btn.disabled = true; btn.textContent = 'Entrando...';
+    try{
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, senha }),
+      });
+      const data = await res.json();
+      if(!res.ok) throw new Error(data.error || 'Falha no login');
+
+      this.token = data.accessToken;
+      localStorage.setItem('wp_token', this.token);
+      const nameEl = document.querySelector('.u-name');
+      const roleEl = document.querySelector('.u-role');
+      if(nameEl) nameEl.textContent = data.user.nome;
+      if(roleEl) roleEl.textContent = data.user.tipo === 'administrador' ? 'Administrador' : 'Atendente';
+
+      await this.loadWebinars();
+      await this.loadVideos();
+      this.hideLogin();
+      this.renderApp();
+    }catch(e){
+      errEl.textContent = e.message;
+      errEl.style.display = 'block';
+    }finally{
+      btn.disabled = false; btn.textContent = 'Entrar';
+    }
+  },
+
+  logout(){
+    localStorage.removeItem('wp_token');
+    this.token = null;
+    this.showLogin();
+  },
+
+  async apiFetch(path, opts={}){
+    const headers = Object.assign({}, opts.headers);
+    if(!(opts.body instanceof FormData)) headers['Content-Type'] = 'application/json';
+    if(this.token) headers['Authorization'] = 'Bearer ' + this.token;
+    const res = await fetch(path, Object.assign({}, opts, { headers }));
+    if(res.status === 401){ this.logout(); throw new Error('Sessão expirada — faça login novamente'); }
+    let data = null;
+    try{ data = await res.json(); }catch(e){}
+    if(!res.ok){
+      const msg = data && typeof data.error === 'string' ? data.error : 'Erro na requisição';
+      throw new Error(msg);
+    }
+    return data;
+  },
+
+  async loadWebinars(){
+    const rows = await this.apiFetch('/api/webinars');
+    const statusMap = { rascunho:'Rascunho', ativo:'Ativo', pausado:'Pausado', finalizado:'Finalizado' };
+    this.webinars = rows.map(w=>({
+      id: w.id, slug: w.slug, nome: w.nome, titulo: w.titulo,
+      data: w.criado_em ? new Date(w.criado_em).toLocaleDateString('pt-BR') : '—',
+      status: statusMap[w.status] || w.status,
+      tipo: 'Único',
+    }));
+  },
+
+  async loadVideos(){
+    const rows = await this.apiFetch('/api/videos');
+    this.videos = rows.map(v=>({
+      id: v.id, nome: v.nome_arquivo,
+      data: v.criado_em ? new Date(v.criado_em).toLocaleString('pt-BR') : '—',
+      tamanho: v.tamanho_bytes ? (v.tamanho_bytes / 1e9).toFixed(2) + ' GB' : '—',
+      status: v.status_processamento,
+    }));
+  },
+
   wireGlobalUI(){
+    document.getElementById('videoFileInput').onchange = (e)=>{
+      const file = e.target.files[0];
+      if(file) this.uploadVideoFile(file);
+      e.target.value = '';
+    };
+    document.getElementById('loginSenha').addEventListener('keydown', (e)=>{
+      if(e.key === 'Enter') this.doLogin();
+    });
     document.getElementById('collapseBtn').onclick = ()=>{
       document.getElementById('sidebar').classList.toggle('collapsed');
       document.getElementById('main').classList.toggle('sidebar-collapsed');
@@ -237,24 +347,18 @@ const App = {
   editWebinar(i){
     const w = this.webinars[i];
     this.resetWizard();
+    this.wz.id = w.id;
+    this.wz.slug = w.slug;
     this.wz.nome = w.nome;
     document.getElementById('w_nome').value = w.nome;
     this.showView('wizard');
     this.toast('Editando "'+w.nome+'"');
   },
   dupWebinar(i){
-    const w = {...this.webinars[i]};
-    w.nome = w.nome + ' (cópia)';
-    this.webinars.unshift(w);
-    saveLS('wp_webinars_v2', this.webinars);
-    this.renderWebinars();
-    this.toast('Webinar duplicado');
+    this.toast('Duplicar webinar ainda não foi implementado no backend');
   },
   delWebinar(i){
-    this.webinars.splice(i,1);
-    saveLS('wp_webinars_v2', this.webinars);
-    this.renderWebinars();
-    this.toast('Webinar excluído');
+    this.toast('Excluir webinar ainda não foi implementado no backend');
   },
 
   // ---------- WIZARD ----------
@@ -282,16 +386,24 @@ const App = {
     });
   },
   resetWizard(){
-    this.wz = {step:0, nome:'', titulo:'', url:'', apresentador:'', tipo:'Único', duracao:150, espectadores:500, produto:'Comunidade FERA', preco:'R$ 997,00', video:null};
+    this.wz = {step:0, id:null, slug:null, videoId:null, nome:'', titulo:'', url:'', apresentador:'', tipo:'Único', duracao:150, espectadores:500, produto:'Comunidade FERA', preco:'R$ 997,00', video:null};
     document.getElementById('w_nome').value='';
     document.getElementById('w_titulo').value='';
     document.getElementById('w_url').value='';
     document.getElementById('wizardBanner').innerHTML='';
     this.wzGo(0);
   },
-  wzGo(n){
+  async wzGo(n){
     if(n<0) n=0;
     if(n>11) n=11;
+    const leaving = this.wz.step;
+    if(leaving===0 && n!==0 && !this.wz.id){
+      const ok = await this.createWebinarDraft();
+      if(!ok) return;
+    }
+    if(leaving===3 && n!==3 && this.wz.id){
+      await this.saveVideoConfig();
+    }
     this.wz.step = n;
     document.querySelectorAll('.wizard-panel').forEach(p=>p.classList.toggle('active', +p.dataset.step===n));
     this.updateStepperUI();
@@ -308,6 +420,36 @@ const App = {
       nextBtn.onclick = ()=>App.publishWebinar();
     }
     document.querySelector('.wizard-card').scrollIntoView({behavior:'smooth', block:'start'});
+  },
+  async createWebinarDraft(){
+    if(!this.wz.nome){ this.toast('Dê um nome ao webinar antes de continuar'); return false; }
+    try{
+      const data = await this.apiFetch('/api/webinars', {method:'POST', body: JSON.stringify({
+        nome: this.wz.nome,
+        titulo: this.wz.titulo || undefined,
+        nome_apresentador: this.wz.apresentador || undefined,
+      })});
+      this.wz.id = data.id;
+      this.wz.slug = data.slug;
+      return true;
+    }catch(e){
+      this.toast('Erro ao criar webinar: ' + e.message);
+      return false;
+    }
+  },
+  async saveVideoConfig(){
+    if(!this.wz.videoId) return;
+    try{
+      await this.apiFetch(`/api/webinars/${this.wz.id}/video`, {method:'PUT', body: JSON.stringify({
+        video_id: this.wz.videoId,
+        video_autoplay: document.getElementById('chkAutoplay').checked,
+        video_fullscreen: document.getElementById('chkFullscreen').checked,
+        ocultar_barra_progresso: document.getElementById('chkOcultarBarra').checked,
+        bloquear_avanco_video: document.getElementById('chkBloquearAvanco').checked,
+      })});
+    }catch(e){
+      this.toast('Erro ao salvar configuração de vídeo: ' + e.message);
+    }
   },
   selectSchedType(t){
     document.getElementById('tabWebUnico').classList.toggle('active', t==='unico');
@@ -333,27 +475,85 @@ const App = {
   buildVideoPickGrid(){
     const el = document.getElementById('videoPickGrid');
     el.innerHTML = this.videos.map((v,i)=>`
-      <div class="video-pick ${i===0?'sel':''}" onclick="App.pickVideo(this,'${v.nome}')">
+      <div class="video-pick ${v.id===this.wz.videoId?'sel':''}" onclick="App.pickVideo(this,${v.id})">
         <div class="vp-thumb">${ICONS.play}</div>
         <div class="vp-name">${v.nome}</div>
       </div>`).join('');
-    this.wz.video = this.videos[0]?.nome || null;
+    if(!this.wz.videoId && this.videos[0]) this.wz.videoId = this.videos[0].id;
   },
-  pickVideo(el, name){
+  pickVideo(el, videoId){
     document.querySelectorAll('.video-pick').forEach(v=>v.classList.remove('sel'));
     el.classList.add('sel');
-    this.wz.video = name;
+    this.wz.videoId = videoId;
   },
-  mockUpload(){
-    this.toast('Enviando vídeo... isso pode levar alguns minutos');
-    setTimeout(()=>this.toast('Vídeo publicado com sucesso ✓'), 1400);
+  triggerUpload(context){
+    this._uploadContext = context;
+    document.getElementById('videoFileInput').click();
   },
-  mockUploadLibrary(){
-    const nomes = ['aula-extra-corte-'+(this.videos.length+1)+'.mp4'];
-    const novo = {nome:nomes[0], data: new Date().toLocaleString('pt-BR'), tamanho:(Math.random()*3+0.3).toFixed(2)+' GB', uploading:true};
-    this.videos.unshift(novo);
+  async uploadVideoFile(file){
+    let initData;
+    try{
+      initData = await this.apiFetch('/api/videos/upload-init', {method:'POST', body: JSON.stringify({titulo: file.name})});
+    }catch(e){
+      this.toast('Erro ao iniciar envio: ' + e.message);
+      return;
+    }
+
+    const progressBox = document.getElementById('uploadProgressBox');
+    const rowId = 'upl_' + initData.id;
+    if(progressBox){
+      progressBox.insertAdjacentHTML('beforeend', `
+        <div class="upload-progress-item" id="${rowId}">
+          <span>${file.name}</span><div class="bar"><div style="width:0%;"></div></div><span class="pct">0%</span>
+        </div>`);
+    }
+
+    await new Promise((resolve)=>{
+      const upload = new tus.Upload(file, {
+        endpoint: initData.tusEndpoint,
+        retryDelays: [0, 1000, 3000, 5000],
+        headers: {
+          AuthorizationSignature: initData.assinatura,
+          AuthorizationExpire: String(initData.expira),
+          VideoId: initData.bunnyVideoId,
+          LibraryId: String(initData.libraryId),
+        },
+        metadata: { filetype: file.type, title: file.name },
+        onError: (error)=>{
+          this.toast('Falha no envio: ' + error.message);
+          resolve();
+        },
+        onProgress: (bytesUploaded, bytesTotal)=>{
+          const pct = ((bytesUploaded / bytesTotal) * 100).toFixed(0);
+          const row = document.getElementById(rowId);
+          if(row){ row.querySelector('.bar > div').style.width = pct + '%'; row.querySelector('.pct').textContent = pct + '%'; }
+        },
+        onSuccess: async ()=>{
+          this.toast('Envio concluído! Processando vídeo na Bunny Stream...');
+          await this.pollVideoStatus(initData.id);
+          document.getElementById(rowId)?.remove();
+          resolve();
+        },
+      });
+      upload.start();
+    });
+
+    await this.loadVideos();
     this.renderVideos();
-    setTimeout(()=>{ novo.uploading=false; saveLS('wp_videos_v2', this.videos); this.renderVideos(); this.toast('Vídeo publicado com sucesso ✓'); }, 1600);
+    if(this._uploadContext === 'wizard'){
+      this.wz.videoId = initData.id;
+      this.buildVideoPickGrid();
+    }
+  },
+  async pollVideoStatus(id){
+    for(let i=0;i<40;i++){
+      let data;
+      try{ data = await this.apiFetch('/api/videos/' + id + '/status'); }catch(e){ return; }
+      if(data.status_processamento === 'pronto'){ this.toast('Vídeo pronto! ✓'); return; }
+      if(data.status_processamento === 'erro'){ this.toast('Erro ao processar o vídeo na Bunny Stream'); return; }
+      await new Promise(r=>setTimeout(r, 3000));
+    }
+    this.toast('O vídeo ainda está processando — confira a Biblioteca de Vídeos em instantes');
   },
   buildChatList(){ this.renderChatList(); },
   addChatMsg(){
@@ -431,7 +631,7 @@ const App = {
       ['Nome do webinar', this.wz.nome || '(sem nome)'],
       ['Tipo', 'Webinar único'],
       ['Duração', this.wz.duracao + ' minutos'],
-      ['Vídeo selecionado', this.wz.video || '—'],
+      ['Vídeo selecionado', this.videos.find(v=>v.id===this.wz.videoId)?.nome || '—'],
       ['Produto', this.wz.produto],
       ['Preço', this.wz.preco],
       ['Mensagens de chat configuradas', this.chatMsgs.length],
@@ -450,14 +650,25 @@ const App = {
     try{ navigator.clipboard.writeText(el.value); }catch(e){}
     this.toast('Link copiado!');
   },
-  publishWebinar(){
-    if(!this.wz.nome){ this.toast('Dê um nome ao webinar antes de publicar'); return; }
-    const now = new Date();
-    this.webinars.unshift({nome:this.wz.nome, data: now.toLocaleDateString('pt-BR')+', '+now.toLocaleDateString('pt-BR',{weekday:'long'})+', 19h', status:'Ativo', tipo:this.wz.tipo});
-    saveLS('wp_webinars_v2', this.webinars);
-    document.getElementById('wizardBanner').innerHTML = `<div class="wizard-created-banner">${ICONS.check} Webinar publicado com sucesso!</div>`;
-    this.renderWebinars();
-    setTimeout(()=>this.showView('webinars'), 900);
+  async publishWebinar(){
+    if(!this.wz.id){
+      const ok = await this.createWebinarDraft();
+      if(!ok) return;
+    }
+    await this.saveVideoConfig();
+    try{
+      const data = await this.apiFetch(`/api/webinars/${this.wz.id}/publish`, {method:'POST'});
+      document.getElementById('linkPrincipal').value = data.salaPrincipal;
+      document.getElementById('linkMagic').value = data.magicLink;
+      document.getElementById('linkReplay').value = data.replay;
+      document.getElementById('wizardBanner').innerHTML = `<div class="wizard-created-banner">${ICONS.check} Webinar publicado com sucesso!</div>`;
+      await this.loadWebinars();
+      this.renderWebinars();
+      this.renderDashboard();
+      setTimeout(()=>this.showView('webinars'), 900);
+    }catch(e){
+      this.toast('Erro ao publicar: ' + e.message);
+    }
   },
 
   // ---------- VÍDEOS ----------
@@ -467,7 +678,9 @@ const App = {
         <td><div class="row-thumb"><div class="thumb thumb-wide">${ICONS.play}</div><div class="row-title">${v.nome}</div></div></td>
         <td>${v.data}</td><td>${v.tamanho}</td>
         <td style="text-align:right;">
-          ${v.uploading ? `<span class="badge badge-yellow">Enviando…</span>` : `<span class="badge badge-green">Publicado</span>`}
+          ${v.status === 'pronto' ? `<span class="badge badge-green">Pronto</span>`
+            : v.status === 'erro' ? `<span class="badge badge-grey">Erro</span>`
+            : `<span class="badge badge-yellow">Processando…</span>`}
           <button class="icon-btn" style="margin-left:8px;">${ICONS.more}</button>
         </td>
       </tr>`).join('');
