@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WebnarPRO — Painel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body data-theme="dark">
+<div class="hazard-strip"></div>
+
+<div class="app-shell">
+
+  <!-- ===================== SIDEBAR ===================== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-bolt">W</div>
+      <div class="brand-name">WebnarPRO</div>
+      <button class="collapse-btn" id="collapseBtn" title="Recolher menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
+    </div>
+    <ul class="nav-list" id="navList">
+      <!-- injected by JS -->
+    </ul>
+    <div class="sidebar-footer">
+      <div class="avatar-chip">EM</div>
+      <div class="user-meta">
+        <div class="u-name">Emerson Leite</div>
+        <div class="u-role">Administrador</div>
+      </div>
+      <button class="icon-btn" id="themeBtn" title="Alternar tema claro/escuro" onclick="App.toggleTheme()"></button>
+      <button class="icon-btn" id="bellBtn" title="Notificações">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M18 15v-5a6 6 0 10-12 0v5l-1.5 2.5h15L18 15z"/><path d="M9.5 20a2.5 2.5 0 005 0"/></svg>
+        <span class="notif-dot"></span>
+      </button>
+      <button class="icon-btn" title="Sair">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      </button>
+      <div class="notif-panel" id="notifPanel">
+        <div class="n-item"><b>Webinar concluído</b><br>FERA — Turma Setembro terminou com 412 espectadores.</div>
+        <div class="n-item"><b>Consumo de banda</b><br>Você está em 96% do seu plano atual.</div>
+        <div class="n-item"><b>Novo lead</b><br>3 pessoas se cadastraram na última hora.</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ===================== MAIN ===================== -->
+  <main class="main" id="main">
+    <div class="mobile-topbar">
+      <button class="hamburger" id="hamburgerBtn">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+      </button>
+      <div class="brand-name" style="font-size:14px;">WebnarPRO</div>
+    </div>
+
+    <div class="view-container">
+
+      <!-- ============ DASHBOARD ============ -->
+      <section class="view" id="view-dashboard">
+        <div class="page-head">
+          <div>
+            <h1 class="page-title">Dashboard</h1>
+            <p class="page-sub">Visão geral da sua operação de webinars.</p>
+          </div>
+          <button class="btn btn-primary" onclick="App.showView('wizard');App.resetWizard();">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Criar novo webinar
+          </button>
+        </div>
+
+        <div class="stat-grid">
+          <div class="stat-card">
+            <div class="s-label">WEBINARS ATIVOS</div>
+            <div class="s-value">6</div>
+            <div class="s-delta s-up">+2 esta semana</div>
+          </div>
+          <div class="stat-card">
+            <div class="s-label">ESPECTADORES (7 DIAS)</div>
+            <div class="s-value">2.340</div>
+            <div class="s-delta s-up">+18% vs. semana anterior</div>
+          </div>
+          <div class="stat-card">
+            <div class="s-label">TAXA DE CONVERSÃO</div>
+            <div class="s-value">8,4%</div>
+            <div class="s-delta s-up">+0,6 p.p.</div>
+          </div>
+          <div class="stat-card">
+            <div class="s-label">FATURAMENTO DO MÊS</div>
+            <div class="s-value">R$ 42.180</div>
+            <div class="s-delta s-up">+R$ 6.200</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+            <b style="font-size:13.5px;">Espectadores por sessão — últimas 8 sessões</b>
+          </div>
+          <div style="height:220px;"><canvas id="dashChart"></canvas></div>
+        </div>
+
+        <div class="card">
+          <b style="font-size:13.5px;display:block;margin-bottom:12px;">Próximos webinars</b>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Nome</th><th>Data</th><th>Status</th></tr></thead>
+              <tbody id="dashUpcoming"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ WEBINARS (LIST) ============ -->
+      <section class="view" id="view-webinars">
+        <div class="page-head">
+          <div>
+            <h1 class="page-title">Webinars</h1>
+            <p class="page-sub">Todos os seus eventos, ao vivo simulado ou automático.</p>
+          </div>
+          <button class="btn btn-primary" onclick="App.showView('wizard');App.resetWizard();">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Criar novo
+          </button>
+        </div>
+
+        <div class="toolbar">
+          <div class="input-search" style="flex:1;max-width:280px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="10" cy="10" r="6"/><line x1="15" y1="15" x2="20" y2="20"/></svg>
+            <input id="webSearch" placeholder="Pesquise aqui" oninput="App.renderWebinars()">
+          </div>
+          <select class="select" id="webStatusFilter" onchange="App.renderWebinars()">
+            <option value="">Status: todos</option>
+            <option>Ativo</option>
+            <option>Pausado</option>
+            <option>Finalizado</option>
+          </select>
+          <select class="select" id="webTypeFilter" onchange="App.renderWebinars()">
+            <option value="">Tipo: todos</option>
+            <option>Único</option>
+            <option>Recorrente</option>
+            <option>Automático</option>
+          </select>
+          <button class="btn btn-ghost">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            Escolha um período
+          </button>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Nome / Data e Hora</th><th>Status</th><th>Tipo</th><th style="text-align:right;">Detalhes</th></tr></thead>
+            <tbody id="webinarsTbody"></tbody>
+          </table>
+        </div>
+        <div class="footer-row">
+          <span id="webinarsCount">Total de registros: 0</span>
+          <div class="pager"><button class="btn btn-sm" disabled>Anterior</button><button class="btn btn-sm btn-primary">Próximo</button></div>
+        </div>
+      </section>
+
+      <!-- ============ WIZARD ============ -->
+      <section class="view" id="view-wizard">
+        <div class="page-head">
+          <div>
+            <h1 class="page-title">Novo webinar</h1>
+            <p class="page-sub">Configure cada etapa do funil — do cadastro até a venda.</p>
+          </div>
+        </div>
+
+        <div class="stepper" id="stepper"></div>
+
+        <div class="wizard-card">
+          <div id="wizardBanner"></div>
+
+          <!-- STEP 1 — INÍCIO -->
+          <div class="wizard-panel active" data-step="0">
+            <div class="field">
+              <label>Nome do webinar <span class="req">*</span></label>
+              <input class="input" id="w_nome" placeholder="Ex: FERA — Turma Outubro" oninput="App.wz.nome=this.value">
+            </div>
+            <div class="field">
+              <label>Título do webinar</label>
+              <input class="input" id="w_titulo" placeholder="Ex: Como montar seu primeiro quadro elétrico" oninput="App.wz.titulo=this.value">
+            </div>
+            <div class="field">
+              <label>URL amigável <span class="req">*</span></label>
+              <input class="input" id="w_url" placeholder="https://suaempresa.webnarpro.com.br/meu-evento-aqui" oninput="App.wz.url=this.value">
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label>Idioma</label>
+                <select class="select" style="width:100%;"><option>🇧🇷 Português</option><option>🇺🇸 English</option><option>🇪🇸 Español</option></select>
+              </div>
+              <div class="field">
+                <label>Nome do apresentador</label>
+                <div style="display:flex;gap:12px;align-items:center;">
+                  <div class="avatar-upload"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.5-7 8-7s8 3 8 7"/></svg></div>
+                  <input class="input" style="flex:1;" placeholder="Ex: Emerson Leite" oninput="App.wz.apresentador=this.value">
+                </div>
+              </div>
+            </div>
+            <div class="opt-toggle" onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('open')">
+              Opções avançadas
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+            </div>
+            <div class="opt-body">
+              <div class="field-row">
+                <div class="field"><label>Fuso horário</label><select class="select" style="width:100%;"><option>América/São Paulo (GMT-3)</option></select></div>
+                <div class="field"><label>Categoria</label><select class="select" style="width:100%;"><option>Educação técnica</option><option>Marketing digital</option></select></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- STEP 2 — WEBINAR (agendamento) -->
+          <div class="wizard-panel" data-step="1">
+            <div class="toggle-row" style="padding-bottom:16px;">
+              <div><div class="t-title">Ativar repetição automática</div><div class="t-sub">Repete o webinar em vários horários da semana</div></div>
+              <label class="toggle"><input type="checkbox"><span class="track"><span class="thumb"></span></span></label>
+            </div>
+            <div class="tab-pair">
+              <button class="active" id="tabWebUnico" onclick="App.selectSchedType('unico')">Webinar único</button>
+              <button class="locked" title="Disponível em uma versão futura" onclick="App.toast('Just in time chega em uma versão futura')">
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>
+                Just in time
+              </button>
+            </div>
+            <p style="font-size:12px;color:var(--text-faint);margin:0 0 18px;">Um webinar único é um evento online que acontece apenas uma vez, em um dia e horário específico — diferente de webinars recorrentes, não fica necessariamente disponível para assistir depois.</p>
+            <div class="field-row">
+              <div class="field"><label>Data e hora de início <span class="req">*</span></label><input class="input" type="datetime-local" style="width:100%;"></div>
+              <div class="field"><label>Data e hora de finalização <span class="req">*</span></label><input class="input" type="datetime-local" style="width:100%;"></div>
+              <div class="field"><label>Fuso horário <span class="req">*</span></label><select class="select" style="width:100%;"><option>(GMT-03:00) Horário de Brasília</option></select></div>
+            </div>
+            <div class="field-row">
+              <div class="field"><label>Duração estimada (min)</label><input class="input" type="number" value="150" oninput="App.wz.duracao=this.value" style="width:100%;"></div>
+            </div>
+            <div class="toggle-row" style="border-top:1px solid var(--border-soft);padding-top:16px;">
+              <div><div class="t-title">Usar sala de espera antes do início</div><div class="t-sub">Ligada, quem entra antes do horário vai para a sala de espera. Desligada, quem acessa no horário entra direto na sala.</div></div>
+              <label class="toggle"><input type="checkbox"><span class="track"><span class="thumb"></span></span></label>
+            </div>
+          </div>
+
+          <!-- STEP 3 — LOGIN -->
+          <div class="wizard-panel" data-step="2">
+            <div style="display:grid;grid-template-columns:1fr 300px;gap:26px;">
+              <div>
+                <label style="display:block;font-size:12.5px;font-weight:600;color:var(--text-dim);margin-bottom:10px;">Logo do webinar</label>
+                <div class="dropzone">logo.png<br>0 Bytes</div>
+                <div style="display:flex;gap:10px;margin-bottom:22px;">
+                  <button class="btn btn-sm"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4M8 8l4-4 4 4"/><path d="M4 16v3a2 2 0 002 2h12a2 2 0 002-2v-3"/></svg> Alterar imagem</button>
+                  <button class="btn btn-sm btn-danger"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M9 7V4h6v3"/><path d="M6 7l1 13a2 2 0 002 2h6a2 2 0 002-2l1-13"/></svg> Excluir imagem</button>
+                </div>
+
+                <label style="display:block;font-size:12.5px;font-weight:600;color:var(--text-dim);margin-bottom:10px;">Barra de progresso</label>
+                <div class="card" style="margin-bottom:22px;">
+                  <div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap;">
+                    <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;"><input type="checkbox" checked onchange="App.renderLoginPreview()" id="chkBarraProgresso"> Exibir barra de progresso</label>
+                    <label style="font-size:12px;color:var(--text-faint);">Iniciar progresso em:</label>
+                    <input class="input" type="number" value="63" style="width:70px;" id="w_progInicio" oninput="App.renderLoginPreview()">
+                  </div>
+                </div>
+
+                <label style="display:block;font-size:12.5px;font-weight:600;color:var(--text-dim);margin-bottom:10px;">Título do Webinar</label>
+                <div class="rte-toolbar"><button><b>B</b></button><button><i>I</i></button><button><u>U</u></button><button>⬅</button><button>➡</button></div>
+                <textarea class="input" style="width:100%;min-height:56px;margin-bottom:22px;" id="w_tituloWebinar" oninput="App.renderLoginPreview()">Aula 06 - Dimensionamento Elétrico</textarea>
+
+                <label style="display:block;font-size:12.5px;font-weight:600;color:var(--text-dim);margin-bottom:10px;">Formulário de acesso à sala</label>
+                <div class="toggle-row"><div><div class="t-title">Nome</div></div><label class="toggle"><input type="checkbox" checked disabled><span class="track"><span class="thumb"></span></span></label></div>
+                <div class="toggle-row"><div><div class="t-title">E-mail</div></div><label class="toggle"><input type="checkbox" checked disabled><span class="track"><span class="thumb"></span></span></label></div>
+                <div class="toggle-row"><div><div class="t-title">WhatsApp</div></div><label class="toggle"><input type="checkbox" checked id="chkWhats" onchange="App.renderLoginPreview()"><span class="track"><span class="thumb"></span></span></label></div>
+                <div class="toggle-row"><div><div class="t-title">Empresa</div></div><label class="toggle"><input type="checkbox" id="chkEmpresa" onchange="App.renderLoginPreview()"><span class="track"><span class="thumb"></span></span></label></div>
+
+                <label style="display:block;font-size:12.5px;font-weight:600;color:var(--text-dim);margin:22px 0 10px;">Editar botão</label>
+                <div class="field"><label>Título do botão</label><input class="input" id="w_botaoTitulo" value="Entrar na Aula" style="width:100%;" oninput="App.renderLoginPreview()"></div>
+              </div>
+              <div>
+                <label style="display:block;font-size:11px;color:var(--text-faint);margin-bottom:10px;">PRÉVIA</label>
+                <div class="card" style="padding:0;overflow:hidden;">
+                  <div id="loginPreviewBadge" style="background:var(--bg-elev-3);padding:8px 14px;font-size:10.5px;font-weight:700;color:var(--text-dim);">63% das vagas preenchidas...</div>
+                  <div style="height:100px;background:linear-gradient(135deg,var(--bg-elev-3),#000);display:flex;align-items:center;justify-content:center;color:var(--yellow);font-family:var(--font-display);font-size:12px;">AULA AO VIVO</div>
+                  <div style="padding:16px;">
+                    <div id="loginPreviewTitle" style="font-weight:700;font-size:13px;margin-bottom:10px;">Aula 06 - Dimensionamento Elétrico</div>
+                    <div id="loginPreview"></div>
+                    <button class="btn btn-primary" id="loginPreviewBtn" style="width:100%;justify-content:center;margin-top:6px;">Entrar na Aula</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- STEP 4 — VÍDEO -->
+          <div class="wizard-panel" data-step="3">
+            <div style="display:grid;grid-template-columns:1fr 300px;gap:26px;">
+              <div>
+                <label style="display:block;font-size:12.5px;font-weight:600;color:var(--text-dim);margin-bottom:10px;">Escolha aqui o vídeo do seu webinar</label>
+                <div class="video-pick-grid" id="videoPickGrid"></div>
+                <button class="btn btn-ghost" onclick="App.mockUpload()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4M8 8l4-4 4 4"/><path d="M4 16v3a2 2 0 002 2h12a2 2 0 002-2v-3"/></svg>
+                  Enviar novo vídeo
+                </button>
+                <div class="card" style="margin-top:20px;">
+                  <div class="toggle-row"><div><div class="t-title">Definir como auto play</div></div><label class="toggle"><input type="checkbox"><span class="track"><span class="thumb"></span></span></label></div>
+                  <div class="toggle-row"><div><div class="t-title">Habilitar fullscreen</div></div><label class="toggle"><input type="checkbox"><span class="track"><span class="thumb"></span></span></label></div>
+                  <div class="toggle-row"><div><div class="t-title">Ocultar barra de progresso do player</div><div class="t-sub">Reforça a sensação de transmissão ao vivo</div></div><label class="toggle"><input type="checkbox" checked><span class="track"><span class="thumb"></span></span></label></div>
+                  <div class="toggle-row"><div><div class="t-title">Bloquear avanço do vídeo</div></div><label class="toggle"><input type="checkbox" checked><span class="track"><span class="thumb"></span></span></label></div>
+                </div>
+              </div>
+              <div>
+                <label style="display:block;font-size:11px;color:var(--text-faint);margin-bottom:10px;">PRÉVIA DA SALA</label>
+                <div class="card" style="padding:0;overflow:hidden;">
+                  <div style="aspect-ratio:16/10;background:radial-gradient(circle at 50% 32%,#3c3c3a,#0a0a0a 72%);display:flex;flex-direction:column;
+                    align-items:center;justify-content:center;gap:10px;color:#fff;text-align:center;padding:14px;">
+                    <div style="width:44px;height:44px;border-radius:50%;border:2px solid #fff;display:flex;align-items:center;justify-content:center;">
+                      <svg width="15" height="15" viewBox="0 0 24 24"><path fill="#fff" d="M9 7l9 5-9 5V7z"/></svg>
+                    </div>
+                    <div style="font-family:var(--font-display);font-size:10.5px;">SUA AULA JÁ COMEÇOU<br><span style="font-size:9px;opacity:.8;">CLIQUE PARA ASSISTIR</span></div>
+                  </div>
+                  <div class="pub-tabs" style="border-top:1px solid var(--border-soft);"><button class="pub-tab active">Chat</button><button class="pub-tab">Suporte</button></div>
+                  <div style="padding:12px;font-size:11px;max-height:140px;overflow-y:auto;">
+                    <div class="pub-chat-msg"><span class="name">Fernanda:</span>Tô assistindo aqui sim</div>
+                    <div class="pub-chat-msg"><span class="name">Felipe:</span>Acompanhando pelo celular</div>
+                    <div class="pub-chat-msg"><span class="name">Pedro:</span>Isso muda muita coisa</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- STEP 5 — OFERTA -->
+          <div class="wizard-panel" data-step="4">
+            <div style="display:grid;grid-template-columns:1fr 300px;gap:26px;">
+              <div>
+                <div class="field-row">
+                  <div class="field"><label>Nome da oferta</label><input class="input" id="w_produto" value="Comunidade FERA" oninput="App.wz.produto=this.value;App.renderOfertaPreview()" style="width:100%;"></div>
+                  <div class="field"><label>Título da oferta</label><input class="input" id="w_ofertaTitulo" value="Comunidade FERA" oninput="App.renderOfertaPreview()" style="width:100%;"></div>
+                </div>
+                <div class="field-row">
+                  <div class="field"><label>Preço original</label><input class="input" id="w_precoOriginal" value="R$ 2.351,00" oninput="App.renderOfertaPreview()" style="width:100%;"></div>
+                  <div class="field"><label>Preço da oferta</label><input class="input" id="w_preco" value="R$ 397,00" oninput="App.wz.preco=this.value;App.renderOfertaPreview()" style="width:100%;"></div>
+                </div>
+                <div class="field-row">
+                  <div class="field" style="flex:2;"><label>Texto do botão</label><input class="input" id="w_ofertaBotao" value="inscreva-se aqui" oninput="App.renderOfertaPreview()" style="width:100%;"></div>
+                  <div class="field"><label>Tempo do temporizador (h/m/s)</label>
+                    <div class="time-group"><input class="input" value="00"><input class="input" value="05"><input class="input" value="00"></div>
+                  </div>
+                </div>
+                <label style="display:block;font-size:12.5px;font-weight:600;color:var(--text-dim);margin-bottom:10px;">Layout do temporizador</label>
+                <div class="grid-3" style="margin-bottom:20px;">
+                  <div class="type-card sel" onclick="App.selTimerLayout(this)"><div class="t-name" style="text-align:center;font-family:var(--font-mono);font-size:16px;">05:00</div><div class="t-desc" style="text-align:center;">Clássico</div></div>
+                  <div class="type-card" onclick="App.selTimerLayout(this)"><div class="t-name" style="text-align:center;font-family:var(--font-mono);font-size:16px;">05 : 00</div><div class="t-desc" style="text-align:center;">Rótulos</div></div>
+                  <div class="type-card" onclick="App.selTimerLayout(this)"><div class="t-name" style="text-align:center;"><span class="badge badge-red">🔥 05:00</span></div><div class="t-desc" style="text-align:center;">Urgente</div></div>
+                </div>
+                <div class="field-row">
+                  <div class="field"><label>Imagem da oferta (desktop)</label><div class="dropzone">imageBanner.png<br>0 Bytes</div></div>
+                  <div class="field"><label>Imagem da oferta (mobile)</label><div class="dropzone">imageBannerMobile.png<br>0 Bytes</div></div>
+                </div>
+                <div class="field-row">
+                  <div class="field"><label>Início da pitch (h/m/s)</label><div class="time-group"><input class="input" value="01"><input class="input" value="40"><input class="input" value="00"></div></div>
+                  <div class="field"><label>Início da oferta</label><div class="time-group"><input class="input" value="02"><input class="input" value="04"><input class="input" value="05"></div></div>
+                  <div class="field"><label>Fim da oferta</label><div class="time-group"><input class="input" value="00"><input class="input" value="00"><input class="input" value="00"></div></div>
+                </div>
+                <div class="field"><label>Link da oferta</label><input class="input" placeholder="https://suaempresa.webnarpro.com.br/checkout-comunidade-fera-397/" style="width:100%;"></div>
+                <div class="card">
+                  <div class="toggle-row"><div><div class="t-title">Repassar UTM's pro link da oferta</div></div><label class="toggle"><input type="checkbox"><span class="track"><span class="thumb"></span></span></label></div>
+                  <div class="toggle-row"><div><div class="t-title">Desabilitar oferta</div></div><label class="toggle"><input type="checkbox"><span class="track"><span class="thumb"></span></span></label></div>
+                  <div class="toggle-row"><div><div class="t-title">Habilitar sorteio</div></div><label class="toggle"><input type="checkbox"><span class="track"><span class="thumb"></span></span></label></div>
+                </div>
+              </div>
+              <div>
+                <label style="display:block;font-size:11px;color:var(--text-faint);margin-bottom:10px;">PRÉVIA DA OFERTA</label>
+                <div class="card" style="padding:0;overflow:hidden;">
+                  <div class="pub-tabs"><button class="pub-tab">Chat</button><button class="pub-tab">Suporte</button><button class="pub-tab active">Oferta</button></div>
+                  <div style="padding:14px;">
+                    <div style="height:110px;border-radius:6px;background:linear-gradient(135deg,var(--bg-elev-3),#000);margin-bottom:10px;display:flex;align-items:center;justify-content:center;color:var(--yellow);font-family:var(--font-display);font-size:12px;" id="ofertaPreviewImg">F.E.R.A</div>
+                    <div style="font-size:11px;color:var(--text-faint);text-decoration:line-through;" id="ofertaPreviewOriginal">De R$ 2.351,00</div>
+                    <div style="font-size:17px;font-weight:800;color:var(--text);" id="ofertaPreviewPreco">Por R$ 397,00</div>
+                    <div style="font-size:10.5px;color:var(--text-faint);margin-bottom:10px;">Por tempo limitado — Oferta só hoje!</div>
+                    <button class="btn btn-primary" style="width:100%;justify-content:center;" id="ofertaPreviewBtn">inscreva-se aqui</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- STEP 6 — CHAT -->
+          <div class="wizard-panel" data-step="5">
+            <div class="locked-banner" style="margin-bottom:18px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>
+              <div><b>Automação Inteligente de Chat</b> — gerar as mensagens automaticamente com IA ainda não está ativo nesta versão. Por enquanto, monte o chat manualmente abaixo.</div>
+            </div>
+            <p style="font-size:12.5px;color:var(--text-faint);margin-top:0;">Escreva mensagens que vão aparecer no chat no exato segundo do vídeo, simulando outras pessoas comentando ao vivo.</p>
+            <div class="chat-timeline"><span>00:00</span><span>duração: <span id="chatDuration">150</span> min</span><span>fim</span></div>
+            <div class="chat-msg-form">
+              <div class="field time"><label>Tempo (mm:ss)</label><input class="input" id="chatTime" placeholder="02:15" style="width:100%;"></div>
+              <div class="field"><label>Nome</label><input class="input" id="chatName" placeholder="Maria" style="width:100%;"></div>
+              <div class="field" style="flex:2;"><label>Mensagem</label><input class="input" id="chatMsg" placeholder="Consegui chegar a tempo! 🙌" style="width:100%;"></div>
+              <button class="btn btn-primary" style="height:37px;" onclick="App.addChatMsg()">Adicionar</button>
+            </div>
+            <div class="chat-list" id="chatList"></div>
+            <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;">
+              <button class="btn btn-sm" onclick="App.toast('Mensagens exportadas em XLSX')">⬇️ Exportar mensagens em XLSX</button>
+              <button class="btn btn-sm btn-primary" onclick="App.openPublic(App.wz.nome)">🚀 Testar no player</button>
+            </div>
+          </div>
+
+          <!-- STEP 7 — VENDAS -->
+          <div class="wizard-panel" data-step="6">
+            <div style="display:grid;grid-template-columns:1fr 300px;gap:26px;">
+              <div>
+                <div class="field"><label>Título da notificação de compra</label><input class="input" placeholder="Venda confirmada!" style="width:100%;"><div class="hint">Texto exibido no topo da notificação. Deixe vazio para usar o padrão.</div></div>
+                <div class="opt-toggle" onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('open')">
+                  Crie suas vendas via arquivo
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                </div>
+                <div class="opt-body">
+                  <button class="btn btn-sm" style="margin:10px 0;" onclick="App.toast('Planilha modelo baixada')">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4M8 8l4-4 4 4"/><path d="M4 16v3a2 2 0 002 2h12a2 2 0 002-2v-3"/></svg>
+                    Baixar planilha modelo
+                  </button>
+                  <div class="dropzone">Upload de arquivo .XLSX<br>Sem nenhum arquivo. Arraste e solte aqui o seu modelo</div>
+                  <button class="btn btn-sm" onclick="App.toast('Arquivo enviado')">Enviar arquivo</button>
+                </div>
+                <div class="opt-toggle open" style="margin-top:18px;" onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('open')">
+                  Crie sua venda individual
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                </div>
+                <div class="opt-body open">
+                  <div class="chat-msg-form">
+                    <div class="field time"><label>Tempo (mm:ss)</label><input class="input" id="saleTime" placeholder="02:05" style="width:100%;"></div>
+                    <div class="field" style="flex:2;"><label>Nome</label><input class="input" id="saleName" placeholder="Marcio Viana" style="width:100%;"></div>
+                    <button class="btn btn-primary" style="height:37px;" onclick="App.addSale()">Adicionar</button>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <label style="display:block;font-size:11px;color:var(--text-faint);margin-bottom:10px;">PRÉVIA DO CHAT</label>
+                <div id="salesList"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- STEP 8 — AUDIÊNCIA -->
+          <div class="wizard-panel" data-step="7">
+            <label style="display:block;font-size:12.5px;font-weight:600;color:var(--text-dim);margin-bottom:14px;">Escolha seu tipo de audiência</label>
+            <div class="radio-card sel" onclick="App.selAudiencia(this)"><div class="radio-dot"></div><div><div class="r-title">Não exibir audiência</div><div class="r-desc">Nenhum contador de espectadores aparece na sala.</div></div></div>
+            <div class="radio-card" onclick="App.selAudiencia(this)"><div class="radio-dot"></div><div><div class="r-title">Audiência fixa</div><div class="r-desc">Mostra sempre o mesmo número de espectadores "online".</div></div></div>
+            <div class="radio-card" onclick="App.selAudiencia(this)"><div class="radio-dot"></div><div><div class="r-title">Audiência dinâmica</div><div class="r-desc">O número simula crescimento e queda naturais ao longo da aula.</div></div></div>
+          </div>
+
+          <!-- STEP 9 — INTEGRAÇÕES -->
+          <div class="wizard-panel" data-step="8">
+            <div class="locked-banner" style="margin-bottom:18px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>
+              <div>Integrações por webinar ficam desativadas por enquanto — quando ativarmos, você vai poder escolher aqui quais integrações recebem os leads deste webinar específico.</div>
+            </div>
+            <div class="grid-3" style="opacity:.4;pointer-events:none;filter:grayscale(.4);">
+              <div class="integ-card"><div class="integ-ico">AC</div><span>Active Campaign</span></div>
+              <div class="integ-card"><div class="integ-ico">WA</div><span>WhatsApp</span></div>
+              <div class="integ-card"><div class="integ-ico">KE</div><span>Keap</span></div>
+              <div class="integ-card"><div class="integ-ico">WH</div><span>WebHook</span></div>
+              <div class="integ-card"><div class="integ-ico">GT</div><span>Google Tag Manager</span></div>
+              <div class="integ-card"><div class="integ-ico">FB</div><span>Facebook Pixel</span></div>
+            </div>
+          </div>
+
+          <!-- STEP 10 — CHATBOT -->
+          <div class="wizard-panel" data-step="9">
+            <p style="font-size:12px;color:var(--text-faint);margin-top:0;">Cadastre novas palavras-chave para automatizar o atendimento. Quando um espectador enviar essa palavra no chat, o chatbot responde automaticamente.</p>
+            <div class="card" style="margin-bottom:18px;">
+              <div class="keyword-form">
+                <div class="field" style="margin-bottom:0;"><label>Remetente</label><input class="input" id="kw_remetente" placeholder="Suporte Prof. Emerson" style="width:100%;"></div>
+                <div class="field" style="margin-bottom:0;"><label>Palavra-chave</label><input class="input" id="kw_palavra" placeholder="boa noite" style="width:100%;"></div>
+                <div class="field" style="margin-bottom:0;"><label>Resposta automática</label><input class="input" id="kw_resposta" placeholder="Boa noite #nome" style="width:100%;"></div>
+                <div class="field" style="margin-bottom:0;"><label>Delay (segundos)</label><input class="input" id="kw_delay" type="number" placeholder="8" style="width:100%;"></div>
+                <button class="btn btn-primary" onclick="App.addKeyword()">Inserir</button>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Remetente</th><th>Palavra-chave</th><th>Resposta automática</th><th>Delay</th><th style="text-align:right;">Ações</th></tr></thead>
+                <tbody id="keywordTbody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- STEP 11 — AGENTE DE IA -->
+          <div class="wizard-panel" data-step="10">
+            <div class="locked-banner">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>
+              <div>O Agente de IA para atendimento automático no chat ainda não está ativo nesta versão — ele vai poder responder dúvidas dos espectadores sozinho, usando o tom de voz e as instruções que você configurar aqui.</div>
+            </div>
+            <div class="card" style="margin-top:18px;opacity:.4;pointer-events:none;filter:grayscale(.4);">
+              <div class="toggle-row"><div><div class="t-title">Ativar uso do Agente de IA</div></div><label class="toggle"><input type="checkbox" disabled><span class="track"><span class="thumb"></span></span></label></div>
+              <div class="field" style="margin-top:14px;"><label>Nome do Agente</label><input class="input" placeholder="Assistente FERA - Aula Ao Vivo" style="width:100%;"></div>
+              <div class="field"><label>Instrução para IA</label><textarea class="input" style="width:100%;min-height:70px;" placeholder="Ex: Seja cordial, profissional e prestativo..."></textarea></div>
+            </div>
+          </div>
+
+          <!-- STEP 12 — PRONTO -->
+          <div class="wizard-panel" data-step="11">
+            <div class="card" style="display:flex;align-items:center;gap:20px;justify-content:space-between;flex-wrap:wrap;background:var(--yellow-soft2);border-color:var(--yellow-dim);">
+              <div>
+                <div style="font-weight:800;font-size:15px;margin-bottom:4px;">⚡ Seu webinar está pronto!</div>
+                <div style="font-size:12.5px;color:var(--text-dim);">A partir de agora, ele trabalha por você — pegue os links abaixo e leve sua aula pro mundo.</div>
+              </div>
+              <div style="font-size:36px;">🚀</div>
+            </div>
+
+            <div class="field" style="margin-top:20px;">
+              <label>Sala Principal</label>
+              <div class="copy-row"><input class="input" id="linkPrincipal" readonly><button class="btn btn-sm" onclick="App.copyLink('linkPrincipal')"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 00-2-2H6a2 2 0 00-2 2v8a2 2 0 002 2h2"/></svg></button></div>
+              <div class="hint">Este link será utilizado para o acesso dos participantes à sala.</div>
+            </div>
+            <div class="field">
+              <label>Sala com Magic Link</label>
+              <div class="copy-row"><input class="input" id="linkMagic" readonly><button class="btn btn-sm" onclick="App.copyLink('linkMagic')"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 00-2-2H6a2 2 0 00-2 2v8a2 2 0 002 2h2"/></svg></button></div>
+              <div class="hint">Inclui nome, e-mail e telefone na URL para pré-preencher o formulário.</div>
+            </div>
+            <div class="field">
+              <label>Sala com Replay</label>
+              <div class="copy-row"><input class="input" id="linkReplay" readonly><button class="btn btn-sm" onclick="App.copyLink('linkReplay')"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 00-2-2H6a2 2 0 00-2 2v8a2 2 0 002 2h2"/></svg></button></div>
+              <div class="hint">Após o evento, este link permite assistir à gravação.</div>
+            </div>
+
+            <div class="card" style="margin-top:20px;">
+              <b style="font-size:13px;display:block;margin-bottom:12px;">Resumo da configuração</b>
+              <div class="summary-list" id="summaryList"></div>
+            </div>
+
+            <button class="btn btn-ghost btn-sm" style="margin-top:16px;" onclick="App.openPublic(App.wz.nome)">👁️ Pré-visualizar como aluno</button>
+          </div>
+
+        </div>
+
+        <div class="wizard-foot">
+          <button class="btn" id="wzBack" onclick="App.wzGo(App.wz.step-1)">Voltar</button>
+          <button class="btn btn-primary" id="wzNext" onclick="App.wzGo(App.wz.step+1)">Continuar</button>
+        </div>
+      </section>
+
+      <!-- ============ VÍDEOS ============ -->
+      <section class="view" id="view-videos">
+        <div class="page-head">
+          <div>
+            <h1 class="page-title">Vídeos</h1>
+            <p class="page-sub">Sua biblioteca de aulas gravadas.</p>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:22px;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--yellow)" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 14l4-4 3 3 5-6 4 5"/></svg>
+            <b style="font-size:13px;">Seu consumo</b>
+          </div>
+          <div class="grid-2">
+            <div>
+              <div class="progress-label"><span>Armazenamento de Vídeos</span></div>
+              <div class="progress"><div style="width:28.16%;"></div></div>
+              <div class="progress-label"><span>7.04 GB de 25 GB usados</span><span>28.16%</span></div>
+            </div>
+            <div>
+              <div class="progress-label"><span>Consumo de Banda de Vídeos</span></div>
+              <div class="progress over"><div style="width:100%;"></div></div>
+              <div class="progress-label"><span>970.39 GB de 300 GB usados</span><span style="color:var(--red);">323.46%</span></div>
+            </div>
+          </div>
+          <div class="hint" style="margin-top:12px;">Está acima do plano? Veja o <a href="#" onclick="App.showView('simulador')" style="color:var(--yellow);">simulador de custo</a> para comparar com uma arquitetura própria.</div>
+        </div>
+
+        <div class="toolbar">
+          <b style="font-size:13.5px;flex:1;">Sua biblioteca de vídeos</b>
+          <div class="input-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="10" cy="10" r="6"/><line x1="15" y1="15" x2="20" y2="20"/></svg><input placeholder="Buscar pelo nome"></div>
+          <button class="btn btn-primary" onclick="App.mockUploadLibrary()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Enviar novo vídeo
+          </button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Vídeo</th><th>Publicado em</th><th>Tamanho</th><th style="text-align:right;">Ação</th></tr></thead>
+            <tbody id="videosTbody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ============ SALAS DE ATENDIMENTO ============ -->
+      <section class="view" id="view-salas">
+        <div class="page-head">
+          <div>
+            <h1 class="page-title">Salas de Atendimento</h1>
+            <p class="page-sub">Converse com quem está assistindo, em tempo real.</p>
+          </div>
+        </div>
+        <div class="toolbar">
+          <div class="input-search" style="flex:1;max-width:320px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="10" cy="10" r="6"/><line x1="15" y1="15" x2="20" y2="20"/></svg><input placeholder="Buscar pelo nome do webinar"></div>
+          <select class="select"><option>Em andamento</option><option>Agendado</option><option>Finalizado</option></select>
+          <select class="select"><option>Todos os tipos</option></select>
+        </div>
+        <div class="grid-3" id="salasGrid"></div>
+      </section>
+
+      <!-- ============ HISTÓRICO ============ -->
+      <section class="view" id="view-historico">
+        <div class="page-head">
+          <div>
+            <h1 class="page-title">Histórico de ações</h1>
+            <p class="page-sub">Toda alteração feita no painel, por qualquer usuário.</p>
+          </div>
+        </div>
+        <div class="toolbar">
+          <div id="histFilters" style="display:flex;gap:8px;">
+            <button class="btn btn-sm btn-primary" data-f="Todos" onclick="App.filterHist(this,'Todos')">Todos</button>
+            <button class="btn btn-sm" data-f="Criou" onclick="App.filterHist(this,'Criou')">Criou</button>
+            <button class="btn btn-sm" data-f="Editou" onclick="App.filterHist(this,'Editou')">Editou</button>
+            <button class="btn btn-sm" data-f="Deletou" onclick="App.filterHist(this,'Deletou')">Deletou</button>
+          </div>
+          <div class="input-search" style="flex:1;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="10" cy="10" r="6"/><line x1="15" y1="15" x2="20" y2="20"/></svg><input placeholder="Busque por usuário, webinar ou descrição"></div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Usuário</th><th>Data</th><th>Webinar</th><th>Ação</th><th>Descrição</th></tr></thead>
+            <tbody id="histTbody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ============ USUÁRIOS ============ -->
+      <section class="view" id="view-usuarios">
+        <div class="page-head">
+          <div>
+            <h1 class="page-title">Usuários</h1>
+            <p class="page-sub">Quem tem acesso ao painel do WebnarPRO.</p>
+          </div>
+          <button class="btn btn-primary" onclick="App.openNewUser()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Criar novo usuário
+          </button>
+        </div>
+        <div class="card" id="newUserForm" style="display:none;margin-bottom:18px;">
+          <div class="field-row">
+            <div class="field"><label>Nome</label><input class="input" id="nu_nome" style="width:100%;"></div>
+            <div class="field"><label>E-mail</label><input class="input" id="nu_email" style="width:100%;"></div>
+            <div class="field"><label>Tipo</label><select class="select" id="nu_tipo" style="width:100%;"><option>Administrador</option><option>Atendente</option></select></div>
+          </div>
+          <div style="display:flex;gap:10px;">
+            <button class="btn btn-primary" onclick="App.saveNewUser()">Salvar usuário</button>
+            <button class="btn" onclick="App.closeNewUser()">Cancelar</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Nome do usuário</th><th>E-mail</th><th>Tipo</th><th style="text-align:right;">Ação</th></tr></thead>
+            <tbody id="usersTbody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ============ CONFIGURAÇÕES ============ -->
+      <section class="view" id="view-config">
+        <div class="page-head">
+          <div>
+            <h1 class="page-title">Configurações</h1>
+            <p class="page-sub">Domínio, API e integrações da sua conta.</p>
+          </div>
+        </div>
+
+        <div class="card">
+          <b style="font-size:13px;display:block;margin-bottom:14px;">Seu subdomínio</b>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <input class="input" value="suaempresa" id="subdomInput" style="flex:1;min-width:180px;">
+            <span style="color:var(--text-faint);font-size:13px;">.webnarpro.com.br</span>
+            <button class="btn btn-primary" onclick="App.toast('Subdomínio salvo!')">Salvar</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <b style="font-size:13px;display:block;margin-bottom:14px;">Suas integrações</b>
+          <div id="configIntegGrid"></div>
+        </div>
+
+      </section>
+
+      <!-- ============ MEU PLANO ============ -->
+      <section class="view" id="view-plano">
+        <div class="page-head">
+          <div>
+            <h1 class="page-title">Meu plano</h1>
+            <p class="page-sub">Olá, Emerson — acompanhe seu consumo e faturas.</p>
+          </div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:16px;">
+            <div>
+              <div style="font-size:11px;color:var(--text-faint);margin-bottom:4px;">PLANO ATUAL</div>
+              <div style="font-family:var(--font-display);font-size:20px;color:var(--yellow);" id="planName">Growth</div>
+              <div style="font-size:22px;font-family:var(--font-mono);margin-top:4px;" id="planPrice">R$ 297,00 <span style="font-size:12px;color:var(--text-faint);">/mês</span></div>
+              <button class="btn btn-primary btn-sm" style="margin-top:12px;" onclick="App.cyclePlan()">Fazer Upgrade ⚡</button>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-size:11px;color:var(--text-faint);margin-bottom:6px;">DISPONÍVEL NO PLANO</div>
+              <div style="font-size:13px;line-height:1.9;" id="planLimits"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <b style="font-size:13px;display:block;margin-bottom:14px;">Seu consumo</b>
+          <div class="grid-3">
+            <div>
+              <div class="progress-label"><span>Armazenamento</span></div>
+              <div class="progress"><div style="width:28.16%;"></div></div>
+              <div class="progress-label"><span>7.04 / 25 GB</span><span>28%</span></div>
+            </div>
+            <div>
+              <div class="progress-label"><span>Banda</span></div>
+              <div class="progress over"><div style="width:100%;"></div></div>
+              <div class="progress-label"><span>970.39 / 300 GB</span><span style="color:var(--red);">323%</span></div>
+            </div>
+            <div>
+              <div class="progress-label"><span>Tokens de IA</span></div>
+              <div class="progress"><div style="width:0.25%;"></div></div>
+              <div class="progress-label"><span>5 / 2000</span><span>0.25%</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <b style="font-size:13px;display:block;margin-bottom:14px;">Histórico de uso de token</b>
+          <div class="table-wrap">
+            <table><thead><tr><th>Produto</th><th>Tokens</th><th>Criado em</th></tr></thead>
+            <tbody>
+              <tr><td>Uso de token do atendimento</td><td>1</td><td>13/09/2026 19:30</td></tr>
+              <tr><td>Uso de token do atendimento</td><td>1</td><td>02/09/2026 19:12</td></tr>
+              <tr><td>Uso de token do atendimento</td><td>1</td><td>01/09/2026 18:56</td></tr>
+            </tbody></table>
+          </div>
+        </div>
+
+        <div class="card">
+          <b style="font-size:13px;display:block;margin-bottom:14px;">Histórico de pagamentos</b>
+          <div class="empty-state">Sem resultados por aqui ainda.</div>
+        </div>
+      </section>
+
+      <!-- ============ SIMULADOR DE CUSTO ============ -->
+      <section class="view" id="view-simulador">
+        <div class="page-head">
+          <div>
+            <h1 class="page-title">Simulador de Custo</h1>
+            <p class="page-sub">Estime o custo real de infraestrutura antes de escalar seus webinars.</p>
+          </div>
+        </div>
+
+        <div class="sim-grid">
+          <div class="card">
+            <div class="sim-slider">
+              <div class="sl-head"><span>Webinars por mês</span><span class="sl-val" id="simWebinarsVal">8</span></div>
+              <input type="range" id="simWebinars" min="1" max="30" value="8" oninput="App.calcSim()">
+            </div>
+            <div class="sim-slider">
+              <div class="sl-head"><span>Espectadores por sessão</span><span class="sl-val" id="simViewersVal">500</span></div>
+              <input type="range" id="simViewers" min="50" max="5000" step="50" value="500" oninput="App.calcSim()">
+            </div>
+            <div class="sim-slider">
+              <div class="sl-head"><span>Duração (minutos)</span><span class="sl-val" id="simDurationVal">150</span></div>
+              <input type="range" id="simDuration" min="15" max="240" step="5" value="150" oninput="App.calcSim()">
+            </div>
+            <div class="field" style="margin-bottom:6px;">
+              <label>Qualidade do vídeo</label>
+              <select class="select" id="simQuality" style="width:100%;" onchange="App.calcSim()">
+                <option value="480">480p — leve, ideal p/ aula falada</option>
+                <option value="720" selected>720p — recomendado</option>
+                <option value="1080">1080p — alta definição</option>
+              </select>
+            </div>
+            <div class="hint">Comparação com plano atual do Hotwebinar (Growth, R$ 397/mês).</div>
+          </div>
+
+          <div>
+            <div class="provider-cards" id="providerCards"></div>
+            <div class="card">
+              <div style="height:200px;"><canvas id="simChart"></canvas></div>
+            </div>
+            <div class="callout" id="simCallout"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ AJUDA ============ -->
+      <section class="view" id="view-ajuda">
+        <div class="page-head">
+          <div>
+            <h1 class="page-title">Ajuda</h1>
+            <p class="page-sub">Perguntas frequentes sobre o WebnarPRO.</p>
+          </div>
+        </div>
+        <div class="card">
+          <b style="font-size:13px;">Como o webinar "ao vivo" funciona sem travar com muita gente?</b>
+          <p style="font-size:12.5px;color:var(--text-dim);margin-top:8px;">O vídeo é entregue por uma CDN especializada — o mesmo mecanismo que serve vídeos do YouTube — então cada espectador baixa o arquivo de forma independente. O chat simulado roda inteiramente no navegador de cada pessoa, sem gerar carga no seu servidor. Veja o <a href="#" onclick="App.showView('simulador')" style="color:var(--yellow);">Simulador de Custo</a> para estimar o valor real.</p>
+        </div>
+        <div class="card">
+          <b style="font-size:13px;">Este é um protótipo navegável — nada aqui é salvo em um banco de dados real.</b>
+          <p style="font-size:12.5px;color:var(--text-dim);margin-top:8px;">Toda interação (criar webinar, adicionar usuário, mensagens de chat) fica guardada apenas no seu navegador, para você simular o fluxo completo antes de decidirmos construir a versão real com backend.</p>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<!-- ===================== PÁGINA PÚBLICA — visão do aluno ===================== -->
+<div class="public-page" id="publicPage">
+  <div class="pub-topbar">
+    <button class="btn btn-sm" onclick="App.closePublic()">← Voltar ao painel</button>
+  </div>
+  <div class="pub-wrap">
+    <div class="pub-main">
+      <h1 class="pub-title" id="pubTitle">Aula 06 (ao vivo)</h1>
+      <div class="pub-video" id="pubVideo"></div>
+      <div class="pub-badges">
+        <span>🔒 Site seguro</span><span>🛡️ Privacidade protegida</span>
+      </div>
+    </div>
+    <div class="pub-side">
+      <div class="pub-tabs">
+        <button class="pub-tab active" id="tabChat" onclick="App.pubTab('chat')">Chat</button>
+        <button class="pub-tab" id="tabSuporte" onclick="App.pubTab('suporte')">Suporte</button>
+      </div>
+      <div class="pub-msgs" id="pubMsgsChat"></div>
+      <div class="pub-msgs" id="pubMsgsSuporte" style="display:none;"></div>
+      <div class="pub-input-row">
+        <input class="input" id="pubInput" placeholder="Digite algo..." style="flex:1;" onkeydown="if(event.key==='Enter')App.pubSend()">
+        <button class="btn btn-primary btn-sm" onclick="App.pubSend()">Enviar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Sala de atendimento -->
+<div class="modal-backdrop" id="attendModal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3 id="attendTitle">Sala de Atendimento</h3>
+      <button class="icon-btn" onclick="App.closeAttend()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div class="attend-list" id="attendList"></div>
+      <div class="attend-chat">
+        <div class="attend-msgs" id="attendMsgs"></div>
+        <div class="attend-input-row">
+          <input class="input" id="attendInput" placeholder="Digite sua resposta...">
+          <button class="btn btn-primary btn-sm" onclick="App.sendAttendReply()">Enviar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="js/app.js"></script>
+</body>
+</html>

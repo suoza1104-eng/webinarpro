@@ -1,0 +1,7 @@
+node_modules/
+.env
+*.log
+.DS_Store
+Thumbs.db
+webnarpro-pacote.zip
+webnarpro-pacote/
