@@ -149,6 +149,7 @@ const Sala = {
   },
 
   COUNTDOWN_SECONDS: 8,
+  EDGE_TOLERANCE: 1.5,
 
   showCover(){
     document.getElementById('pubVideo').innerHTML = `
@@ -347,7 +348,7 @@ const Sala = {
         if(el.currentTime > max + 0.5) el.currentTime = max;
       });
       el.addEventListener('ratechange', ()=>{
-        if(el.playbackRate !== 1 && el.currentTime >= this.getMaxSeekable() - 0.4) el.playbackRate = 1;
+        if(el.playbackRate !== 1 && el.currentTime >= this.getMaxSeekable() - this.EDGE_TOLERANCE) el.playbackRate = 1;
       });
       this.setupYoutubeControls(el, cfg);
     } else if(cfg.bloquearAvancoVideo){
@@ -445,13 +446,15 @@ const Sala = {
 
     // A extremidade direita da barra é sempre o "agora" de verdade (liveEdge) — nunca para,
     // mesmo pausado. A bolinha (currentTime) fica pra trás se a pessoa pausar ou ficar travada
-    // no ponto de bloqueio, exatamente como uma live de verdade.
-    const playedPct = liveEdge > 0 ? Math.min(100, (el.currentTime / liveEdge) * 100) : 100;
+    // no ponto de bloqueio, exatamente como uma live de verdade. Uma margem (EDGE_TOLERANCE)
+    // evita que o pequeno atraso de buffer logo no início pareça "atrasado".
+    const gap = liveEdge - el.currentTime;
+    const playedPct = gap <= this.EDGE_TOLERANCE ? 100 : Math.min(100, (el.currentTime / liveEdge) * 100);
     playedEl.style.width = playedPct + '%';
     thumbEl.style.left = playedPct + '%';
     timeEl.textContent = this.formatTime(el.currentTime) + ' / ' + this.formatTime(liveEdge);
 
-    const atEdge = maxSeekable <= 0 || el.currentTime >= maxSeekable - 0.4;
+    const atEdge = el.currentTime >= maxSeekable - this.EDGE_TOLERANCE;
     liveBtn.classList.toggle('at-edge', atEdge);
     if(atEdge && el.playbackRate !== 1) el.playbackRate = 1;
 
@@ -472,7 +475,7 @@ const Sala = {
 
   ytSetSpeed(s){
     if(!this.video) return;
-    if(s > 1 && this.video.currentTime >= this.getMaxSeekable() - 0.4) return;
+    if(s > 1 && this.video.currentTime >= this.getMaxSeekable() - this.EDGE_TOLERANCE) return;
     this.video.playbackRate = s;
     document.getElementById('ytSpeedMenu').classList.remove('open');
   },
