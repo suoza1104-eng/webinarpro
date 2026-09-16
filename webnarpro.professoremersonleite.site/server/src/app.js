@@ -17,7 +17,17 @@ const app = express();
 
 app.set('trust proxy', 1);
 
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+      'script-src': ["'self'", 'https://cdnjs.cloudflare.com', 'https://cdn.jsdelivr.net'],
+      'connect-src': ["'self'", 'https://video.bunnycdn.com', 'https://*.b-cdn.net'],
+      'media-src': ["'self'", 'https://*.b-cdn.net', 'blob:'],
+      'img-src': ["'self'", 'data:', 'https://*.b-cdn.net'],
+    },
+  },
+}));
 app.use(cors({
   origin: (process.env.CORS_ORIGIN || '').split(',').filter(Boolean),
   credentials: true,
@@ -45,6 +55,10 @@ app.use('/api/videos', videosRouter);
 app.use('/api/public', publicRouter);
 
 app.use(express.static(path.join(__dirname, '..', '..', 'public')));
+
+app.get(['/:slug', '/:slug/replay'], (req, res) => {
+  res.sendFile(path.join(__dirname, '..', '..', 'public', 'sala.html'));
+});
 
 app.use((err, req, res, next) => {
   req.log?.error(err);
