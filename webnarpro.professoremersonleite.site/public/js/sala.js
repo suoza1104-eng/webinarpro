@@ -219,14 +219,29 @@ const Sala = {
     if(el.canPlayType('application/vnd.apple.mpegurl')){
       el.src = cfg.url;
     } else if(window.Hls && Hls.isSupported()){
-      const hls = new Hls();
-      hls.loadSource(cfg.url);
-      hls.attachMedia(el);
+      this.hls = new Hls();
+      this.hls.loadSource(cfg.url);
+      this.hls.attachMedia(el);
     } else {
       el.src = cfg.url;
     }
 
-    el.onclick = ()=>{ if(el.paused) el.play().catch(()=>{}); else el.pause(); };
+    this.userPaused = false;
+    el.onclick = ()=>{
+      if(el.paused){ this.userPaused = false; el.play().catch(()=>{}); }
+      else { this.userPaused = true; el.pause(); }
+    };
+    el.onpause = ()=>{ if(!document.hidden) this.userPaused = true; };
+    el.onplay = ()=>{ this.userPaused = false; };
+
+    if(!this._visHandlerBound){
+      this._visHandlerBound = true;
+      document.addEventListener('visibilitychange', ()=>{
+        if(document.visibilityState !== 'visible' || !this.video || this.userPaused) return;
+        if(this.hls) this.hls.startLoad();
+        if(this.video.paused) this.video.play().catch(()=>{});
+      });
+    }
 
     if(cfg.bloquearAvancoVideo){
       el.addEventListener('seeking', ()=>{
