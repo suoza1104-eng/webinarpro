@@ -432,16 +432,17 @@ const Sala = {
     const thumbEl = document.getElementById('ytThumb');
     const timeEl = document.getElementById('ytTime');
     const liveBtn = document.getElementById('ytLiveBtn');
-    if(!playedEl || !unlocked) return;
+    if(!playedEl) return;
 
     // A barra sempre representa [0, unlocked] — a extremidade direita é sempre o "momento atual",
     // igual uma live do YouTube (cresce com o tempo, nunca mostra o que ainda não é permitido ver).
-    const playedPct = Math.min(100, (el.currentTime / unlocked) * 100);
+    // Quando unlocked ainda é 0 (acabou de começar), já nasce "colada" na direita (100%, ao vivo).
+    const playedPct = unlocked > 0 ? Math.min(100, (el.currentTime / unlocked) * 100) : 100;
     playedEl.style.width = playedPct + '%';
     thumbEl.style.left = playedPct + '%';
     timeEl.textContent = this.formatTime(el.currentTime) + ' / ' + this.formatTime(unlocked);
 
-    const atEdge = el.currentTime >= unlocked - 0.4;
+    const atEdge = unlocked <= 0 || el.currentTime >= unlocked - 0.4;
     liveBtn.classList.toggle('at-edge', atEdge);
     if(atEdge && el.playbackRate !== 1) el.playbackRate = 1;
 
