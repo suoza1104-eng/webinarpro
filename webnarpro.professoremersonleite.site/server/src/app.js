@@ -9,6 +9,7 @@ const logger = require('./logger');
 const pool = require('./db');
 const authRouter = require('./routes/auth');
 const webinarsRouter = require('./routes/webinars');
+const videosRouter = require('./routes/videos');
 const publicRouter = require('./routes/public');
 
 const app = express();
@@ -38,6 +39,7 @@ app.get('/api/health', async (req, res) => {
 
 app.use('/api/auth', authRouter);
 app.use('/api/webinars', webinarsRouter);
+app.use('/api/videos', videosRouter);
 app.use('/api/public', publicRouter);
 
 app.use(express.static(path.join(__dirname, '..', '..', 'public')));

@@ -161,4 +161,48 @@ router.post('/:id/publish', async (req, res) => {
   });
 });
 
+// ETAPA 4 — associação do vídeo já enviado à biblioteca
+const videoConfigSchema = z.object({
+  video_id: z.number().int().positive().nullable().optional(),
+  video_autoplay: z.boolean().optional(),
+  video_fullscreen: z.boolean().optional(),
+  ocultar_barra_progresso: z.boolean().optional(),
+  bloquear_avanco_video: z.boolean().optional(),
+});
+
+router.put('/:id/video', async (req, res) => {
+  const parsed = videoConfigSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+  const data = parsed.data;
+
+  if (data.video_id) {
+    const [videoRows] = await pool.query(
+      'SELECT id FROM videos WHERE id = ? AND account_id = ? LIMIT 1',
+      [data.video_id, req.accountId],
+    );
+    if (videoRows.length === 0) return res.status(400).json({ error: 'Vídeo não encontrado nesta conta' });
+  }
+
+  const fieldMap = {
+    video_id: 'video_id',
+    video_autoplay: 'video_autoplay',
+    video_fullscreen: 'video_fullscreen',
+    ocultar_barra_progresso: 'ocultar_barra_progresso',
+    bloquear_avanco_video: 'bloquear_avanco_video',
+  };
+  const fields = Object.keys(data).filter((k) => fieldMap[k]);
+  if (fields.length === 0) return res.status(400).json({ error: 'Nenhum campo para atualizar' });
+
+  const setClause = fields.map((f) => `${fieldMap[f]} = ?`).join(', ');
+  const values = fields.map((f) => (typeof data[f] === 'boolean' ? (data[f] ? 1 : 0) : data[f]));
+
+  const [result] = await pool.query(
+    `UPDATE webinars SET ${setClause} WHERE id = ? AND account_id = ?`,
+    [...values, req.params.id, req.accountId],
+  );
+  if (result.affectedRows === 0) return res.status(404).json({ error: 'Webinar não encontrado' });
+
+  res.json({ ok: true });
+});
+
 module.exports = router;
