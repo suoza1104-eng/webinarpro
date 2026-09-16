@@ -188,21 +188,28 @@ const Sala = {
     return h ? `${h}:${String(m).padStart(2,'0')}:${ss}` : `${mm}:${ss}`;
   },
 
-  getUnlockedTime(currentTimeOverride){
+  // O "agora" de verdade — sempre cresce com o relógio, nunca para (nem se o espectador pausar).
+  // É o que a extremidade direita da barra representa.
+  getLiveEdge(){
     const cfg = this.room.video;
     const duration = cfg.duracaoSegundos || (this.video && this.video.duration) || 0;
     if(this.isReplay) return duration || Infinity;
-
     const elapsed = this.sessionStartedAt
       ? Math.max(0, (Date.now() - this.sessionStartedAt) / 1000 - this.COUNTDOWN_SECONDS)
       : 0;
-    const liveEdge = duration ? Math.min(elapsed, duration) : elapsed;
-    const X = cfg.bloqueioSegundo;
-    if(X == null) return liveEdge;
+    return duration ? Math.min(elapsed, duration) : elapsed;
+  },
 
+  // Até onde o espectador tem permissão de ir (arrastando ou acelerando). Antes do ponto de
+  // bloqueio, é igual ao "agora" de verdade. Depois que o "agora" passa do ponto de bloqueio,
+  // trava em X até a pessoa realmente assistir até lá — sem acelerar, sem adiantar.
+  getMaxSeekable(currentTimeOverride){
+    const cfg = this.room.video;
+    const liveEdge = this.getLiveEdge();
+    const X = cfg.bloqueioSegundo;
+    if(X == null || liveEdge <= X) return liveEdge;
     const currentTime = currentTimeOverride != null ? currentTimeOverride : (this.video ? this.video.currentTime : 0);
-    if(currentTime >= X - 0.25) return duration ? Math.max(currentTime, Math.min(X, duration)) : Math.max(currentTime, X);
-    return Math.min(liveEdge, X);
+    return currentTime >= X ? currentTime : X;
   },
 
   startCountdown(initialSecs){
@@ -318,7 +325,8 @@ const Sala = {
         if(hiddenSecs > 8){
           const rcfg = this.room.video;
           const duration = rcfg?.duracaoSegundos || this.video.duration;
-          const newPos = rcfg?.modoYoutube ? this.getUnlockedTime(this._posAtHidden) : this._posAtHidden + hiddenSecs;
+          // Modo YouTube: aba escondida = como se tivesse pausado, não avança sozinho.
+          const newPos = rcfg?.modoYoutube ? this._posAtHidden : this._posAtHidden + hiddenSecs;
           if(duration && newPos >= duration){
             if(this.hls){ this.hls.destroy(); this.hls = null; }
             this.showEnded();
@@ -335,11 +343,11 @@ const Sala = {
 
     if(cfg.modoYoutube){
       el.addEventListener('seeking', ()=>{
-        const max = this.getUnlockedTime();
+        const max = this.getMaxSeekable();
         if(el.currentTime > max + 0.5) el.currentTime = max;
       });
       el.addEventListener('ratechange', ()=>{
-        if(el.playbackRate !== 1 && el.currentTime >= this.getUnlockedTime() - 0.4) el.playbackRate = 1;
+        if(el.playbackRate !== 1 && el.currentTime >= this.getMaxSeekable() - 0.4) el.playbackRate = 1;
       });
       this.setupYoutubeControls(el, cfg);
     } else if(cfg.bloquearAvancoVideo){
@@ -399,7 +407,7 @@ const Sala = {
     const seekFromEvent = (e)=>{
       const rect = scrub.getBoundingClientRect();
       const frac = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
-      el.currentTime = frac * this.getUnlockedTime();
+      el.currentTime = Math.min(frac * this.getLiveEdge(), this.getMaxSeekable());
     };
     let dragging = false;
     scrub.addEventListener('mousedown', (e)=>{ dragging = true; seekFromEvent(e); });
@@ -426,7 +434,8 @@ const Sala = {
   ytTick(){
     const el = this.video;
     if(!el) return;
-    const unlocked = this.getUnlockedTime();
+    const liveEdge = this.getLiveEdge();
+    const maxSeekable = this.getMaxSeekable();
 
     const playedEl = document.getElementById('ytPlayed');
     const thumbEl = document.getElementById('ytThumb');
@@ -434,15 +443,15 @@ const Sala = {
     const liveBtn = document.getElementById('ytLiveBtn');
     if(!playedEl) return;
 
-    // A barra sempre representa [0, unlocked] — a extremidade direita é sempre o "momento atual",
-    // igual uma live do YouTube (cresce com o tempo, nunca mostra o que ainda não é permitido ver).
-    // Quando unlocked ainda é 0 (acabou de começar), já nasce "colada" na direita (100%, ao vivo).
-    const playedPct = unlocked > 0 ? Math.min(100, (el.currentTime / unlocked) * 100) : 100;
+    // A extremidade direita da barra é sempre o "agora" de verdade (liveEdge) — nunca para,
+    // mesmo pausado. A bolinha (currentTime) fica pra trás se a pessoa pausar ou ficar travada
+    // no ponto de bloqueio, exatamente como uma live de verdade.
+    const playedPct = liveEdge > 0 ? Math.min(100, (el.currentTime / liveEdge) * 100) : 100;
     playedEl.style.width = playedPct + '%';
     thumbEl.style.left = playedPct + '%';
-    timeEl.textContent = this.formatTime(el.currentTime) + ' / ' + this.formatTime(unlocked);
+    timeEl.textContent = this.formatTime(el.currentTime) + ' / ' + this.formatTime(liveEdge);
 
-    const atEdge = unlocked <= 0 || el.currentTime >= unlocked - 0.4;
+    const atEdge = maxSeekable <= 0 || el.currentTime >= maxSeekable - 0.4;
     liveBtn.classList.toggle('at-edge', atEdge);
     if(atEdge && el.playbackRate !== 1) el.playbackRate = 1;
 
@@ -456,14 +465,14 @@ const Sala = {
 
   ytGoLive(){
     if(!this.video) return;
-    this.video.currentTime = this.getUnlockedTime();
+    this.video.currentTime = this.getMaxSeekable();
     this.video.playbackRate = 1;
     if(this.video.paused) this.video.play().catch(()=>{});
   },
 
   ytSetSpeed(s){
     if(!this.video) return;
-    if(s > 1 && this.video.currentTime >= this.getUnlockedTime() - 0.4) return;
+    if(s > 1 && this.video.currentTime >= this.getMaxSeekable() - 0.4) return;
     this.video.playbackRate = s;
     document.getElementById('ytSpeedMenu').classList.remove('open');
   },
