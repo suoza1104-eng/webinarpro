@@ -42,9 +42,7 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
       </button>
       <div class="notif-panel" id="notifPanel">
-        <div class="n-item"><b>Webinar concluído</b><br>FERA — Turma Setembro terminou com 412 espectadores.</div>
-        <div class="n-item"><b>Consumo de banda</b><br>Você está em 96% do seu plano atual.</div>
-        <div class="n-item"><b>Novo lead</b><br>3 pessoas se cadastraram na última hora.</div>
+        <div class="n-item" style="color:var(--text-faint);">Nenhuma notificação por aqui ainda.</div>
       </div>
     </div>
   </aside>
@@ -76,23 +74,23 @@
         <div class="stat-grid">
           <div class="stat-card">
             <div class="s-label">WEBINARS ATIVOS</div>
-            <div class="s-value">6</div>
-            <div class="s-delta s-up">+2 esta semana</div>
+            <div class="s-value">0</div>
+            <div class="s-delta">Sem dados ainda</div>
           </div>
           <div class="stat-card">
             <div class="s-label">ESPECTADORES (7 DIAS)</div>
-            <div class="s-value">2.340</div>
-            <div class="s-delta s-up">+18% vs. semana anterior</div>
+            <div class="s-value">0</div>
+            <div class="s-delta">Sem dados ainda</div>
           </div>
           <div class="stat-card">
             <div class="s-label">TAXA DE CONVERSÃO</div>
-            <div class="s-value">8,4%</div>
-            <div class="s-delta s-up">+0,6 p.p.</div>
+            <div class="s-value">0%</div>
+            <div class="s-delta">Sem dados ainda</div>
           </div>
           <div class="stat-card">
             <div class="s-label">FATURAMENTO DO MÊS</div>
-            <div class="s-value">R$ 42.180</div>
-            <div class="s-delta s-up">+R$ 6.200</div>
+            <div class="s-value">R$ 0,00</div>
+            <div class="s-delta">Sem dados ainda</div>
           </div>
         </div>
 
@@ -558,13 +556,13 @@
           <div class="grid-2">
             <div>
               <div class="progress-label"><span>Armazenamento de Vídeos</span></div>
-              <div class="progress"><div style="width:28.16%;"></div></div>
-              <div class="progress-label"><span>7.04 GB de 25 GB usados</span><span>28.16%</span></div>
+              <div class="progress"><div style="width:0%;"></div></div>
+              <div class="progress-label"><span>0 GB de 25 GB usados</span><span>0%</span></div>
             </div>
             <div>
               <div class="progress-label"><span>Consumo de Banda de Vídeos</span></div>
-              <div class="progress over"><div style="width:100%;"></div></div>
-              <div class="progress-label"><span>970.39 GB de 300 GB usados</span><span style="color:var(--red);">323.46%</span></div>
+              <div class="progress"><div style="width:0%;"></div></div>
+              <div class="progress-label"><span>0 GB de 300 GB usados</span><span>0%</span></div>
             </div>
           </div>
           <div class="hint" style="margin-top:12px;">Está acima do plano? Veja o <a href="#" onclick="App.showView('simulador')" style="color:var(--yellow);">simulador de custo</a> para comparar com uma arquitetura própria.</div>
@@ -712,32 +710,25 @@
           <div class="grid-3">
             <div>
               <div class="progress-label"><span>Armazenamento</span></div>
-              <div class="progress"><div style="width:28.16%;"></div></div>
-              <div class="progress-label"><span>7.04 / 25 GB</span><span>28%</span></div>
+              <div class="progress"><div style="width:0%;"></div></div>
+              <div class="progress-label"><span>0 / 25 GB</span><span>0%</span></div>
             </div>
             <div>
               <div class="progress-label"><span>Banda</span></div>
-              <div class="progress over"><div style="width:100%;"></div></div>
-              <div class="progress-label"><span>970.39 / 300 GB</span><span style="color:var(--red);">323%</span></div>
+              <div class="progress"><div style="width:0%;"></div></div>
+              <div class="progress-label"><span>0 / 300 GB</span><span>0%</span></div>
             </div>
             <div>
               <div class="progress-label"><span>Tokens de IA</span></div>
-              <div class="progress"><div style="width:0.25%;"></div></div>
-              <div class="progress-label"><span>5 / 2000</span><span>0.25%</span></div>
+              <div class="progress"><div style="width:0%;"></div></div>
+              <div class="progress-label"><span>0 / 2000</span><span>0%</span></div>
             </div>
           </div>
         </div>
 
         <div class="card">
           <b style="font-size:13px;display:block;margin-bottom:14px;">Histórico de uso de token</b>
-          <div class="table-wrap">
-            <table><thead><tr><th>Produto</th><th>Tokens</th><th>Criado em</th></tr></thead>
-            <tbody>
-              <tr><td>Uso de token do atendimento</td><td>1</td><td>13/09/2026 19:30</td></tr>
-              <tr><td>Uso de token do atendimento</td><td>1</td><td>02/09/2026 19:12</td></tr>
-              <tr><td>Uso de token do atendimento</td><td>1</td><td>01/09/2026 18:56</td></tr>
-            </tbody></table>
-          </div>
+          <div class="empty-state">Sem resultados por aqui ainda.</div>
         </div>
 
         <div class="card">

@@ -72,39 +72,11 @@ function saveLS(key, val){
 
 const App = {
   currentView:'dashboard',
-  webinars: loadLS('wp_webinars', [
-    {nome:'FERA — Turma Outubro', data:'04/10, domingo, 19h', status:'Ativo', tipo:'Único'},
-    {nome:'FERA — Quadro Elétrico Residencial', data:'01/10, quinta-feira, 19h', status:'Ativo', tipo:'Único'},
-    {nome:'FERA — Padronização de Entrada', data:'27/09, domingo, 19h', status:'Ativo', tipo:'Único'},
-    {nome:'4E — Automação Residencial', data:'23/09, quarta-feira, 20h', status:'Ativo', tipo:'Recorrente'},
-    {nome:'FERA — Black Friday da Elétrica', data:'19/09, sábado, 19h', status:'Pausado', tipo:'Único'},
-    {nome:'FERA — Repescagem Diária', data:'15/09, terça-feira, 19h', status:'Ativo', tipo:'Automático'},
-    {nome:'4E — Introdução à NBR 5410', data:'11/09, sexta-feira, 19h', status:'Finalizado', tipo:'Único'},
-    {nome:'FERA — Aula de Tracking de Leads', data:'08/09, terça-feira, 19h', status:'Finalizado', tipo:'Único'}
-  ]),
-  videos: loadLS('wp_videos', [
-    {nome:'aula-quadro-eletrico-intro.mp4', data:'21/12/2025 10:26', tamanho:'256.88 MB'},
-    {nome:'FERA-modulo-3-completo.mp4', data:'23/11/2025 15:51', tamanho:'4.49 GB'},
-    {nome:'Black Friday da Elétrica — 2026.mp4', data:'30/08/2026 09:12', tamanho:'1.12 GB'},
-    {nome:'depoimentos-alunos-corte.mp4', data:'14/07/2026 18:04', tamanho:'340.2 MB'}
-  ]),
-  users: loadLS('wp_users', [
-    {nome:'Emerson Leite', email:'admin@webnarpro.com.br', tipo:'Administrador'},
-    {nome:'Suporte 02', email:'suporte02@webnarpro.com.br', tipo:'Atendente'}
-  ]),
-  historico: [
-    {user:'admin@webnarpro.com.br', data:'15/09/2026 16:22', webinar:'—', acao:'Criou', desc:'Realizou o login'},
-    {user:'admin@webnarpro.com.br', data:'15/09/2026 09:30', webinar:'FERA — Turma Outubro', acao:'Criou', desc:'Criou o webinar'},
-    {user:'suporte02@webnarpro.com.br', data:'14/09/2026 21:05', webinar:'FERA — Black Friday da Elétrica', acao:'Editou', desc:'Editou o chat simulado'},
-    {user:'admin@webnarpro.com.br', data:'13/09/2026 11:40', webinar:'aula-quadro-eletrico-intro.mp4', acao:'Editou', desc:'Editou metadados do vídeo'},
-    {user:'admin@webnarpro.com.br', data:'10/09/2026 08:15', webinar:'Suporte 02', acao:'Deletou', desc:'Removeu usuário inativo'},
-    {user:'suporte02@webnarpro.com.br', data:'09/09/2026 19:52', webinar:'FERA — Repescagem Diária', acao:'Criou', desc:'Criou nova sala de atendimento'}
-  ],
-  chatMsgs: loadLS('wp_chatmsgs', [
-    {t:'00:15', n:'Maria', m:'Consegui chegar a tempo! 🙌'},
-    {t:'02:40', n:'João', m:'Alguém mais de MG aqui?'},
-    {t:'08:10', n:'Renata', m:'Isso vale pra quadro trifásico também?'}
-  ]),
+  webinars: loadLS('wp_webinars', []),
+  videos: loadLS('wp_videos', []),
+  users: loadLS('wp_users', []),
+  historico: [],
+  chatMsgs: loadLS('wp_chatmsgs', []),
   faqs: [
     {q:'Serve para quadro trifásico?', a:'Sim, o método vale para mono e trifásico.'},
     {q:'Tem certificado?', a:'Sim, certificado incluso na Comunidade FERA.'}
@@ -215,7 +187,7 @@ const App = {
       new Chart(ctx, {
         type:'line',
         data:{ labels:['S1','S2','S3','S4','S5','S6','S7','S8'],
-          datasets:[{ label:'Espectadores', data:[210,260,300,280,340,390,360,412],
+          datasets:[{ label:'Espectadores', data:[0,0,0,0,0,0,0,0],
             borderColor:'#FFCC00', backgroundColor:'rgba(255,204,0,.12)', tension:.35, fill:true, pointRadius:3, pointBackgroundColor:'#FFCC00'}]},
         options:{ plugins:{legend:{display:false}}, scales:{
           x:{grid:{color:'#232320'}, ticks:{color:'#a6a59a'}},
@@ -418,11 +390,7 @@ const App = {
     el.parentElement.querySelectorAll('.radio-card').forEach(c=>c.classList.remove('sel'));
     el.classList.add('sel');
   },
-  sales: loadLS('wp_sales', [
-    {t:'02:05:00', n:'Marcio Viana'},
-    {t:'02:05:20', n:'Sebastião Moreira'},
-    {t:'02:06:00', n:'José Alves'}
-  ]),
+  sales: loadLS('wp_sales', []),
   renderSalesList(){
     document.getElementById('salesList').innerHTML = this.sales.map((s,i)=>`
       <div class="sale-item"><span class="s-time">${s.t}</span><span style="flex:1;">${s.n} comprou</span>
@@ -438,11 +406,7 @@ const App = {
     document.getElementById('saleTime').value=''; document.getElementById('saleName').value='';
     this.renderSalesList();
   },
-  keywords: loadLS('wp_keywords', [
-    {rem:'Suporte Prof. Emerson', kw:'sou de', resp:'Seja bem-vindo #nome!', delay:'10s'},
-    {rem:'Suporte Comercial', kw:'boleto', resp:'#nome, para parcelamento no boleto nos procure no WhatsApp.', delay:'15s'},
-    {rem:'Suporte Prof. Emerson', kw:'boa noite', resp:'Boa noite #nome', delay:'8s'}
-  ]),
+  keywords: loadLS('wp_keywords', []),
   renderKeywords(){
     document.getElementById('keywordTbody').innerHTML = this.keywords.map((k,i)=>`
       <tr><td>${k.rem}</td><td>${k.kw}</td><td>${k.resp}</td><td>${k.delay}</td>
@@ -511,10 +475,7 @@ const App = {
 
   // ---------- SALAS ----------
   renderSalas(){
-    const salas = [
-      {nome:'FERA — Repescagem Diária', status:'Em andamento', tipo:'Único', data:'15/09, terça-feira, 18:40h'},
-      {nome:'4E — Automação Residencial', status:'Em andamento', tipo:'Recorrente', data:'15/09, terça-feira, 20:00h'}
-    ];
+    const salas = [];
     document.getElementById('salasGrid').innerHTML = salas.map((s,i)=>`
       <div class="card" style="margin-top:0;">
         <div class="thumb" style="width:100%;height:100px;margin-bottom:12px;">${ICONS.play}</div>
@@ -526,13 +487,8 @@ const App = {
   },
   openAttend(i, nome){
     document.getElementById('attendTitle').textContent = 'Sala de Atendimento — ' + nome;
-    document.getElementById('attendList').innerHTML = [
-      {n:'Carlos Mendes', w:'aguardando há 1 min'},
-      {n:'Renata Alves', w:'aguardando há 3 min'},
-      {n:'João Pedro', w:'aguardando há 4 min'}
-    ].map(a=>`<div class="a-item"><div class="a-name">${a.n}</div><div class="a-wait">${a.w}</div></div>`).join('');
-    document.getElementById('attendMsgs').innerHTML = `
-      <div class="ai-bubble"><div class="b-ico">${ICONS.audience}</div><div class="b-txt">Oi! Tenho dúvida se esse curso serve pra quem já é eletricista formado.</div></div>`;
+    document.getElementById('attendList').innerHTML = [].map(a=>`<div class="a-item"><div class="a-name">${a.n}</div><div class="a-wait">${a.w}</div></div>`).join('');
+    document.getElementById('attendMsgs').innerHTML = '';
     document.getElementById('attendModal').classList.add('open');
   },
   closeAttend(){ document.getElementById('attendModal').classList.remove('open'); },
