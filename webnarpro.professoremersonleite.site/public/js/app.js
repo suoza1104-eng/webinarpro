@@ -869,13 +869,19 @@ const App = {
 
   // ---------- PÁGINA PÚBLICA (visão do aluno) ----------
   pubActiveTab:'chat',
-  openPublic(nameOrIdx){
-    const nome = typeof nameOrIdx === 'number' ? (this.webinars[nameOrIdx]?.nome || 'Aula 06') : (nameOrIdx || 'Aula 06');
-    document.getElementById('pubTitle').textContent = nome + ' (ao vivo)';
-    document.querySelector('.app-shell').style.display = 'none';
-    document.getElementById('publicPage').classList.add('open');
-    this.pubReset();
-    window.scrollTo(0,0);
+  openPublic(slugOrIdx){
+    let w;
+    if(typeof slugOrIdx === 'number'){
+      w = this.webinars[slugOrIdx];
+    } else {
+      w = this.webinars.find(item => item.slug === slugOrIdx || item.nome === slugOrIdx);
+    }
+    const slug = w ? w.slug : slugOrIdx;
+    if(!slug){
+      this.toast('Webinar não encontrado ou sem link configurado');
+      return;
+    }
+    window.open('/' + encodeURIComponent(slug) + '?preview=1', '_blank');
   },
   closePublic(){
     document.getElementById('publicPage').classList.remove('open');

@@ -21,6 +21,8 @@ const Sala = {
     const parts = window.location.pathname.split('/').filter(Boolean);
     this.slug = decodeURIComponent(parts[0] || '');
     this.isReplay = parts[1] === 'replay';
+    const params = new URLSearchParams(window.location.search);
+    this.isPreview = params.has('preview');
     if(!this.slug){ this.showError('Link inválido.'); return; }
     this.leadToken = localStorage.getItem('wp_lead_' + this.slug) || null;
     this.loadInfo();
@@ -47,10 +49,33 @@ const Sala = {
     document.getElementById('pubTitle').textContent = this.info.titulo || 'Aula ao vivo';
     document.title = (this.info.titulo || 'WebnarPRO') + ' — Sala';
 
+    if(this.isPreview && !this.leadToken){
+      await this.autoRegisterPreview();
+      return;
+    }
+
     if(this.leadToken){
       const ok = await this.loadRoom();
       if(ok) return;
     }
+    this.showRegister();
+  },
+
+  async autoRegisterPreview(){
+    try{
+      const res = await fetch('/api/public/webinars/' + encodeURIComponent(this.slug) + '/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nome: 'Aluno (Prévia)', email: 'preview@webnarpro.com' }),
+      });
+      const data = await res.json();
+      if(res.ok && data.token){
+        this.leadToken = data.token;
+        localStorage.setItem('wp_lead_' + this.slug, this.leadToken);
+        await this.loadRoom();
+        return;
+      }
+    }catch(e){}
     this.showRegister();
   },
 
@@ -114,6 +139,10 @@ const Sala = {
       if(res.status === 401){
         localStorage.removeItem('wp_lead_' + this.slug);
         this.leadToken = null;
+        if(this.isPreview){
+          await this.autoRegisterPreview();
+          return true;
+        }
         return false;
       }
       this.room = await res.json();
@@ -126,6 +155,15 @@ const Sala = {
 
     if(this.isReplay){
       this.showCover();
+      return true;
+    }
+
+    if(this.isPreview){
+      // No modo prévia (Ver como aluno), zera a sessão para iniciar imediatamente no horário exato de início (00:00 da transmissão)
+      localStorage.removeItem('wp_start_' + this.slug);
+      this.sessionStartedAt = Date.now();
+      localStorage.setItem('wp_start_' + this.slug, String(this.sessionStartedAt));
+      this.startLive(0);
       return true;
     }
 
