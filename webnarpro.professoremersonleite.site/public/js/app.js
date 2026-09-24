@@ -434,7 +434,7 @@ const App = {
         <td>${this.statusBadge(w.status)}</td>
         <td>${this.tipoBadge(w.tipo)}</td>
         <td><div class="iconbar" style="justify-content:flex-end;">
-          <button title="Copiar link" onclick="App.toast('Link copiado!')">${ICONS.link}</button>
+          <button title="Copiar link" onclick="App.copyWebinarLink('${w.slug}')">${ICONS.link}</button>
           <button title="Editar" onclick="App.editWebinar(${this.webinars.indexOf(w)})">${ICONS.edit}</button>
           <button title="Métricas" onclick="App.toast('Métricas em construção nesta prévia')">${ICONS.chart}</button>
           <button title="Ver como aluno" onclick="App.openPublic(${this.webinars.indexOf(w)})">${ICONS.globe}</button>
@@ -454,11 +454,60 @@ const App = {
     this.showView('wizard');
     this.toast('Editando "'+w.nome+'"');
   },
-  dupWebinar(i){
-    this.toast('Duplicar webinar ainda não foi implementado no backend');
+  copyWebinarLink(slug){
+    const url = `${window.location.origin}/${slug}`;
+    this.writeToClipboard(url, 'Link do webinar copiado!');
   },
-  delWebinar(i){
-    this.toast('Excluir webinar ainda não foi implementado no backend');
+  writeToClipboard(text, successMsg){
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(()=>{
+        this.toast(successMsg || 'Copiado para a área de transferência!');
+      }).catch(()=>{
+        this.fallbackCopyText(text, successMsg);
+      });
+    } else {
+      this.fallbackCopyText(text, successMsg);
+    }
+  },
+  fallbackCopyText(text, successMsg){
+    const input = document.createElement('input');
+    input.value = text;
+    document.body.appendChild(input);
+    input.select();
+    try {
+      document.execCommand('copy');
+      this.toast(successMsg || 'Copiado para a área de transferência!');
+    } catch(e) {
+      this.toast('Não foi possível copiar o texto');
+    }
+    document.body.removeChild(input);
+  },
+  async dupWebinar(i){
+    const w = this.webinars[i];
+    if(!w) return;
+    try{
+      await this.apiFetch(`/api/webinars/${w.id}/duplicate`, { method: 'POST' });
+      this.toast(`Webinar "${w.nome}" duplicado com sucesso!`);
+      await this.loadWebinars();
+      this.renderWebinars();
+      this.renderDashboard();
+    }catch(e){
+      this.toast('Erro ao duplicar: ' + e.message);
+    }
+  },
+  async delWebinar(i){
+    const w = this.webinars[i];
+    if(!w) return;
+    if(!confirm(`Tem certeza que deseja excluir o webinar "${w.nome}"?`)) return;
+    try{
+      await this.apiFetch(`/api/webinars/${w.id}`, { method: 'DELETE' });
+      this.toast(`Webinar "${w.nome}" excluído com sucesso!`);
+      await this.loadWebinars();
+      this.renderWebinars();
+      this.renderDashboard();
+    }catch(e){
+      this.toast('Erro ao excluir: ' + e.message);
+    }
   },
 
   // ---------- WIZARD ----------
@@ -749,9 +798,10 @@ const App = {
   },
   copyLink(id){
     const el = document.getElementById(id);
-    el.select();
-    try{ navigator.clipboard.writeText(el.value); }catch(e){}
-    this.toast('Link copiado!');
+    if(el){
+      el.select();
+      this.writeToClipboard(el.value, 'Link copiado!');
+    }
   },
   async publishWebinar(){
     if(!this.wz.id){

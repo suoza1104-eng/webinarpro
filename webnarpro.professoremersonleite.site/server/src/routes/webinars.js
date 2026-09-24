@@ -209,4 +209,133 @@ router.put('/:id/video', async (req, res) => {
   res.json({ ok: true });
 });
 
+// DUPLICAR WEBINAR
+router.post('/:id/duplicate', async (req, res) => {
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    const [rows] = await connection.query(
+      'SELECT * FROM webinars WHERE id = ? AND account_id = ? LIMIT 1',
+      [req.params.id, req.accountId]
+    );
+    if (rows.length === 0) {
+      connection.release();
+      return res.status(404).json({ error: 'Webinar não encontrado' });
+    }
+
+    const orig = rows[0];
+    const newName = `${orig.nome} (Cópia)`;
+    const baseSlug = slugify(orig.slug || newName);
+    const newSlug = await uniqueSlug(req.accountId, baseSlug);
+
+    const [dupResult] = await connection.query(
+      `INSERT INTO webinars (
+        account_id, nome, titulo, slug, idioma, nome_apresentador, avatar_apresentador_url,
+        tipo_agendamento, repeticao_automatica, data_inicio, data_fim, fuso_horario,
+        usar_sala_espera, video_id, video_autoplay, video_fullscreen, ocultar_barra_progresso,
+        bloquear_avanco_video, modo_youtube, modo_youtube_bloqueio_segundo, tipo_audiencia,
+        status, criado_por
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        req.accountId, newName, orig.titulo, newSlug, orig.idioma, orig.nome_apresentador,
+        orig.avatar_apresentador_url, orig.tipo_agendamento, orig.repeticao_automatica,
+        orig.data_inicio, orig.data_fim, orig.fuso_horario, orig.usar_sala_espera,
+        orig.video_id, orig.video_autoplay, orig.video_fullscreen, orig.ocultar_barra_progresso,
+        orig.bloquear_avanco_video, orig.modo_youtube, orig.modo_youtube_bloqueio_segundo,
+        orig.tipo_audiencia, 'rascunho', req.userId
+      ]
+    );
+
+    const newId = dupResult.insertId;
+
+    // Copiar webinar_login_config
+    const [loginRows] = await connection.query(
+      'SELECT * FROM webinar_login_config WHERE webinar_id = ? LIMIT 1',
+      [orig.id]
+    );
+    if (loginRows.length > 0) {
+      const l = loginRows[0];
+      await connection.query(
+        `INSERT INTO webinar_login_config (webinar_id, logo_url, exibir_barra_progresso, progresso_inicial, pedir_whatsapp, pedir_empresa, titulo_botao, cor_botao, cor_texto_botao)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [newId, l.logo_url, l.exibir_barra_progresso, l.progresso_inicial, l.pedir_whatsapp, l.pedir_empresa, l.titulo_botao, l.cor_botao, l.cor_texto_botao]
+      );
+    }
+
+    // Copiar webinar_offer_config
+    const [offerRows] = await connection.query(
+      'SELECT * FROM webinar_offer_config WHERE webinar_id = ? LIMIT 1',
+      [orig.id]
+    );
+    if (offerRows.length > 0) {
+      const o = offerRows[0];
+      await connection.query(
+        `INSERT INTO webinar_offer_config (webinar_id, nome_oferta, titulo_oferta, preco_original_centavos, preco_oferta_centavos, texto_botao, cor_botao, layout_temporizador, temporizador_segundos, imagem_desktop_url, imagem_mobile_url, inicio_pitch_segundos, inicio_oferta_segundos, fim_oferta_segundos, link_checkout, repassar_utms, oferta_desabilitada, sorteio_habilitado)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [newId, o.nome_oferta, o.titulo_oferta, o.preco_original_centavos, o.preco_oferta_centavos, o.texto_botao, o.cor_botao, o.layout_temporizador, o.temporizador_segundos, o.imagem_desktop_url, o.imagem_mobile_url, o.inicio_pitch_segundos, o.inicio_oferta_segundos, o.fim_oferta_segundos, o.link_checkout, o.repassar_utms, o.oferta_desabilitada, o.sorteio_habilitado]
+      );
+    }
+
+    // Copiar webinar_chat_messages
+    const [chatRows] = await connection.query(
+      'SELECT segundo_exibicao, nome_exibido, mensagem, eh_suporte, ordem FROM webinar_chat_messages WHERE webinar_id = ?',
+      [orig.id]
+    );
+    for (const msg of chatRows) {
+      await connection.query(
+        `INSERT INTO webinar_chat_messages (webinar_id, segundo_exibicao, nome_exibido, mensagem, eh_suporte, ordem)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [newId, msg.segundo_exibicao, msg.nome_exibido, msg.mensagem, msg.eh_suporte, msg.ordem]
+      );
+    }
+
+    // Copiar webinar_sales_notifications
+    const [salesRows] = await connection.query(
+      'SELECT segundo_exibicao, nome_exibido, titulo_notificacao FROM webinar_sales_notifications WHERE webinar_id = ?',
+      [orig.id]
+    );
+    for (const sale of salesRows) {
+      await connection.query(
+        `INSERT INTO webinar_sales_notifications (webinar_id, segundo_exibicao, nome_exibido, titulo_notificacao)
+         VALUES (?, ?, ?, ?)`,
+        [newId, sale.segundo_exibicao, sale.nome_exibido, sale.titulo_notificacao]
+      );
+    }
+
+    // Copiar webinar_chatbot_keywords
+    const [kwRows] = await connection.query(
+      'SELECT remetente_exibido, palavra_chave, resposta_automatica, delay_segundos, imagem_url FROM webinar_chatbot_keywords WHERE webinar_id = ?',
+      [orig.id]
+    );
+    for (const kw of kwRows) {
+      await connection.query(
+        `INSERT INTO webinar_chatbot_keywords (webinar_id, remetente_exibido, palavra_chave, resposta_automatica, delay_segundos, imagem_url)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [newId, kw.remetente_exibido, kw.palavra_chave, kw.resposta_automatica, kw.delay_segundos, kw.imagem_url]
+      );
+    }
+
+    await connection.commit();
+    connection.release();
+
+    res.status(201).json({ id: newId, slug: newSlug, nome: newName });
+  } catch (err) {
+    await connection.rollback();
+    connection.release();
+    req.log?.error(err, 'Erro ao duplicar webinar');
+    res.status(500).json({ error: 'Erro ao duplicar webinar: ' + err.message });
+  }
+});
+
+// EXCLUIR WEBINAR
+router.delete('/:id', async (req, res) => {
+  const [result] = await pool.query(
+    'DELETE FROM webinars WHERE id = ? AND account_id = ?',
+    [req.params.id, req.accountId]
+  );
+  if (result.affectedRows === 0) return res.status(404).json({ error: 'Webinar não encontrado' });
+  res.json({ ok: true });
+});
+
 module.exports = router;
