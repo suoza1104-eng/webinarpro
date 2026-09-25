@@ -12,7 +12,9 @@ const router = express.Router();
 router.get('/webinars/:slug', async (req, res) => {
   const [rows] = await pool.query(
     `SELECT w.titulo, w.nome_apresentador, w.avatar_apresentador_url, w.status,
-            w.data_inicio, w.data_fim, w.fuso_horario, w.usar_sala_espera
+            w.data_inicio, w.data_fim, w.fuso_horario, w.usar_sala_espera,
+            w.tipo_audiencia, w.audiencia_min_participantes, w.audiencia_max_participantes,
+            w.mostrar_botao_ao_vivo
      FROM webinars w
      WHERE w.slug = ? LIMIT 1`,
     [req.params.slug],
@@ -36,6 +38,12 @@ router.get('/webinars/:slug', async (req, res) => {
     dataFim: w.data_fim,
     fusoHorario: w.fuso_horario,
     usarSalaEspera: !!w.usar_sala_espera,
+    audiencia: {
+      tipo: w.tipo_audiencia,
+      min: w.audiencia_min_participantes,
+      max: w.audiencia_max_participantes,
+      mostrarBotaoAoVivo: !!w.mostrar_botao_ao_vivo,
+    },
     loginConfig: loginConfigRows[0] || null,
   });
 });
@@ -83,7 +91,9 @@ router.get('/webinars/:slug/room', requireLeadAuth, async (req, res) => {
     `SELECT w.id, w.status, w.video_id, w.video_autoplay, w.video_fullscreen,
             w.ocultar_barra_progresso, w.bloquear_avanco_video,
             w.modo_youtube, w.modo_youtube_bloqueio_segundo,
-            w.data_inicio, w.data_fim, w.fuso_horario, w.usar_sala_espera
+            w.data_inicio, w.data_fim, w.fuso_horario, w.usar_sala_espera,
+            w.tipo_audiencia, w.audiencia_min_participantes, w.audiencia_max_participantes,
+            w.mostrar_botao_ao_vivo
      FROM webinars w WHERE w.slug = ? LIMIT 1`,
     [req.params.slug],
   );
@@ -130,6 +140,12 @@ router.get('/webinars/:slug/room', requireLeadAuth, async (req, res) => {
     dataFim: w.data_fim,
     fusoHorario: w.fuso_horario,
     usarSalaEspera: !!w.usar_sala_espera,
+    audiencia: {
+      tipo: w.tipo_audiencia,
+      min: w.audiencia_min_participantes,
+      max: w.audiencia_max_participantes,
+      mostrarBotaoAoVivo: !!w.mostrar_botao_ao_vivo,
+    },
     video,
     chatMessages,
     salesNotifications,

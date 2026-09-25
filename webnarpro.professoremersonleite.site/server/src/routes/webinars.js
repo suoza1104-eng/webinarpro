@@ -111,6 +111,9 @@ const updateSchema = z.object({
   fuso_horario: z.string().max(60).optional(),
   usar_sala_espera: z.boolean().optional(),
   tipo_audiencia: z.enum(['nenhuma', 'fixa', 'dinamica']).optional(),
+  audiencia_min_participantes: z.number().int().nonnegative().optional(),
+  audiencia_max_participantes: z.number().int().nonnegative().optional(),
+  mostrar_botao_ao_vivo: z.boolean().optional(),
 });
 
 const COLUMN_MAP = {
@@ -126,6 +129,9 @@ const COLUMN_MAP = {
   fuso_horario: 'fuso_horario',
   usar_sala_espera: 'usar_sala_espera',
   tipo_audiencia: 'tipo_audiencia',
+  audiencia_min_participantes: 'audiencia_min_participantes',
+  audiencia_max_participantes: 'audiencia_max_participantes',
+  mostrar_botao_ao_vivo: 'mostrar_botao_ao_vivo',
 };
 
 router.put('/:id', async (req, res) => {
@@ -495,15 +501,17 @@ router.post('/:id/duplicate', async (req, res) => {
         tipo_agendamento, repeticao_automatica, data_inicio, data_fim, fuso_horario,
         usar_sala_espera, video_id, video_autoplay, video_fullscreen, ocultar_barra_progresso,
         bloquear_avanco_video, modo_youtube, modo_youtube_bloqueio_segundo, tipo_audiencia,
+        audiencia_min_participantes, audiencia_max_participantes, mostrar_botao_ao_vivo,
         status, criado_por
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         req.accountId, newName, orig.titulo, newSlug, orig.idioma, orig.nome_apresentador,
         orig.avatar_apresentador_url, orig.tipo_agendamento, orig.repeticao_automatica,
         orig.data_inicio, orig.data_fim, orig.fuso_horario, orig.usar_sala_espera,
         orig.video_id, orig.video_autoplay, orig.video_fullscreen, orig.ocultar_barra_progresso,
         orig.bloquear_avanco_video, orig.modo_youtube, orig.modo_youtube_bloqueio_segundo,
-        orig.tipo_audiencia, 'rascunho', req.userId
+        orig.tipo_audiencia, orig.audiencia_min_participantes, orig.audiencia_max_participantes,
+        orig.mostrar_botao_ao_vivo, 'rascunho', req.userId
       ]
     );
 

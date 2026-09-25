@@ -152,6 +152,7 @@ const Sala = {
 
     document.getElementById('publicPage').style.display = 'block';
     document.getElementById('pubMsgsSuporte').innerHTML = '<div class="empty-state">Envie uma mensagem privada para o suporte.</div>';
+    this.setupAudienceBadge();
 
     if(this.isReplay){
       this.showCover();
@@ -193,6 +194,40 @@ const Sala = {
 
   COUNTDOWN_SECONDS: 8,
   EDGE_TOLERANCE: 1.5,
+
+  setupAudienceBadge(){
+    if(this._audienceTicker) clearInterval(this._audienceTicker);
+    const render = ()=>this.renderAudienceBadge();
+    render();
+    this._audienceTicker = setInterval(render, 12000);
+  },
+
+  getAudienceConfig(){
+    return this.room?.audiencia || this.info?.audiencia || null;
+  },
+
+  renderAudienceBadge(){
+    const el = document.getElementById('audienceLiveBadge');
+    const cfg = this.getAudienceConfig();
+    if(!el || !cfg || cfg.tipo === 'nenhuma' || !cfg.mostrarBotaoAoVivo){
+      if(el) el.style.display = 'none';
+      return;
+    }
+    const min = Math.max(0, Number(cfg.min || 0));
+    const max = Math.max(min, Number(cfg.max || min));
+    let count = max;
+    if(cfg.tipo === 'dinamica' && max > min){
+      const cycle = 7200;
+      const phase = (Date.now() / 1000) % cycle;
+      let pct;
+      if(phase < 1800) pct = phase / 1800;
+      else if(phase < 3600) pct = 1;
+      else pct = Math.max(0, 1 - ((phase - 3600) / 3600));
+      count = Math.round(min + ((max - min) * pct));
+    }
+    el.textContent = `🔴 ${count.toLocaleString('pt-BR')} ao vivo`;
+    el.style.display = 'inline';
+  },
 
   async requestWakeLock(){
     if(!('wakeLock' in navigator) || this._wakeLock) return;

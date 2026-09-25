@@ -104,6 +104,9 @@ CREATE TABLE webinars (
   modo_youtube      TINYINT(1) NOT NULL DEFAULT 0,          -- barra estilo YouTube: rever o já assistido, sem avançar
   modo_youtube_bloqueio_segundo INT UNSIGNED NULL,          -- a partir deste segundo, trava avanço mesmo revendo (protege o pitch)
   tipo_audiencia    ENUM('nenhuma','fixa','dinamica') NOT NULL DEFAULT 'nenhuma',
+  audiencia_min_participantes INT UNSIGNED NOT NULL DEFAULT 50,
+  audiencia_max_participantes INT UNSIGNED NOT NULL DEFAULT 65,
+  mostrar_botao_ao_vivo TINYINT(1) NOT NULL DEFAULT 1,
   status            ENUM('rascunho','ativo','pausado','finalizado') NOT NULL DEFAULT 'rascunho',
   criado_por        BIGINT UNSIGNED NULL,
   criado_em         DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

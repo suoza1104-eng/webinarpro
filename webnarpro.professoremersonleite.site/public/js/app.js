@@ -90,7 +90,7 @@ const App = {
     {name:'Ilimitado', price:'R$ 397,00', storage:'Ilimitado', banda:'Ilimitada', tokens:'12.000'}
   ],
   planIdx: 1,
-  wz:{step:0, nome:'', titulo:'', url:'', apresentador:'', tipo:'Único', duracao:150, espectadores:500, produto:'Comunidade FERA', preco:'R$ 997,00', video:null, startMode:'immediate'},
+  wz:{step:0, nome:'', titulo:'', url:'', apresentador:'', tipo:'Único', duracao:150, espectadores:500, produto:'Comunidade FERA', preco:'R$ 997,00', video:null, startMode:'immediate', audienceType:'dinamica'},
 
   // ---------- BOOT / AUTENTICAÇÃO ----------
   currentUser: null,
@@ -546,7 +546,7 @@ const App = {
     this.wzGo(this.getActiveWizardStep() - 1);
   },
   resetWizard(){
-    this.wz = {step:0, id:null, slug:null, videoId:null, nome:'', titulo:'', url:'', apresentador:'', tipo:'Único', duracao:150, espectadores:500, produto:'Comunidade FERA', preco:'R$ 997,00', video:null, startMode:'immediate'};
+    this.wz = {step:0, id:null, slug:null, videoId:null, nome:'', titulo:'', url:'', apresentador:'', tipo:'Único', duracao:150, espectadores:500, produto:'Comunidade FERA', preco:'R$ 997,00', video:null, startMode:'immediate', audienceType:'dinamica'};
     document.getElementById('w_nome').value='';
     document.getElementById('w_titulo').value='';
     document.getElementById('w_url').value='';
@@ -583,6 +583,7 @@ const App = {
     if(n===11){
       nextBtn.onclick = ()=>App.publishWebinar();
     }
+    if(n===7) this.updateAudiencePreview();
     document.querySelector('.wizard-card').scrollIntoView({behavior:'smooth', block:'start'});
   },
   async saveWizardStep(step){
@@ -772,15 +773,56 @@ const App = {
       return false;
     }
   },
+  setAudienceType(type){
+    this.wz.audienceType = type;
+    document.querySelectorAll('input[name="audTipo"]').forEach(input=>{
+      input.checked = input.value === type;
+    });
+    this.updateAudiencePreview();
+  },
+  getAudienceValues(){
+    const minEl = document.getElementById('audMin');
+    const maxEl = document.getElementById('audMax');
+    const min = Math.max(0, Number(minEl?.value || 0));
+    const max = Math.max(min, Number(maxEl?.value || min));
+    if(maxEl && Number(maxEl.value || 0) < min) maxEl.value = min;
+    return {
+      tipo: this.wz.audienceType || document.querySelector('input[name="audTipo"]:checked')?.value || 'nenhuma',
+      min,
+      max,
+      mostrarBotaoAoVivo: document.getElementById('audLiveToggle')?.checked ?? true,
+    };
+  },
+  updateAudiencePreview(){
+    const cfg = this.getAudienceValues();
+    const minPreview = document.getElementById('audMinPreview');
+    const maxPreview = document.getElementById('audMaxPreview');
+    if(minPreview) minPreview.textContent = cfg.min;
+    if(maxPreview) maxPreview.textContent = cfg.max;
+
+    const xs = [70, 150, 230, 310, 390, 470, 550, 590];
+    const raw = cfg.tipo === 'fixa'
+      ? xs.map(()=>cfg.max)
+      : [cfg.min, cfg.max, cfg.max, cfg.max, cfg.max, Math.round(cfg.max - ((cfg.max - cfg.min) * .35)), Math.round(cfg.max - ((cfg.max - cfg.min) * .65)), cfg.min];
+    const chartMax = Math.max(80, cfg.max + 10);
+    const points = raw.map((value, idx)=>{
+      const y = 300 - ((value / chartMax) * 270);
+      return { x: xs[idx], y: Math.max(30, Math.min(300, y)), value };
+    });
+    const line = document.getElementById('audChartLine');
+    const dots = document.getElementById('audChartDots');
+    if(line) line.setAttribute('points', points.map(p=>`${p.x},${p.y}`).join(' '));
+    if(dots) dots.innerHTML = points.map(p=>`<circle class="aud-chart-dot" cx="${p.x}" cy="${p.y}" r="5"></circle>`).join('');
+  },
   async saveAudienceConfig(){
-    const selected = document.querySelector('[data-step="7"] .radio-card.sel .r-title')?.textContent || '';
-    const tipo = selected.toLowerCase().includes('fixa')
-      ? 'fixa'
-      : selected.toLowerCase().includes('dinâmica') || selected.toLowerCase().includes('dinamica')
-        ? 'dinamica'
-        : 'nenhuma';
+    const cfg = this.getAudienceValues();
     try{
-      await this.apiFetch(`/api/webinars/${this.wz.id}`, {method:'PUT', body: JSON.stringify({ tipo_audiencia: tipo })});
+      await this.apiFetch(`/api/webinars/${this.wz.id}`, {method:'PUT', body: JSON.stringify({
+        tipo_audiencia: cfg.tipo,
+        audiencia_min_participantes: cfg.min,
+        audiencia_max_participantes: cfg.max,
+        mostrar_botao_ao_vivo: cfg.mostrarBotaoAoVivo,
+      })});
       return true;
     }catch(e){
       this.toast('Erro ao salvar audiência: ' + e.message);
