@@ -309,7 +309,7 @@ const App = {
   async loadVideos(){
     const rows = await this.apiFetch('/api/videos');
     this.videos = rows.map(v=>({
-      id: v.id, nome: v.nome_arquivo,
+      id: Number(v.id), nome: v.nome_arquivo,
       data: v.criado_em ? new Date(v.criado_em).toLocaleString('pt-BR') : '—',
       tamanho: v.tamanho_bytes ? (v.tamanho_bytes / 1e9).toFixed(2) + ' GB' : '—',
       status: v.status_processamento,
@@ -534,6 +534,17 @@ const App = {
       el.classList.toggle('done', +el.dataset.line <= this.wz.step);
     });
   },
+  getActiveWizardStep(){
+    const activePanel = document.querySelector('.wizard-panel.active');
+    const activeStep = activePanel ? Number(activePanel.dataset.step) : this.wz.step;
+    return Number.isFinite(activeStep) ? activeStep : 0;
+  },
+  wzNext(){
+    this.wzGo(this.getActiveWizardStep() + 1);
+  },
+  wzBack(){
+    this.wzGo(this.getActiveWizardStep() - 1);
+  },
   resetWizard(){
     this.wz = {step:0, id:null, slug:null, videoId:null, nome:'', titulo:'', url:'', apresentador:'', tipo:'Único', duracao:150, espectadores:500, produto:'Comunidade FERA', preco:'R$ 997,00', video:null, startMode:'immediate'};
     document.getElementById('w_nome').value='';
@@ -551,7 +562,8 @@ const App = {
     if(n<0) n=0;
     if(n>11) n=11;
     if(this._savingWizardStep) return;
-    const leaving = this.wz.step;
+    const leaving = this.getActiveWizardStep();
+    this.wz.step = leaving;
     if(leaving !== n){
       const ok = await this.saveWizardStep(leaving);
       if(!ok) return;
@@ -566,7 +578,7 @@ const App = {
       this.renderSummary();
     } else {
       nextBtn.textContent = 'Continuar';
-      nextBtn.onclick = ()=>App.wzGo(App.wz.step+1);
+      nextBtn.onclick = ()=>App.wzNext();
     }
     if(n===11){
       nextBtn.onclick = ()=>App.publishWebinar();
@@ -816,12 +828,12 @@ const App = {
         <div class="vp-thumb">${ICONS.play}</div>
         <div class="vp-name">${v.nome}</div>
       </div>`).join('');
-    if(!this.wz.videoId && this.videos[0]) this.wz.videoId = this.videos[0].id;
+    if(!this.wz.videoId && this.videos[0]) this.wz.videoId = Number(this.videos[0].id);
   },
   pickVideo(el, videoId){
     document.querySelectorAll('.video-pick').forEach(v=>v.classList.remove('sel'));
     el.classList.add('sel');
-    this.wz.videoId = videoId;
+    this.wz.videoId = Number(videoId);
   },
   triggerUpload(context){
     this._uploadContext = context;
