@@ -447,6 +447,7 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;bac
 @keyframes pubpulse{0%,100%{opacity:1;}50%{opacity:.25;}}
 .pub-badges{display:flex;gap:18px;justify-content:flex-end;margin-top:14px;font-size:11px;color:var(--text-faint);}
 .pub-side{border-left:1px solid var(--border-soft);display:flex;flex-direction:column;background:var(--bg-elev);min-height:100%;}
+.pub-chat-head{display:none;}
 .pub-tabs{display:flex;border-bottom:1px solid var(--border-soft);}
 .pub-tab{flex:1;padding:14px;background:none;border:none;color:var(--text-dim);font-weight:700;font-size:12.5px;
   border-bottom:2px solid transparent;}
@@ -469,6 +470,31 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;bac
   .pub-msgs{min-height:0;max-height:none;flex:1 1 auto;}
   .pub-input-row{flex:0 0 auto;padding:10px;}
   .pub-input-row .input{min-width:0;}
+}
+@media (orientation:landscape) and (max-height:520px){
+  .public-page{overflow:hidden;background:#050505;}
+  .pub-topbar,.pub-title,.pub-badges{display:none;}
+  .pub-wrap{--chat-w:clamp(300px,36vw,380px);height:100dvh;max-width:none;display:flex;flex-direction:row;overflow:hidden;background:#050505;}
+  .pub-main{height:100dvh;flex:1 1 auto;min-width:0;padding:0;display:flex;align-items:center;justify-content:center;background:#050505;}
+  .pub-video{width:min(calc(100vw - var(--chat-w)), calc(100dvh * 1.777));height:auto;max-width:calc(100vw - var(--chat-w));
+    max-height:100dvh;border-radius:0;aspect-ratio:16/9;}
+  .pub-side{width:var(--chat-w);flex:0 0 var(--chat-w);height:100dvh;min-height:0;border-left:1px solid #2b2b2b;border-top:0;background:#111;}
+  .pub-chat-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:14px 14px 10px;border-bottom:1px solid #333;color:#fff;}
+  .pub-chat-title{font-size:20px;font-weight:800;line-height:1.05;}
+  .pub-chat-sub{font-size:12px;color:#ddd;margin-top:4px;}
+  .pub-chat-meta{display:flex;align-items:center;gap:12px;color:#ddd;font-size:12px;}
+  .pub-chat-meta button{width:28px;height:28px;border:0;background:none;color:#fff;font-size:25px;line-height:1;cursor:pointer;}
+  .pub-chat-viewers{position:relative;padding-left:14px;white-space:nowrap;}
+  .pub-chat-viewers::before{content:'';position:absolute;left:0;top:50%;width:8px;height:8px;border-radius:50%;background:#ddd;transform:translateY(-50%);}
+  .pub-tabs{display:none;}
+  .pub-msgs{display:flex;min-height:0;max-height:none;flex:1 1 auto;padding:10px 14px;font-size:13px;}
+  #pubMsgsSuporte{display:none!important;}
+  .pub-chat-msg{font-size:13.5px;padding:6px 0;color:#e8e8e8;}
+  .pub-chat-msg .name{font-size:13.5px;color:#aaa;}
+  .pub-input-row{padding:10px 12px 12px;border-top:1px solid #333;gap:8px;background:#111;}
+  .pub-input-row .input{height:40px;border-radius:22px;background:#242424;border-color:#242424;color:#fff;padding:0 16px;}
+  .pub-input-row .btn{height:40px;border-radius:20px;padding:0 14px;}
+  .yt-controls{padding-bottom:8px;}
 }
 
 /* ===================== NOVOS COMPONENTES DO WIZARD (fidelidade ao produto real) ===================== */
