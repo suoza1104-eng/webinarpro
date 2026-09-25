@@ -550,17 +550,11 @@ const App = {
   async wzGo(n){
     if(n<0) n=0;
     if(n>11) n=11;
+    if(this._savingWizardStep) return;
     const leaving = this.wz.step;
-    if(leaving===0 && n!==0 && !this.wz.id){
-      const ok = await this.createWebinarDraft();
+    if(leaving !== n){
+      const ok = await this.saveWizardStep(leaving);
       if(!ok) return;
-    }
-    if(leaving===1 && n!==1 && this.wz.id){
-      const ok = await this.saveScheduleConfig();
-      if(!ok) return;
-    }
-    if(leaving===3 && n!==3 && this.wz.id){
-      await this.saveVideoConfig();
     }
     this.wz.step = n;
     document.querySelectorAll('.wizard-panel').forEach(p=>p.classList.toggle('active', +p.dataset.step===n));
@@ -579,6 +573,47 @@ const App = {
     }
     document.querySelector('.wizard-card').scrollIntoView({behavior:'smooth', block:'start'});
   },
+  async saveWizardStep(step){
+    const nextBtn = document.getElementById('wzNext');
+    const originalText = nextBtn?.textContent;
+    this._savingWizardStep = true;
+    if(nextBtn){ nextBtn.disabled = true; nextBtn.textContent = 'Salvando...'; }
+    try{
+      if(!this.wz.id && step !== 0){
+        const created = await this.createWebinarDraft();
+        if(!created) return false;
+      }
+
+      let ok = true;
+      if(step === 0) ok = await this.saveBasicConfig();
+      else if(step === 1) ok = await this.saveScheduleConfig();
+      else if(step === 2) ok = await this.saveLoginConfig();
+      else if(step === 3) ok = await this.saveVideoConfig();
+      else if(step === 4) ok = await this.saveOfferConfig();
+      else if(step === 5) ok = await this.saveChatConfig();
+      else if(step === 6) ok = await this.saveSalesConfig();
+      else if(step === 7) ok = await this.saveAudienceConfig();
+      else if(step === 9) ok = await this.saveChatbotConfig();
+      return ok !== false;
+    }finally{
+      this._savingWizardStep = false;
+      if(nextBtn){ nextBtn.disabled = false; nextBtn.textContent = originalText || 'Continuar'; }
+    }
+  },
+  async saveBasicConfig(){
+    if(!this.wz.id) return this.createWebinarDraft();
+    try{
+      await this.apiFetch(`/api/webinars/${this.wz.id}`, {method:'PUT', body: JSON.stringify({
+        nome: this.wz.nome,
+        titulo: this.wz.titulo || undefined,
+        nome_apresentador: this.wz.apresentador || undefined,
+      })});
+      return true;
+    }catch(e){
+      this.toast('Erro ao salvar início: ' + e.message);
+      return false;
+    }
+  },
   async createWebinarDraft(){
     if(!this.wz.nome){ this.toast('Dê um nome ao webinar antes de continuar'); return false; }
     try{
@@ -596,7 +631,7 @@ const App = {
     }
   },
   async saveVideoConfig(){
-    if(!this.wz.videoId) return;
+    if(!this.wz.videoId) return true;
     try{
       await this.apiFetch(`/api/webinars/${this.wz.id}/video`, {method:'PUT', body: JSON.stringify({
         video_id: this.wz.videoId,
@@ -608,8 +643,10 @@ const App = {
         modo_youtube_bloqueio_segundo: document.getElementById('inputBloqueioSegundo').value
           ? Number(document.getElementById('inputBloqueioSegundo').value) : null,
       })});
+      return true;
     }catch(e){
       this.toast('Erro ao salvar configuração de vídeo: ' + e.message);
+      return false;
     }
   },
   selectSchedType(t){
@@ -649,6 +686,108 @@ const App = {
       return true;
     }catch(e){
       this.toast('Erro ao salvar agendamento: ' + e.message);
+      return false;
+    }
+  },
+  parseMoneyToCents(value){
+    const digits = String(value || '').replace(/\D/g, '');
+    return digits ? Number(digits) : 0;
+  },
+  parseTimeToSeconds(value){
+    const parts = String(value || '').split(':').map(p=>Number(p.replace(/\D/g, '') || 0));
+    if(parts.length === 3) return (parts[0] * 3600) + (parts[1] * 60) + parts[2];
+    if(parts.length === 2) return (parts[0] * 60) + parts[1];
+    return parts[0] || 0;
+  },
+  async saveLoginConfig(){
+    try{
+      await this.apiFetch(`/api/webinars/${this.wz.id}/login-config`, {method:'PUT', body: JSON.stringify({
+        exibir_barra_progresso: document.getElementById('chkBarraProgresso')?.checked ?? true,
+        progresso_inicial: Number(document.getElementById('w_progInicio')?.value || 0),
+        pedir_whatsapp: document.getElementById('chkWhats')?.checked ?? true,
+        pedir_empresa: document.getElementById('chkEmpresa')?.checked ?? false,
+        titulo_botao: document.getElementById('w_botaoTitulo')?.value || 'Entrar na Aula',
+      })});
+      return true;
+    }catch(e){
+      this.toast('Erro ao salvar login: ' + e.message);
+      return false;
+    }
+  },
+  async saveOfferConfig(){
+    try{
+      await this.apiFetch(`/api/webinars/${this.wz.id}/offer-config`, {method:'PUT', body: JSON.stringify({
+        nome_oferta: document.getElementById('w_produto')?.value || this.wz.produto || 'Oferta',
+        titulo_oferta: document.getElementById('w_ofertaTitulo')?.value || null,
+        preco_original_centavos: this.parseMoneyToCents(document.getElementById('w_precoOriginal')?.value || ''),
+        preco_oferta_centavos: this.parseMoneyToCents(document.getElementById('w_preco')?.value || ''),
+        texto_botao: document.getElementById('w_ofertaBotao')?.value || 'inscreva-se aqui',
+      })});
+      return true;
+    }catch(e){
+      this.toast('Erro ao salvar oferta: ' + e.message);
+      return false;
+    }
+  },
+  async saveChatConfig(){
+    try{
+      await this.apiFetch(`/api/webinars/${this.wz.id}/chat-messages`, {method:'PUT', body: JSON.stringify({
+        messages: this.chatMsgs.map(c=>({
+          segundo_exibicao: this.parseTimeToSeconds(c.t),
+          nome_exibido: c.n,
+          mensagem: c.m,
+          eh_suporte: false,
+        })),
+      })});
+      return true;
+    }catch(e){
+      this.toast('Erro ao salvar chat: ' + e.message);
+      return false;
+    }
+  },
+  async saveSalesConfig(){
+    try{
+      await this.apiFetch(`/api/webinars/${this.wz.id}/sales-notifications`, {method:'PUT', body: JSON.stringify({
+        sales: this.sales.map(s=>({
+          segundo_exibicao: this.parseTimeToSeconds(s.t),
+          nome_exibido: s.n,
+          titulo_notificacao: 'Venda confirmada!',
+        })),
+      })});
+      return true;
+    }catch(e){
+      this.toast('Erro ao salvar vendas: ' + e.message);
+      return false;
+    }
+  },
+  async saveAudienceConfig(){
+    const selected = document.querySelector('[data-step="7"] .radio-card.sel .r-title')?.textContent || '';
+    const tipo = selected.toLowerCase().includes('fixa')
+      ? 'fixa'
+      : selected.toLowerCase().includes('dinâmica') || selected.toLowerCase().includes('dinamica')
+        ? 'dinamica'
+        : 'nenhuma';
+    try{
+      await this.apiFetch(`/api/webinars/${this.wz.id}`, {method:'PUT', body: JSON.stringify({ tipo_audiencia: tipo })});
+      return true;
+    }catch(e){
+      this.toast('Erro ao salvar audiência: ' + e.message);
+      return false;
+    }
+  },
+  async saveChatbotConfig(){
+    try{
+      await this.apiFetch(`/api/webinars/${this.wz.id}/chatbot-keywords`, {method:'PUT', body: JSON.stringify({
+        keywords: this.keywords.map(k=>({
+          remetente_exibido: k.rem,
+          palavra_chave: k.kw,
+          resposta_automatica: k.resp,
+          delay_segundos: Number(String(k.delay || '5').replace(/\D/g, '') || 5),
+        })),
+      })});
+      return true;
+    }catch(e){
+      this.toast('Erro ao salvar chatbot: ' + e.message);
       return false;
     }
   },

@@ -32,6 +32,18 @@ async function uniqueSlug(accountId, base) {
 }
 
 // ETAPA 1 — criar rascunho
+async function getOwnedWebinarId(webinarId, accountId, db = pool) {
+  const [rows] = await db.query(
+    'SELECT id FROM webinars WHERE id = ? AND account_id = ? LIMIT 1',
+    [webinarId, accountId],
+  );
+  return rows.length > 0 ? rows[0].id : null;
+}
+
+function boolToTinyInt(value) {
+  return value ? 1 : 0;
+}
+
 const createSchema = z.object({
   nome: z.string().min(1).max(150),
   titulo: z.string().max(255).optional(),
@@ -211,6 +223,250 @@ router.put('/:id/video', async (req, res) => {
   if (result.affectedRows === 0) return res.status(404).json({ error: 'Webinar não encontrado' });
 
   res.json({ ok: true });
+});
+
+const loginConfigSchema = z.object({
+  logo_url: z.string().url().max(500).nullable().optional(),
+  exibir_barra_progresso: z.boolean().optional(),
+  progresso_inicial: z.number().int().min(0).max(100).optional(),
+  pedir_whatsapp: z.boolean().optional(),
+  pedir_empresa: z.boolean().optional(),
+  titulo_botao: z.string().min(1).max(60).optional(),
+  cor_botao: z.string().max(9).optional(),
+  cor_texto_botao: z.string().max(9).optional(),
+});
+
+router.put('/:id/login-config', async (req, res) => {
+  const parsed = loginConfigSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+  const webinarId = await getOwnedWebinarId(req.params.id, req.accountId);
+  if (!webinarId) return res.status(404).json({ error: 'Webinar nÃ£o encontrado' });
+  const data = parsed.data;
+
+  await pool.query(
+    `INSERT INTO webinar_login_config
+      (webinar_id, logo_url, exibir_barra_progresso, progresso_inicial, pedir_whatsapp, pedir_empresa, titulo_botao, cor_botao, cor_texto_botao)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE
+      logo_url = VALUES(logo_url),
+      exibir_barra_progresso = VALUES(exibir_barra_progresso),
+      progresso_inicial = VALUES(progresso_inicial),
+      pedir_whatsapp = VALUES(pedir_whatsapp),
+      pedir_empresa = VALUES(pedir_empresa),
+      titulo_botao = VALUES(titulo_botao),
+      cor_botao = VALUES(cor_botao),
+      cor_texto_botao = VALUES(cor_texto_botao)`,
+    [
+      webinarId,
+      data.logo_url || null,
+      boolToTinyInt(data.exibir_barra_progresso ?? true),
+      data.progresso_inicial ?? 0,
+      boolToTinyInt(data.pedir_whatsapp ?? true),
+      boolToTinyInt(data.pedir_empresa ?? false),
+      data.titulo_botao || 'Entrar na Aula',
+      data.cor_botao || '#1F9D57',
+      data.cor_texto_botao || '#FFFFFF',
+    ],
+  );
+
+  res.json({ ok: true });
+});
+
+const offerConfigSchema = z.object({
+  nome_oferta: z.string().min(1).max(150),
+  titulo_oferta: z.string().max(255).nullable().optional(),
+  preco_original_centavos: z.number().int().nonnegative().nullable().optional(),
+  preco_oferta_centavos: z.number().int().nonnegative(),
+  texto_botao: z.string().min(1).max(80).optional(),
+  cor_botao: z.string().max(9).optional(),
+  layout_temporizador: z.enum(['classico', 'rotulos', 'urgente']).optional(),
+  temporizador_segundos: z.number().int().nonnegative().optional(),
+  imagem_desktop_url: z.string().url().max(500).nullable().optional(),
+  imagem_mobile_url: z.string().url().max(500).nullable().optional(),
+  inicio_pitch_segundos: z.number().int().nonnegative().nullable().optional(),
+  inicio_oferta_segundos: z.number().int().nonnegative().nullable().optional(),
+  fim_oferta_segundos: z.number().int().nonnegative().nullable().optional(),
+  link_checkout: z.string().max(500).optional(),
+  repassar_utms: z.boolean().optional(),
+  oferta_desabilitada: z.boolean().optional(),
+  sorteio_habilitado: z.boolean().optional(),
+});
+
+router.put('/:id/offer-config', async (req, res) => {
+  const parsed = offerConfigSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+  const webinarId = await getOwnedWebinarId(req.params.id, req.accountId);
+  if (!webinarId) return res.status(404).json({ error: 'Webinar nÃ£o encontrado' });
+  const data = parsed.data;
+
+  await pool.query(
+    `INSERT INTO webinar_offer_config
+      (webinar_id, nome_oferta, titulo_oferta, preco_original_centavos, preco_oferta_centavos, texto_botao, cor_botao,
+       layout_temporizador, temporizador_segundos, imagem_desktop_url, imagem_mobile_url, inicio_pitch_segundos,
+       inicio_oferta_segundos, fim_oferta_segundos, link_checkout, repassar_utms, oferta_desabilitada, sorteio_habilitado)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE
+      nome_oferta = VALUES(nome_oferta),
+      titulo_oferta = VALUES(titulo_oferta),
+      preco_original_centavos = VALUES(preco_original_centavos),
+      preco_oferta_centavos = VALUES(preco_oferta_centavos),
+      texto_botao = VALUES(texto_botao),
+      cor_botao = VALUES(cor_botao),
+      layout_temporizador = VALUES(layout_temporizador),
+      temporizador_segundos = VALUES(temporizador_segundos),
+      imagem_desktop_url = VALUES(imagem_desktop_url),
+      imagem_mobile_url = VALUES(imagem_mobile_url),
+      inicio_pitch_segundos = VALUES(inicio_pitch_segundos),
+      inicio_oferta_segundos = VALUES(inicio_oferta_segundos),
+      fim_oferta_segundos = VALUES(fim_oferta_segundos),
+      link_checkout = VALUES(link_checkout),
+      repassar_utms = VALUES(repassar_utms),
+      oferta_desabilitada = VALUES(oferta_desabilitada),
+      sorteio_habilitado = VALUES(sorteio_habilitado)`,
+    [
+      webinarId,
+      data.nome_oferta,
+      data.titulo_oferta || null,
+      data.preco_original_centavos ?? null,
+      data.preco_oferta_centavos,
+      data.texto_botao || 'inscreva-se aqui',
+      data.cor_botao || '#D93B3B',
+      data.layout_temporizador || 'classico',
+      data.temporizador_segundos ?? 300,
+      data.imagem_desktop_url || null,
+      data.imagem_mobile_url || null,
+      data.inicio_pitch_segundos ?? null,
+      data.inicio_oferta_segundos ?? null,
+      data.fim_oferta_segundos ?? null,
+      data.link_checkout || '',
+      boolToTinyInt(data.repassar_utms ?? false),
+      boolToTinyInt(data.oferta_desabilitada ?? false),
+      boolToTinyInt(data.sorteio_habilitado ?? false),
+    ],
+  );
+
+  res.json({ ok: true });
+});
+
+const chatMessagesSchema = z.object({
+  messages: z.array(z.object({
+    segundo_exibicao: z.number().int().nonnegative(),
+    nome_exibido: z.string().min(1).max(80),
+    mensagem: z.string().min(1).max(500),
+    eh_suporte: z.boolean().optional(),
+  })).max(500),
+});
+
+router.put('/:id/chat-messages', async (req, res) => {
+  const parsed = chatMessagesSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const webinarId = await getOwnedWebinarId(req.params.id, req.accountId, connection);
+    if (!webinarId) {
+      await connection.rollback();
+      return res.status(404).json({ error: 'Webinar nÃ£o encontrado' });
+    }
+    await connection.query('DELETE FROM webinar_chat_messages WHERE webinar_id = ?', [webinarId]);
+    for (const [idx, msg] of parsed.data.messages.entries()) {
+      await connection.query(
+        `INSERT INTO webinar_chat_messages (webinar_id, segundo_exibicao, nome_exibido, mensagem, eh_suporte, ordem)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [webinarId, msg.segundo_exibicao, msg.nome_exibido, msg.mensagem, boolToTinyInt(msg.eh_suporte ?? false), idx],
+      );
+    }
+    await connection.commit();
+    res.json({ ok: true });
+  } catch (err) {
+    await connection.rollback();
+    throw err;
+  } finally {
+    connection.release();
+  }
+});
+
+const salesNotificationsSchema = z.object({
+  sales: z.array(z.object({
+    segundo_exibicao: z.number().int().nonnegative(),
+    nome_exibido: z.string().min(1).max(80),
+    titulo_notificacao: z.string().min(1).max(120).optional(),
+  })).max(500),
+});
+
+router.put('/:id/sales-notifications', async (req, res) => {
+  const parsed = salesNotificationsSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const webinarId = await getOwnedWebinarId(req.params.id, req.accountId, connection);
+    if (!webinarId) {
+      await connection.rollback();
+      return res.status(404).json({ error: 'Webinar nÃ£o encontrado' });
+    }
+    await connection.query('DELETE FROM webinar_sales_notifications WHERE webinar_id = ?', [webinarId]);
+    for (const sale of parsed.data.sales) {
+      await connection.query(
+        `INSERT INTO webinar_sales_notifications (webinar_id, segundo_exibicao, nome_exibido, titulo_notificacao)
+         VALUES (?, ?, ?, ?)`,
+        [webinarId, sale.segundo_exibicao, sale.nome_exibido, sale.titulo_notificacao || 'Venda confirmada!'],
+      );
+    }
+    await connection.commit();
+    res.json({ ok: true });
+  } catch (err) {
+    await connection.rollback();
+    throw err;
+  } finally {
+    connection.release();
+  }
+});
+
+const chatbotKeywordsSchema = z.object({
+  keywords: z.array(z.object({
+    remetente_exibido: z.string().min(1).max(80),
+    palavra_chave: z.string().min(1).max(120),
+    resposta_automatica: z.string().min(1).max(500),
+    delay_segundos: z.number().int().nonnegative().optional(),
+    imagem_url: z.string().url().max(500).nullable().optional(),
+  })).max(500),
+});
+
+router.put('/:id/chatbot-keywords', async (req, res) => {
+  const parsed = chatbotKeywordsSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const webinarId = await getOwnedWebinarId(req.params.id, req.accountId, connection);
+    if (!webinarId) {
+      await connection.rollback();
+      return res.status(404).json({ error: 'Webinar nÃ£o encontrado' });
+    }
+    await connection.query('DELETE FROM webinar_chatbot_keywords WHERE webinar_id = ?', [webinarId]);
+    for (const keyword of parsed.data.keywords) {
+      await connection.query(
+        `INSERT INTO webinar_chatbot_keywords (webinar_id, remetente_exibido, palavra_chave, resposta_automatica, delay_segundos, imagem_url)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [
+          webinarId,
+          keyword.remetente_exibido,
+          keyword.palavra_chave,
+          keyword.resposta_automatica,
+          keyword.delay_segundos ?? 5,
+          keyword.imagem_url || null,
+        ],
+      );
+    }
+    await connection.commit();
+    res.json({ ok: true });
+  } catch (err) {
+    await connection.rollback();
+    throw err;
+  } finally {
+    connection.release();
+  }
 });
 
 // DUPLICAR WEBINAR
