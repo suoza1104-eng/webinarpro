@@ -439,6 +439,9 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;bac
   text-shadow:0 2px 10px rgba(0,0,0,.55);}
 .pub-play-overlay-icon{width:58px;height:58px;border-radius:50%;border:2px solid rgba(255,255,255,.85);
   display:flex;align-items:center;justify-content:center;font-size:22px;padding-left:3px;background:rgba(0,0,0,.28);}
+.pub-play-overlay--sound{inset:auto 14px 14px auto;z-index:8;width:auto;min-height:44px;padding:10px 14px;border-radius:999px;
+  flex-direction:row;background:rgba(0,0,0,.72);box-shadow:0 8px 28px rgba(0,0,0,.32);font-size:12.5px;}
+.pub-play-overlay--sound .pub-play-overlay-icon{width:28px;height:28px;font-size:11px;border-width:1px;padding-left:2px;}
 .pub-live{position:relative;width:100%;height:100%;background:linear-gradient(160deg,#201f1a,#0a0a0a);
   display:flex;align-items:center;justify-content:center;color:#555;font-size:12px;}
 .pub-live-badge{position:absolute;top:14px;left:16px;background:var(--red);color:#fff;font-size:10.5px;font-weight:800;
@@ -460,16 +463,16 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;bac
 .pub-chat-msg.mine{color:var(--yellow);}
 .pub-input-row{display:flex;gap:8px;padding:12px 14px;border-top:1px solid var(--border-soft);}
 @media (max-width:900px){
-  .public-page{overflow:hidden;}
+  .public-page.open{height:100dvh;overflow:hidden;}
   .pub-topbar,.pub-title,.pub-badges{display:none;}
   .pub-wrap{height:100dvh;max-width:none;display:flex;flex-direction:column;overflow:hidden;}
   .pub-main{padding:0;flex:0 0 auto;}
-  .pub-video{border-radius:0;width:100vw;max-height:56.25vw;}
+  .pub-video{border-radius:0;width:100vw;aspect-ratio:16/9;max-height:56.25vw;}
   .pub-side{border-left:none;border-top:1px solid var(--border-soft);flex:1 1 auto;min-height:0;}
   .pub-tabs{flex:0 0 auto;}
-  .pub-msgs{min-height:0;max-height:none;flex:1 1 auto;}
+  .pub-msgs{min-height:0;max-height:none;flex:1 1 auto;overflow-y:auto;-webkit-overflow-scrolling:touch;}
   .pub-input-row{flex:0 0 auto;padding:10px;}
-  .pub-input-row .input{min-width:0;}
+  .pub-input-row .input{min-width:0;font-size:16px;}
 }
 @media (orientation:landscape) and (max-height:520px){
   .public-page{overflow:hidden;background:#050505;}

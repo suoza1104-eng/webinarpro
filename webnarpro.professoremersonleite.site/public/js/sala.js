@@ -153,6 +153,8 @@ const Sala = {
     document.getElementById('publicPage').style.display = 'block';
     document.getElementById('pubMsgsSuporte').innerHTML = '<div class="empty-state">Envie uma mensagem privada para o suporte.</div>';
     this.setupAudienceBadge();
+    this.resetRoomScroll();
+    this.bindRoomViewportReset();
 
     if(this.isReplay){
       this.showCover();
@@ -193,7 +195,7 @@ const Sala = {
   },
 
   COUNTDOWN_SECONDS: 8,
-  EDGE_TOLERANCE: 1.5,
+  EDGE_TOLERANCE: 3,
 
   setupAudienceBadge(){
     if(this._audienceTicker) clearInterval(this._audienceTicker);
@@ -235,6 +237,39 @@ const Sala = {
       this._wakeLock = await navigator.wakeLock.request('screen');
       this._wakeLock.addEventListener('release', ()=>{ this._wakeLock = null; });
     }catch(e){}
+  },
+
+  resetRoomScroll(){
+    requestAnimationFrame(()=>{
+      window.scrollTo(0, 0);
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+      const page = document.getElementById('publicPage');
+      if(page) page.scrollTop = 0;
+    });
+  },
+
+  bindRoomViewportReset(){
+    if(this._roomViewportResetBound) return;
+    this._roomViewportResetBound = true;
+    const reset = ()=>setTimeout(()=>this.resetRoomScroll(), 80);
+    window.addEventListener('orientationchange', reset);
+    window.addEventListener('resize', reset);
+  },
+
+  tryEnterFullscreen(){
+    try{
+      document.documentElement.requestFullscreen?.();
+    }catch(e){}
+  },
+
+  maintainLiveEdge(){
+    if(!this.followLiveEdge || !this.video || this.video.paused || this.isReplay) return;
+    const target = this.getMaxSeekable();
+    if(!Number.isFinite(target) || target <= 0) return;
+    if(target - this.video.currentTime > this.EDGE_TOLERANCE){
+      this.video.currentTime = target;
+    }
   },
 
   bindWakeLockRestore(){
@@ -326,6 +361,8 @@ const Sala = {
   showEnded(){
     if(this._countdown) clearInterval(this._countdown);
     if(this._ytTicker) clearInterval(this._ytTicker);
+    if(this._liveFollowTicker) clearInterval(this._liveFollowTicker);
+    this.followLiveEdge = false;
     const apresentador = this.info?.nomeApresentador;
     document.getElementById('pubVideo').innerHTML = `
       <div class="pub-live" style="flex-direction:column;gap:10px;">
@@ -339,6 +376,8 @@ const Sala = {
   },
 
   beginSession(){
+    this.requestWakeLock();
+    this.tryEnterFullscreen();
     if(!this.isReplay){
       this.sessionStartedAt = Date.now();
       localStorage.setItem('wp_start_' + this.slug, String(this.sessionStartedAt));
@@ -413,6 +452,9 @@ const Sala = {
     }
     const cfg = this.room.video;
     if(this._ytTicker) clearInterval(this._ytTicker);
+    if(this._liveFollowTicker) clearInterval(this._liveFollowTicker);
+    this.followLiveEdge = this.shouldObeySchedule() || seekTo > 0;
+    const scheduledAutoplay = this.shouldObeySchedule();
 
     if(cfg.modoYoutube){
       document.getElementById('pubVideo').innerHTML = `
@@ -454,11 +496,20 @@ const Sala = {
 
     const el = document.getElementById('pubVideoEl');
     this.video = el;
-
-    if(seekTo > 0){
-      this.maxPlayedTime = seekTo;
-      el.addEventListener('loadedmetadata', ()=>{ el.currentTime = Math.min(seekTo, el.duration || seekTo); }, { once: true });
+    if(scheduledAutoplay){
+      el.muted = true;
+      el.defaultMuted = true;
+      el.setAttribute('muted', '');
+      el.setAttribute('autoplay', '');
+      el.setAttribute('playsinline', '');
+      el.setAttribute('webkit-playsinline', '');
     }
+
+    this.maxPlayedTime = Math.max(this.maxPlayedTime || 0, seekTo || 0);
+    el.addEventListener('loadedmetadata', ()=>{
+      const target = this.followLiveEdge ? this.getMaxSeekable() : seekTo;
+      if(target > 0) el.currentTime = Math.min(target, el.duration || target);
+    }, { once: true });
 
     if(el.canPlayType('application/vnd.apple.mpegurl')){
       el.src = cfg.url;
@@ -474,11 +525,18 @@ const Sala = {
     el.onclick = ()=>{
       this.requestWakeLock();
       this.hidePlayOverlay();
-      if(el.paused){ this.userPaused = false; el.play().catch(()=>{}); }
-      else { this.userPaused = true; el.pause(); }
+      if(el.paused){
+        this.userPaused = false;
+        if(this.followLiveEdge) this.maintainLiveEdge();
+        el.play().catch(()=>{});
+      } else {
+        this.userPaused = true;
+        this.followLiveEdge = false;
+        el.pause();
+      }
     };
-    el.onpause = ()=>{ if(!document.hidden) this.userPaused = true; };
-    el.onplay = ()=>{ this.userPaused = false; };
+    el.onpause = ()=>{ if(!document.hidden){ this.userPaused = true; this.followLiveEdge = false; } };
+    el.onplay = ()=>{ this.userPaused = false; if(this.followLiveEdge) this.maintainLiveEdge(); };
 
     if(!this._visHandlerBound){
       this._visHandlerBound = true;
@@ -516,6 +574,7 @@ const Sala = {
       el.addEventListener('seeking', ()=>{
         const max = this.getMaxSeekable();
         if(el.currentTime > max + 0.5) el.currentTime = max;
+        if(el.currentTime < max - this.EDGE_TOLERANCE) this.followLiveEdge = false;
       });
       el.addEventListener('ratechange', ()=>{
         if(el.playbackRate !== 1 && el.currentTime >= this.getMaxSeekable() - this.EDGE_TOLERANCE) el.playbackRate = 1;
@@ -535,17 +594,24 @@ const Sala = {
 
     el.addEventListener('ended', ()=>this.showEnded());
     el.addEventListener('volumechange', ()=>this.syncVolumeUI());
+    this._liveFollowTicker = setInterval(()=>this.maintainLiveEdge(), 1000);
     this.syncVolumeUI();
 
     if(cfg.autoplay || seekTo > 0 || this.shouldObeySchedule()){
-      this.tryStartPlayback(el, this.shouldObeySchedule());
+      this.tryStartPlayback(el, scheduledAutoplay);
     }
   },
 
   async tryStartPlayback(el, allowMutedFallback){
+    if(allowMutedFallback){
+      el.muted = true;
+      el.defaultMuted = true;
+      el.setAttribute('muted', '');
+    }
     try{
       await el.play();
       this.hidePlayOverlay();
+      if(allowMutedFallback && el.muted) this.showPlayOverlay('Toque para ativar o som', true);
       return;
     }catch(e){}
 
@@ -566,7 +632,7 @@ const Sala = {
     const wrap = document.getElementById('pubVideo');
     if(!wrap) return;
     wrap.insertAdjacentHTML('beforeend', `
-      <button class="pub-play-overlay" id="pubPlayOverlay" onclick="Sala.resumeFromOverlay(${unmuteOnly ? 'true' : 'false'})">
+      <button class="pub-play-overlay ${unmuteOnly ? 'pub-play-overlay--sound' : ''}" id="pubPlayOverlay" onclick="Sala.resumeFromOverlay(${unmuteOnly ? 'true' : 'false'})">
         <span class="pub-play-overlay-icon">▶</span>
         <span>${label}</span>
       </button>`);
@@ -579,6 +645,9 @@ const Sala = {
   resumeFromOverlay(unmuteOnly){
     if(!this.video) return;
     this.requestWakeLock();
+    this.tryEnterFullscreen();
+    this.followLiveEdge = true;
+    this.maintainLiveEdge();
     this.video.muted = false;
     this.userPaused = false;
     this.video.play().then(()=>this.hidePlayOverlay()).catch(()=>{
@@ -625,6 +694,7 @@ const Sala = {
       const rect = scrub.getBoundingClientRect();
       const frac = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
       el.currentTime = Math.min(frac * this.getLiveEdge(), this.getMaxSeekable());
+      this.followLiveEdge = el.currentTime >= this.getMaxSeekable() - this.EDGE_TOLERANCE;
     };
     let dragging = false;
     scrub.addEventListener('mousedown', (e)=>{ dragging = true; seekFromEvent(e); });
@@ -651,6 +721,7 @@ const Sala = {
   ytTick(){
     const el = this.video;
     if(!el) return;
+    if(this.followLiveEdge && !el.paused) this.maintainLiveEdge();
     const liveEdge = this.getLiveEdge();
     const maxSeekable = this.getMaxSeekable();
 
@@ -684,6 +755,9 @@ const Sala = {
 
   ytGoLive(){
     if(!this.video) return;
+    this.requestWakeLock();
+    this.tryEnterFullscreen();
+    this.followLiveEdge = true;
     this.video.currentTime = this.getMaxSeekable();
     this.video.playbackRate = 1;
     if(this.video.paused) this.video.play().catch(()=>{});
