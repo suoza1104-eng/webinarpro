@@ -194,6 +194,24 @@ const Sala = {
   COUNTDOWN_SECONDS: 8,
   EDGE_TOLERANCE: 1.5,
 
+  async requestWakeLock(){
+    if(!('wakeLock' in navigator) || this._wakeLock) return;
+    try{
+      this._wakeLock = await navigator.wakeLock.request('screen');
+      this._wakeLock.addEventListener('release', ()=>{ this._wakeLock = null; });
+    }catch(e){}
+  },
+
+  bindWakeLockRestore(){
+    if(this._wakeRestoreBound) return;
+    this._wakeRestoreBound = true;
+    document.addEventListener('visibilitychange', ()=>{
+      if(document.visibilityState === 'visible' && (this._scheduledTicker || this.video)){
+        this.requestWakeLock();
+      }
+    });
+  },
+
   shouldObeySchedule(){
     return !!(this.room?.usarSalaEspera || this.info?.usarSalaEspera) && !!this.getScheduledStartMs();
   },
@@ -207,6 +225,8 @@ const Sala = {
 
   handleScheduledStart(){
     if(this._scheduledTicker) clearInterval(this._scheduledTicker);
+    this.bindWakeLockRestore();
+    this.requestWakeLock();
     const startMs = this.getScheduledStartMs();
     this.sessionStartedAt = startMs - (this.COUNTDOWN_SECONDS * 1000);
     localStorage.removeItem('wp_start_' + this.slug);
@@ -251,7 +271,7 @@ const Sala = {
       : `Vamos iniciar dia ${startDate.toLocaleDateString('pt-BR')} às ${startDate.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' })}.`;
 
     document.getElementById('pubVideo').innerHTML = `
-      <div class="pub-scheduled-wait">
+      <div class="pub-scheduled-wait" onclick="Sala.requestWakeLock()">
         <div class="pub-wait-kicker">Já vamos começar</div>
         <div class="pub-wait-title">${startsAt}</div>
         <div class="pub-wait-count">${countdown}</div>
@@ -323,6 +343,8 @@ const Sala = {
   },
 
   startCountdown(initialSecs){
+    this.bindWakeLockRestore();
+    this.requestWakeLock();
     if(this.room?.video?.fullscreen){
       try{ document.documentElement.requestFullscreen?.(); }catch(e){}
     }
@@ -348,6 +370,8 @@ const Sala = {
   },
 
   startLive(seekTo){
+    this.bindWakeLockRestore();
+    this.requestWakeLock();
     if(!this.room.video){
       document.getElementById('pubVideo').innerHTML = `<div class="pub-live"><div class="pub-brand-badge">⚡ WebnarPRO</div>Vídeo ainda não configurado para este webinar.</div>`;
       return;
@@ -413,6 +437,8 @@ const Sala = {
 
     this.userPaused = false;
     el.onclick = ()=>{
+      this.requestWakeLock();
+      this.hidePlayOverlay();
       if(el.paused){ this.userPaused = false; el.play().catch(()=>{}); }
       else { this.userPaused = true; el.pause(); }
     };
@@ -476,9 +502,55 @@ const Sala = {
     el.addEventListener('volumechange', ()=>this.syncVolumeUI());
     this.syncVolumeUI();
 
-    if(cfg.autoplay || seekTo > 0){
-      el.play().catch(()=>{ /* navegador bloqueou autoplay — visitante clica no vídeo pra iniciar */ });
+    if(cfg.autoplay || seekTo > 0 || this.shouldObeySchedule()){
+      this.tryStartPlayback(el, this.shouldObeySchedule());
     }
+  },
+
+  async tryStartPlayback(el, allowMutedFallback){
+    try{
+      await el.play();
+      this.hidePlayOverlay();
+      return;
+    }catch(e){}
+
+    if(allowMutedFallback){
+      try{
+        el.muted = true;
+        await el.play();
+        this.showPlayOverlay('Toque para ativar o som', true);
+        return;
+      }catch(e){}
+    }
+
+    this.showPlayOverlay('Toque para assistir', false);
+  },
+
+  showPlayOverlay(label, unmuteOnly){
+    this.hidePlayOverlay();
+    const wrap = document.getElementById('pubVideo');
+    if(!wrap) return;
+    wrap.insertAdjacentHTML('beforeend', `
+      <button class="pub-play-overlay" id="pubPlayOverlay" onclick="Sala.resumeFromOverlay(${unmuteOnly ? 'true' : 'false'})">
+        <span class="pub-play-overlay-icon">▶</span>
+        <span>${label}</span>
+      </button>`);
+  },
+
+  hidePlayOverlay(){
+    document.getElementById('pubPlayOverlay')?.remove();
+  },
+
+  resumeFromOverlay(unmuteOnly){
+    if(!this.video) return;
+    this.requestWakeLock();
+    this.video.muted = false;
+    this.userPaused = false;
+    this.video.play().then(()=>this.hidePlayOverlay()).catch(()=>{
+      if(!unmuteOnly) return;
+      this.video.muted = true;
+      this.video.play().catch(()=>{});
+    });
   },
 
   syncVolumeUI(){
