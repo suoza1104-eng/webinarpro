@@ -246,16 +246,23 @@
             </div>
             <p style="font-size:12px;color:var(--text-faint);margin:0 0 18px;">Um webinar único é um evento online que acontece apenas uma vez, em um dia e horário específico — diferente de webinars recorrentes, não fica necessariamente disponível para assistir depois.</p>
             <div class="field-row">
-              <div class="field"><label>Data e hora de início <span class="req">*</span></label><input class="input" type="datetime-local" style="width:100%;"></div>
-              <div class="field"><label>Data e hora de finalização <span class="req">*</span></label><input class="input" type="datetime-local" style="width:100%;"></div>
-              <div class="field"><label>Fuso horário <span class="req">*</span></label><select class="select" style="width:100%;"><option>(GMT-03:00) Horário de Brasília</option></select></div>
+              <div class="field"><label>Data e hora de início <span class="req">*</span></label><input class="input" id="w_dataInicio" type="datetime-local" style="width:100%;"></div>
+              <div class="field"><label>Data e hora de finalização <span class="req">*</span></label><input class="input" id="w_dataFim" type="datetime-local" style="width:100%;"></div>
+              <div class="field"><label>Fuso horário <span class="req">*</span></label><select class="select" id="w_fusoHorario" style="width:100%;"><option value="America/Sao_Paulo">(GMT-03:00) Horário de Brasília</option></select></div>
             </div>
             <div class="field-row">
               <div class="field"><label>Duração estimada (min)</label><input class="input" type="number" value="150" oninput="App.wz.duracao=this.value" style="width:100%;"></div>
             </div>
-            <div class="toggle-row" style="border-top:1px solid var(--border-soft);padding-top:16px;">
-              <div><div class="t-title">Usar sala de espera antes do início</div><div class="t-sub">Ligada, quem entra antes do horário vai para a sala de espera. Desligada, quem acessa no horário entra direto na sala.</div></div>
-              <label class="toggle"><input type="checkbox"><span class="track"><span class="thumb"></span></span></label>
+            <div style="border-top:1px solid var(--border-soft);padding-top:16px;">
+              <label style="display:block;font-size:12.5px;font-weight:600;color:var(--text-dim);margin-bottom:10px;">Comportamento de início</label>
+              <div class="radio-card sel" id="startModeImmediate" onclick="App.selectStartMode('immediate')">
+                <div class="radio-dot"></div>
+                <div><div class="r-title">Iniciar quando o aluno entrar</div><div class="r-desc">Cada aluno começa a aula do início assim que clicar para assistir.</div></div>
+              </div>
+              <div class="radio-card" id="startModeScheduled" onclick="App.selectStartMode('scheduled')">
+                <div class="radio-dot"></div>
+                <div><div class="r-title">Obedecer horário de início</div><div class="r-desc">Quem entrar antes vê uma contagem regressiva. No horário marcado, todos iniciam juntos.</div></div>
+              </div>
             </div>
           </div>
 

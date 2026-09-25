@@ -90,7 +90,7 @@ const App = {
     {name:'Ilimitado', price:'R$ 397,00', storage:'Ilimitado', banda:'Ilimitada', tokens:'12.000'}
   ],
   planIdx: 1,
-  wz:{step:0, nome:'', titulo:'', url:'', apresentador:'', tipo:'Único', duracao:150, espectadores:500, produto:'Comunidade FERA', preco:'R$ 997,00', video:null},
+  wz:{step:0, nome:'', titulo:'', url:'', apresentador:'', tipo:'Único', duracao:150, espectadores:500, produto:'Comunidade FERA', preco:'R$ 997,00', video:null, startMode:'immediate'},
 
   // ---------- BOOT / AUTENTICAÇÃO ----------
   currentUser: null,
@@ -535,10 +535,15 @@ const App = {
     });
   },
   resetWizard(){
-    this.wz = {step:0, id:null, slug:null, videoId:null, nome:'', titulo:'', url:'', apresentador:'', tipo:'Único', duracao:150, espectadores:500, produto:'Comunidade FERA', preco:'R$ 997,00', video:null};
+    this.wz = {step:0, id:null, slug:null, videoId:null, nome:'', titulo:'', url:'', apresentador:'', tipo:'Único', duracao:150, espectadores:500, produto:'Comunidade FERA', preco:'R$ 997,00', video:null, startMode:'immediate'};
     document.getElementById('w_nome').value='';
     document.getElementById('w_titulo').value='';
     document.getElementById('w_url').value='';
+    const dataInicio = document.getElementById('w_dataInicio');
+    const dataFim = document.getElementById('w_dataFim');
+    if(dataInicio) dataInicio.value = '';
+    if(dataFim) dataFim.value = '';
+    this.selectStartMode('immediate');
     document.getElementById('wizardBanner').innerHTML='';
     this.wzGo(0);
   },
@@ -548,6 +553,10 @@ const App = {
     const leaving = this.wz.step;
     if(leaving===0 && n!==0 && !this.wz.id){
       const ok = await this.createWebinarDraft();
+      if(!ok) return;
+    }
+    if(leaving===1 && n!==1 && this.wz.id){
+      const ok = await this.saveScheduleConfig();
       if(!ok) return;
     }
     if(leaving===3 && n!==3 && this.wz.id){
@@ -605,6 +614,43 @@ const App = {
   },
   selectSchedType(t){
     document.getElementById('tabWebUnico').classList.toggle('active', t==='unico');
+  },
+  selectStartMode(mode){
+    this.wz.startMode = mode;
+    document.getElementById('startModeImmediate')?.classList.toggle('sel', mode === 'immediate');
+    document.getElementById('startModeScheduled')?.classList.toggle('sel', mode === 'scheduled');
+  },
+  localDateTimeToIso(value){
+    if(!value) return null;
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date.toISOString();
+  },
+  async saveScheduleConfig(){
+    const dataInicioEl = document.getElementById('w_dataInicio');
+    const dataFimEl = document.getElementById('w_dataFim');
+    const fusoEl = document.getElementById('w_fusoHorario');
+    const dataInicio = this.localDateTimeToIso(dataInicioEl?.value || '');
+    const dataFim = this.localDateTimeToIso(dataFimEl?.value || '');
+
+    if(this.wz.startMode === 'scheduled' && !dataInicio){
+      this.toast('Informe a data e hora de início para obedecer o horário do webinar');
+      return false;
+    }
+
+    try{
+      await this.apiFetch(`/api/webinars/${this.wz.id}`, {method:'PUT', body: JSON.stringify({
+        tipo_agendamento: 'unico',
+        repeticao_automatica: false,
+        data_inicio: dataInicio,
+        data_fim: dataFim,
+        fuso_horario: fusoEl?.value || 'America/Sao_Paulo',
+        usar_sala_espera: this.wz.startMode === 'scheduled',
+      })});
+      return true;
+    }catch(e){
+      this.toast('Erro ao salvar agendamento: ' + e.message);
+      return false;
+    }
   },
   renderLoginPreview(){
     const whats = document.getElementById('chkWhats')?.checked;
@@ -782,6 +828,7 @@ const App = {
     const items = [
       ['Nome do webinar', this.wz.nome || '(sem nome)'],
       ['Tipo', 'Webinar único'],
+      ['Início', this.wz.startMode === 'scheduled' ? 'Obedecer horário de início' : 'Quando o aluno entrar'],
       ['Duração', this.wz.duracao + ' minutos'],
       ['Vídeo selecionado', this.videos.find(v=>v.id===this.wz.videoId)?.nome || '—'],
       ['Produto', this.wz.produto],
@@ -808,6 +855,8 @@ const App = {
       const ok = await this.createWebinarDraft();
       if(!ok) return;
     }
+    const scheduleOk = await this.saveScheduleConfig();
+    if(!scheduleOk) return;
     await this.saveVideoConfig();
     try{
       const data = await this.apiFetch(`/api/webinars/${this.wz.id}/publish`, {method:'POST'});

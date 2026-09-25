@@ -125,7 +125,11 @@ router.put('/:id', async (req, res) => {
   if (fields.length === 0) return res.status(400).json({ error: 'Nenhum campo para atualizar' });
 
   const setClause = fields.map((f) => `${COLUMN_MAP[f]} = ?`).join(', ');
-  const values = fields.map((f) => (typeof data[f] === 'boolean' ? (data[f] ? 1 : 0) : data[f]));
+  const values = fields.map((f) => {
+    if (typeof data[f] === 'boolean') return data[f] ? 1 : 0;
+    if ((f === 'data_inicio' || f === 'data_fim') && data[f]) return new Date(data[f]);
+    return data[f];
+  });
 
   const [result] = await pool.query(
     `UPDATE webinars SET ${setClause} WHERE id = ? AND account_id = ?`,

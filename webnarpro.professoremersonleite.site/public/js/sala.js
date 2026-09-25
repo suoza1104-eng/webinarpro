@@ -167,6 +167,11 @@ const Sala = {
       return true;
     }
 
+    if(this.shouldObeySchedule()){
+      this.handleScheduledStart();
+      return true;
+    }
+
     const startedAt = Number(localStorage.getItem('wp_start_' + this.slug) || 0);
     if(!startedAt){
       this.showCover();
@@ -188,6 +193,72 @@ const Sala = {
 
   COUNTDOWN_SECONDS: 8,
   EDGE_TOLERANCE: 1.5,
+
+  shouldObeySchedule(){
+    return !!(this.room?.usarSalaEspera || this.info?.usarSalaEspera) && !!this.getScheduledStartMs();
+  },
+
+  getScheduledStartMs(){
+    const raw = this.room?.dataInicio || this.info?.dataInicio;
+    if(!raw) return null;
+    const ms = new Date(raw).getTime();
+    return Number.isNaN(ms) ? null : ms;
+  },
+
+  handleScheduledStart(){
+    if(this._scheduledTicker) clearInterval(this._scheduledTicker);
+    const startMs = this.getScheduledStartMs();
+    this.sessionStartedAt = startMs - (this.COUNTDOWN_SECONDS * 1000);
+    localStorage.removeItem('wp_start_' + this.slug);
+
+    const duration = this.room.video?.duracaoSegundos;
+    const renderOrStart = ()=>{
+      const now = Date.now();
+      if(now < startMs){
+        this.renderScheduledWait(startMs);
+        return;
+      }
+
+      clearInterval(this._scheduledTicker);
+      const elapsed = Math.max(0, (now - startMs) / 1000);
+      if(duration && elapsed >= duration){
+        this.showEnded();
+      } else {
+        this.startLive(elapsed);
+      }
+    };
+
+    renderOrStart();
+    if(Date.now() < startMs){
+      this._scheduledTicker = setInterval(renderOrStart, 1000);
+    }
+  },
+
+  renderScheduledWait(startMs){
+    const remaining = Math.max(0, Math.ceil((startMs - Date.now()) / 1000));
+    const days = Math.floor(remaining / 86400);
+    const hours = Math.floor((remaining % 86400) / 3600);
+    const mins = Math.floor((remaining % 3600) / 60);
+    const secs = remaining % 60;
+    const countdown = days > 0
+      ? `${days}d ${String(hours).padStart(2,'0')}:${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`
+      : `${String(hours).padStart(2,'0')}:${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
+    const startDate = new Date(startMs);
+    const now = new Date();
+    const sameDay = startDate.toDateString() === now.toDateString();
+    const startsAt = sameDay
+      ? `Vamos iniciar às ${startDate.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' })}.`
+      : `Vamos iniciar dia ${startDate.toLocaleDateString('pt-BR')} às ${startDate.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' })}.`;
+
+    document.getElementById('pubVideo').innerHTML = `
+      <div class="pub-scheduled-wait">
+        <div class="pub-wait-kicker">Já vamos começar</div>
+        <div class="pub-wait-title">${startsAt}</div>
+        <div class="pub-wait-count">${countdown}</div>
+        <div class="pub-wait-sub">A transmissão começa automaticamente no horário marcado.</div>
+        <div class="pub-brand-badge">⚡ WebnarPRO</div>
+      </div>`;
+  },
 
   showCover(){
     document.getElementById('pubVideo').innerHTML = `

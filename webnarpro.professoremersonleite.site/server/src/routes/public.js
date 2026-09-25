@@ -82,7 +82,8 @@ router.get('/webinars/:slug/room', requireLeadAuth, async (req, res) => {
   const [rows] = await pool.query(
     `SELECT w.id, w.status, w.video_id, w.video_autoplay, w.video_fullscreen,
             w.ocultar_barra_progresso, w.bloquear_avanco_video,
-            w.modo_youtube, w.modo_youtube_bloqueio_segundo
+            w.modo_youtube, w.modo_youtube_bloqueio_segundo,
+            w.data_inicio, w.data_fim, w.fuso_horario, w.usar_sala_espera
      FROM webinars w WHERE w.slug = ? LIMIT 1`,
     [req.params.slug],
   );
@@ -123,7 +124,16 @@ router.get('/webinars/:slug/room', requireLeadAuth, async (req, res) => {
     [w.id],
   );
 
-  res.json({ status: w.status, video, chatMessages, salesNotifications });
+  res.json({
+    status: w.status,
+    dataInicio: w.data_inicio,
+    dataFim: w.data_fim,
+    fusoHorario: w.fuso_horario,
+    usarSalaEspera: !!w.usar_sala_espera,
+    video,
+    chatMessages,
+    salesNotifications,
+  });
 });
 
 // 7d — chatbot por palavra-chave
