@@ -56,6 +56,7 @@ const registerSchema = z.object({
   email: z.string().email().max(160),
   whatsapp: z.string().max(30).optional(),
   empresa: z.string().max(150).optional(),
+  ab_assignment_id: z.number().int().positive().optional(),
 });
 
 router.post('/webinars/:slug/register', registerLimiter, async (req, res) => {
@@ -80,6 +81,16 @@ router.post('/webinars/:slug/register', registerLimiter, async (req, res) => {
     [webinarId, data.email],
   );
   const leadId = leadRows[0].id;
+
+  if (data.ab_assignment_id) {
+    await pool.query(
+      `UPDATE ab_test_assignments a
+       JOIN ab_test_variants v ON v.id = a.variant_id
+       SET a.lead_id = ?
+       WHERE a.id = ? AND v.webinar_id = ? AND a.lead_id IS NULL`,
+      [leadId, data.ab_assignment_id, webinarId],
+    );
+  }
 
   const token = jwt.sign({ leadId, webinarId }, process.env.JWT_SECRET, { expiresIn: '6h' });
   res.status(201).json({ token, leadId });

@@ -178,6 +178,27 @@
         </div>
       </section>
 
+      <!-- ============ TESTE A/B ============ -->
+      <section class="view" id="view-ab">
+        <div class="page-head">
+          <div>
+            <h1 class="page-title">Teste A/B</h1>
+            <p class="page-sub">Divida o tráfego entre variantes de webinar e compare os resultados.</p>
+          </div>
+          <button class="btn btn-primary" onclick="App.openAbModal()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Novo Teste A/B
+          </button>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Nome</th><th>Link</th><th>Variantes</th><th>Status</th><th style="text-align:right;">Ações</th></tr></thead>
+            <tbody id="abTestsTbody"></tbody>
+          </table>
+        </div>
+      </section>
+
       <!-- ============ WIZARD ============ -->
       <section class="view" id="view-wizard">
         <div class="page-head">
@@ -947,6 +968,39 @@
       <div id="profileSuccess" style="color:var(--green);font-size:12px;margin-bottom:10px;display:none;"></div>
       <button class="btn btn-primary" id="profileSaveBtn" style="width:100%;justify-content:center;" onclick="App.changePassword()">Salvar nova senha</button>
     </div>
+  </div>
+</div>
+
+<!-- Modal: Novo/Editar Teste A/B -->
+<div class="modal-backdrop" id="abModal">
+  <div class="modal-box" style="max-width:560px;">
+    <div class="modal-head">
+      <h3 id="abModalTitle">Novo Teste A/B</h3>
+      <button class="icon-btn" onclick="App.closeAbModal()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>
+    </div>
+    <div class="modal-body" style="flex-direction:column;padding:20px;overflow-y:auto;">
+      <div class="field"><label>Nome do teste</label><input class="input" id="abNome" style="width:100%;" oninput="App.abSuggestSlug()"></div>
+      <div class="field"><label>Link (slug)</label><input class="input" id="abSlug" style="width:100%;"></div>
+      <label style="display:block;font-size:12.5px;font-weight:600;color:var(--text-dim);margin:14px 0 8px;">Variantes (o tráfego é dividido pelo peso de cada uma)</label>
+      <div id="abVariantsList"></div>
+      <button class="btn btn-ghost btn-sm" style="margin-top:8px;" onclick="App.abAddVariantRow()">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Adicionar variante
+      </button>
+      <div id="abModalError" style="color:var(--red);font-size:12px;margin:14px 0 0;display:none;"></div>
+      <button class="btn btn-primary" id="abSaveBtn" style="width:100%;justify-content:center;margin-top:16px;" onclick="App.saveAbTest()">Salvar Teste A/B</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Resultados do Teste A/B -->
+<div class="modal-backdrop" id="abResultsModal">
+  <div class="modal-box" style="max-width:640px;">
+    <div class="modal-head">
+      <h3 id="abResultsTitle">Resultados</h3>
+      <button class="icon-btn" onclick="App.closeAbResults()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>
+    </div>
+    <div class="modal-body" style="flex-direction:column;padding:20px;overflow-y:auto;gap:12px;" id="abResultsBody"></div>
   </div>
 </div>
 

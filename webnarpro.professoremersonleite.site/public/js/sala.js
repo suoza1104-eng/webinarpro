@@ -23,6 +23,7 @@ const Sala = {
     this.isReplay = parts[1] === 'replay';
     const params = new URLSearchParams(window.location.search);
     this.isPreview = params.has('preview');
+    this.abAssignmentId = params.get('ab_assignment') ? Number(params.get('ab_assignment')) : null;
     if(!this.slug){ this.showError('Link inválido.'); return; }
     this.leadToken = localStorage.getItem('wp_lead_' + this.slug) || null;
     this.loadInfo();
@@ -114,7 +115,7 @@ const Sala = {
       const res = await fetch('/api/public/webinars/' + encodeURIComponent(this.slug) + '/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nome, email, whatsapp: whatsapp || undefined, empresa: empresa || undefined }),
+        body: JSON.stringify({ nome, email, whatsapp: whatsapp || undefined, empresa: empresa || undefined, ab_assignment_id: this.abAssignmentId || undefined }),
       });
       const data = await res.json();
       if(!res.ok) throw new Error((data && data.error) || 'Não foi possível entrar na sala.');

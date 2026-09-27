@@ -45,7 +45,7 @@ const ICONS = {
 const NAV = [
   {id:'dashboard', label:'Dashboard', ico:'dashboard'},
   {id:'webinars',  label:'Webinars',  ico:'webinars'},
-  {id:'ab',        label:'Teste A/B', ico:'ab', locked:true},
+  {id:'ab',        label:'Teste A/B', ico:'ab'},
   {id:'paginas',   label:'Páginas',   ico:'paginas', locked:true},
   {id:'videos',    label:'Vídeos',    ico:'videos'},
   {id:'salas',     label:'Salas de Atendimento', ico:'salas'},
@@ -106,6 +106,7 @@ const App = {
       if(!this.currentUser) this.currentUser = await this.apiFetch('/api/auth/me');
       await this.loadWebinars();
       await this.loadVideos();
+      await this.loadAbTests();
     }catch(e){
       this.showLogin();
       return;
@@ -164,6 +165,7 @@ const App = {
     this.renderWebinars();
     this.renderDashboard();
     this.renderVideos();
+    this.renderAbTests();
     this.renderSalas();
     this.renderHistorico();
     this.renderUsers();
@@ -1385,6 +1387,170 @@ const App = {
         pela conveniência de não precisar manter a arquitetura própria.`;
     }
     document.getElementById('simCallout').innerHTML = calloutHtml + ' <span style="opacity:.7;">Estimativa educacional baseada em tabelas públicas de preço — confirme direto no site de cada provedor.</span>';
+  },
+
+  // ---------- TESTE A/B ----------
+  abTests: [],
+
+  async loadAbTests(){
+    try{
+      this.abTests = await this.apiFetch('/api/ab-tests');
+    }catch(e){
+      this.toast('Erro ao carregar testes A/B: ' + e.message);
+    }
+  },
+
+  renderAbTests(){
+    const tb = document.getElementById('abTestsTbody');
+    if(!tb) return;
+    if(this.abTests.length === 0){
+      tb.innerHTML = `<tr><td colspan="5"><div class="empty-state">Nenhum Teste A/B criado ainda.</div></td></tr>`;
+      return;
+    }
+    const statusMap = { rascunho:'badge-grey', ativo:'badge-green', finalizado:'badge-yellow' };
+    const statusLabel = { rascunho:'Rascunho', ativo:'Ativo', finalizado:'Finalizado' };
+    tb.innerHTML = this.abTests.map(t=>`
+      <tr>
+        <td>${t.nome}</td>
+        <td><a href="#" onclick="App.copyAbLink('${t.slug}');return false;" style="color:var(--yellow);">/${t.slug}</a></td>
+        <td>${t.variants.map(v=>`<span class="badge badge-grey" style="margin-right:4px;">${v.rotulo} ${v.peso}%</span>`).join('')}</td>
+        <td><span class="badge ${statusMap[t.status]||'badge-grey'}">${statusLabel[t.status]||t.status}</span></td>
+        <td style="text-align:right;"><div class="iconbar" style="justify-content:flex-end;">
+          <button title="Ver resultados" onclick="App.openAbResults(${t.id})">${ICONS.chart}</button>
+          <button title="Editar" onclick="App.openAbModal(${t.id})">${ICONS.edit}</button>
+          <button title="Excluir" onclick="App.deleteAbTest(${t.id})">${ICONS.trash}</button>
+        </div></td>
+      </tr>`).join('');
+  },
+
+  copyAbLink(slug){
+    const url = window.location.origin + '/' + slug;
+    try{ navigator.clipboard.writeText(url); }catch(e){}
+    this.toast('Link copiado: /' + slug);
+  },
+
+  openAbModal(testId){
+    this._abEditingId = testId || null;
+    document.getElementById('abModalTitle').textContent = testId ? 'Editar Teste A/B' : 'Novo Teste A/B';
+    document.getElementById('abModalError').style.display = 'none';
+    document.getElementById('abNome').value = '';
+    document.getElementById('abSlug').value = '';
+    document.getElementById('abVariantsList').innerHTML = '';
+
+    if(testId){
+      const t = this.abTests.find(x=>x.id===testId);
+      if(t){
+        document.getElementById('abNome').value = t.nome;
+        document.getElementById('abSlug').value = t.slug;
+      }
+      this.apiFetch('/api/ab-tests/' + testId).then(full=>{
+        full.variants.forEach(v=>this.abAddVariantRow(v.webinar_id, v.peso));
+      }).catch(()=>{ this.abAddVariantRow(); this.abAddVariantRow(); });
+    } else {
+      this.abAddVariantRow();
+      this.abAddVariantRow();
+    }
+    document.getElementById('abModal').classList.add('open');
+  },
+
+  closeAbModal(){
+    document.getElementById('abModal').classList.remove('open');
+  },
+
+  abSuggestSlug(){
+    if(this._abEditingId) return;
+    const slugField = document.getElementById('abSlug');
+    if(slugField.dataset.touched) return;
+    slugField.value = document.getElementById('abNome').value
+      .toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'')
+      .trim().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+  },
+
+  abAddVariantRow(webinarId, peso){
+    const list = document.getElementById('abVariantsList');
+    const row = document.createElement('div');
+    row.className = 'ab-variant-row';
+    const options = this.webinars.map(w=>`<option value="${w.id}" ${w.id===webinarId?'selected':''}>${w.nome}</option>`).join('');
+    row.innerHTML = `
+      <select class="select">${options || '<option value="">Nenhum webinar disponível</option>'}</select>
+      <input class="input" type="number" min="1" max="100" value="${peso || 50}" title="Peso (%)">
+      <button class="icon-btn" onclick="this.closest('.ab-variant-row').remove()">${ICONS.trash}</button>`;
+    list.appendChild(row);
+  },
+
+  async saveAbTest(){
+    const nome = document.getElementById('abNome').value.trim();
+    const slug = document.getElementById('abSlug').value.trim();
+    const errEl = document.getElementById('abModalError');
+    errEl.style.display = 'none';
+
+    const rows = [...document.querySelectorAll('#abVariantsList .ab-variant-row')];
+    const variants = rows.map(r=>({
+      webinar_id: Number(r.querySelector('select').value),
+      peso: Number(r.querySelector('input').value) || 50,
+    })).filter(v=>v.webinar_id);
+
+    if(!nome){ errEl.textContent = 'Dê um nome ao teste.'; errEl.style.display = 'block'; return; }
+    if(variants.length < 2){ errEl.textContent = 'Escolha pelo menos 2 variantes.'; errEl.style.display = 'block'; return; }
+    const ids = variants.map(v=>v.webinar_id);
+    if(new Set(ids).size !== ids.length){ errEl.textContent = 'Cada variante precisa ser um webinar diferente.'; errEl.style.display = 'block'; return; }
+
+    const btn = document.getElementById('abSaveBtn');
+    btn.disabled = true;
+    try{
+      const payload = { nome, slug: slug || undefined, variants };
+      if(this._abEditingId) await this.apiFetch('/api/ab-tests/' + this._abEditingId, { method:'PUT', body: JSON.stringify(payload) });
+      else await this.apiFetch('/api/ab-tests', { method:'POST', body: JSON.stringify(payload) });
+      this.closeAbModal();
+      await this.loadAbTests();
+      this.renderAbTests();
+      this.toast('Teste A/B salvo!');
+    }catch(e){
+      errEl.textContent = e.message;
+      errEl.style.display = 'block';
+    }finally{
+      btn.disabled = false;
+    }
+  },
+
+  async deleteAbTest(testId){
+    if(!confirm('Excluir este Teste A/B? Isso não apaga os webinars, só o teste.')) return;
+    try{
+      await this.apiFetch('/api/ab-tests/' + testId, { method:'DELETE' });
+      await this.loadAbTests();
+      this.renderAbTests();
+      this.toast('Teste A/B excluído');
+    }catch(e){
+      this.toast('Erro ao excluir: ' + e.message);
+    }
+  },
+
+  async openAbResults(testId){
+    document.getElementById('abResultsBody').innerHTML = '<div class="empty-state">Carregando...</div>';
+    document.getElementById('abResultsModal').classList.add('open');
+    try{
+      const data = await this.apiFetch('/api/ab-tests/' + testId + '/results');
+      document.getElementById('abResultsTitle').textContent = 'Resultados — ' + data.testeNome;
+      document.getElementById('abResultsBody').innerHTML = data.results.map(r=>`
+        <div class="card ab-variant-card ${r.variantId===data.winnerId?'winner':''}" style="margin-top:0;">
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <b style="font-size:13.5px;">Variante ${r.rotulo} — ${r.webinarNome}</b>
+            ${r.variantId===data.winnerId ? `<span class="ab-winner-badge">🏆 Vencedora</span>` : ''}
+          </div>
+          <div class="ab-metric-grid">
+            <div><div class="m-v">${r.exposicoes}</div><div class="m-k">Visitantes</div></div>
+            <div><div class="m-v">${r.leads}</div><div class="m-k">Cadastros</div></div>
+            <div><div class="m-v">${r.taxaCadastro}%</div><div class="m-k">Taxa cadastro</div></div>
+            <div><div class="m-v">${r.taxaConclusao}%</div><div class="m-k">Concluíram</div></div>
+          </div>
+        </div>`).join('') || '<div class="empty-state">Sem dados ainda.</div>';
+    }catch(e){
+      document.getElementById('abResultsBody').innerHTML = `<div class="empty-state">Erro ao carregar resultados: ${e.message}</div>`;
+    }
+  },
+
+  closeAbResults(){
+    document.getElementById('abResultsModal').classList.remove('open');
   }
 };
 

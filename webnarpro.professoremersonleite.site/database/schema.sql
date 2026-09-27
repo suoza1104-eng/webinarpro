@@ -282,6 +282,43 @@ CREATE TABLE account_usage (
   UNIQUE KEY uq_usage_account_ciclo (account_id, ciclo_inicio)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- ---------------------------------------------------------------------
+-- 16. TESTE A/B — divide o tráfego entre webinars variantes e compara
+-- ---------------------------------------------------------------------
+CREATE TABLE ab_tests (
+  id                BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  account_id        BIGINT UNSIGNED NOT NULL,
+  nome              VARCHAR(150) NOT NULL,
+  slug              VARCHAR(150) NOT NULL,
+  status            ENUM('rascunho','ativo','finalizado') NOT NULL DEFAULT 'rascunho',
+  criado_em         DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  atualizado_em     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_ab_tests_account_slug (account_id, slug),
+  CONSTRAINT fk_ab_tests_account FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE ab_test_variants (
+  id                BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  ab_test_id        BIGINT UNSIGNED NOT NULL,
+  webinar_id        BIGINT UNSIGNED NOT NULL,
+  rotulo            VARCHAR(10) NOT NULL,                   -- 'A', 'B', 'C'...
+  peso              INT UNSIGNED NOT NULL DEFAULT 50,        -- % do tráfego (relativo à soma dos pesos)
+  CONSTRAINT fk_variant_test FOREIGN KEY (ab_test_id) REFERENCES ab_tests(id) ON DELETE CASCADE,
+  CONSTRAINT fk_variant_webinar FOREIGN KEY (webinar_id) REFERENCES webinars(id) ON DELETE CASCADE,
+  UNIQUE KEY uq_variant_test_webinar (ab_test_id, webinar_id),
+  INDEX idx_variant_test (ab_test_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE ab_test_assignments (
+  id                BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  variant_id        BIGINT UNSIGNED NOT NULL,
+  lead_id           BIGINT UNSIGNED NULL,                    -- preenchido quando a pessoa se cadastra
+  criado_em         DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_assign_variant FOREIGN KEY (variant_id) REFERENCES ab_test_variants(id) ON DELETE CASCADE,
+  CONSTRAINT fk_assign_lead FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE SET NULL,
+  INDEX idx_assign_variant (variant_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- =====================================================================

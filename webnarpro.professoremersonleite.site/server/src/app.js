@@ -12,6 +12,7 @@ const authRouter = require('./routes/auth');
 const webinarsRouter = require('./routes/webinars');
 const videosRouter = require('./routes/videos');
 const publicRouter = require('./routes/public');
+const abTestsRouter = require('./routes/ab-tests');
 
 const app = express();
 
@@ -55,10 +56,58 @@ app.use('/api/auth', authRouter);
 app.use('/api/webinars', webinarsRouter);
 app.use('/api/videos', videosRouter);
 app.use('/api/public', publicRouter);
+app.use('/api/ab-tests', abTestsRouter);
 
 app.use(express.static(path.join(__dirname, '..', '..', 'public')));
 
-app.get(['/:slug', '/:slug/replay'], (req, res) => {
+function pickVariant(variants) {
+  const totalWeight = variants.reduce((sum, v) => sum + v.peso, 0) || 1;
+  let r = Math.random() * totalWeight;
+  for (const v of variants) {
+    if (r < v.peso) return v;
+    r -= v.peso;
+  }
+  return variants[variants.length - 1];
+}
+
+app.get(['/:slug', '/:slug/replay'], async (req, res) => {
+  const suffix = req.path.endsWith('/replay') ? '/replay' : '';
+  const [tests] = await pool.query(
+    "SELECT id FROM ab_tests WHERE slug = ? AND status = 'ativo' LIMIT 1",
+    [req.params.slug],
+  );
+
+  if (tests.length > 0) {
+    const testId = tests[0].id;
+    const [variants] = await pool.query(
+      `SELECT v.id, v.peso, w.slug AS webinar_slug
+       FROM ab_test_variants v JOIN webinars w ON w.id = v.webinar_id
+       WHERE v.ab_test_id = ?`,
+      [testId],
+    );
+    if (variants.length > 0) {
+      const cookieName = `ab_${testId}`;
+      const savedVariantId = req.cookies?.[cookieName] ? Number(req.cookies[cookieName]) : null;
+      let variant = variants.find((v) => v.id === savedVariantId);
+
+      if (!variant) {
+        variant = pickVariant(variants);
+        res.cookie(cookieName, String(variant.id), {
+          maxAge: 90 * 24 * 60 * 60 * 1000,
+          httpOnly: true,
+          sameSite: 'lax',
+          secure: process.env.NODE_ENV === 'production',
+        });
+        const [assignResult] = await pool.query(
+          'INSERT INTO ab_test_assignments (variant_id) VALUES (?)',
+          [variant.id],
+        );
+        return res.redirect(302, `/${variant.webinar_slug}${suffix}?ab_assignment=${assignResult.insertId}`);
+      }
+      return res.redirect(302, `/${variant.webinar_slug}${suffix}`);
+    }
+  }
+
   res.sendFile(path.join(__dirname, '..', '..', 'public', 'sala.html'));
 });
 
