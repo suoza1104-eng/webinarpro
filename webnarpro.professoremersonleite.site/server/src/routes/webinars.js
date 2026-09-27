@@ -242,6 +242,13 @@ const loginConfigSchema = z.object({
   cor_texto_botao: z.string().max(9).optional(),
 });
 
+router.get('/:id/login-config', async (req, res) => {
+  const webinarId = await getOwnedWebinarId(req.params.id, req.accountId);
+  if (!webinarId) return res.status(404).json({ error: 'Webinar não encontrado' });
+  const [rows] = await pool.query('SELECT * FROM webinar_login_config WHERE webinar_id = ? LIMIT 1', [webinarId]);
+  res.json(rows[0] || null);
+});
+
 router.put('/:id/login-config', async (req, res) => {
   const parsed = loginConfigSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
@@ -296,6 +303,13 @@ const offerConfigSchema = z.object({
   repassar_utms: z.boolean().optional(),
   oferta_desabilitada: z.boolean().optional(),
   sorteio_habilitado: z.boolean().optional(),
+});
+
+router.get('/:id/offer-config', async (req, res) => {
+  const webinarId = await getOwnedWebinarId(req.params.id, req.accountId);
+  if (!webinarId) return res.status(404).json({ error: 'Webinar não encontrado' });
+  const [rows] = await pool.query('SELECT * FROM webinar_offer_config WHERE webinar_id = ? LIMIT 1', [webinarId]);
+  res.json(rows[0] || null);
 });
 
 router.put('/:id/offer-config', async (req, res) => {
@@ -363,6 +377,16 @@ const chatMessagesSchema = z.object({
   })).max(500),
 });
 
+router.get('/:id/chat-messages', async (req, res) => {
+  const webinarId = await getOwnedWebinarId(req.params.id, req.accountId);
+  if (!webinarId) return res.status(404).json({ error: 'Webinar não encontrado' });
+  const [rows] = await pool.query(
+    'SELECT segundo_exibicao, nome_exibido, mensagem, eh_suporte FROM webinar_chat_messages WHERE webinar_id = ? ORDER BY segundo_exibicao, ordem',
+    [webinarId],
+  );
+  res.json(rows);
+});
+
 router.put('/:id/chat-messages', async (req, res) => {
   const parsed = chatMessagesSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
@@ -398,6 +422,16 @@ const salesNotificationsSchema = z.object({
     nome_exibido: z.string().min(1).max(80),
     titulo_notificacao: z.string().min(1).max(120).optional(),
   })).max(500),
+});
+
+router.get('/:id/sales-notifications', async (req, res) => {
+  const webinarId = await getOwnedWebinarId(req.params.id, req.accountId);
+  if (!webinarId) return res.status(404).json({ error: 'Webinar não encontrado' });
+  const [rows] = await pool.query(
+    'SELECT segundo_exibicao, nome_exibido, titulo_notificacao FROM webinar_sales_notifications WHERE webinar_id = ? ORDER BY segundo_exibicao',
+    [webinarId],
+  );
+  res.json(rows);
 });
 
 router.put('/:id/sales-notifications', async (req, res) => {
@@ -437,6 +471,16 @@ const chatbotKeywordsSchema = z.object({
     delay_segundos: z.number().int().nonnegative().optional(),
     imagem_url: z.string().url().max(500).nullable().optional(),
   })).max(500),
+});
+
+router.get('/:id/chatbot-keywords', async (req, res) => {
+  const webinarId = await getOwnedWebinarId(req.params.id, req.accountId);
+  if (!webinarId) return res.status(404).json({ error: 'Webinar não encontrado' });
+  const [rows] = await pool.query(
+    'SELECT remetente_exibido, palavra_chave, resposta_automatica, delay_segundos, imagem_url FROM webinar_chatbot_keywords WHERE webinar_id = ?',
+    [webinarId],
+  );
+  res.json(rows);
 });
 
 router.put('/:id/chatbot-keywords', async (req, res) => {

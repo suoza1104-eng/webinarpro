@@ -446,7 +446,20 @@ const App = {
       </tr>`).join('') || `<tr><td colspan="4"><div class="empty-state">Nenhum webinar encontrado.</div></td></tr>`;
     document.getElementById('webinarsCount').textContent = `Total de registros: ${list.length}`;
   },
-  editWebinar(i){
+  secondsToTime(secs){
+    secs = Math.max(0, Number(secs) || 0);
+    const mm = String(Math.floor(secs/60)).padStart(2,'0');
+    const ss = String(secs%60).padStart(2,'0');
+    return `${mm}:${ss}`;
+  },
+  isoToLocalDateTimeInput(iso){
+    if(!iso) return '';
+    const d = new Date(iso);
+    if(Number.isNaN(d.getTime())) return '';
+    const pad = n=>String(n).padStart(2,'0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  },
+  async editWebinar(i){
     const w = this.webinars[i];
     this.resetWizard();
     this.wz.id = w.id;
@@ -454,7 +467,81 @@ const App = {
     this.wz.nome = w.nome;
     document.getElementById('w_nome').value = w.nome;
     this.showView('wizard');
-    this.toast('Editando "'+w.nome+'"');
+    this.toast('Carregando "'+w.nome+'"...');
+
+    try{
+      const [full, login, offer, chat, sales, keywords] = await Promise.all([
+        this.apiFetch('/api/webinars/' + w.id),
+        this.apiFetch('/api/webinars/' + w.id + '/login-config').catch(()=>null),
+        this.apiFetch('/api/webinars/' + w.id + '/offer-config').catch(()=>null),
+        this.apiFetch('/api/webinars/' + w.id + '/chat-messages').catch(()=>[]),
+        this.apiFetch('/api/webinars/' + w.id + '/sales-notifications').catch(()=>[]),
+        this.apiFetch('/api/webinars/' + w.id + '/chatbot-keywords').catch(()=>[]),
+      ]);
+
+      // Início
+      document.getElementById('w_titulo').value = full.titulo || '';
+      this.wz.titulo = full.titulo || '';
+      const apresentadorEl = document.getElementById('w_apresentador');
+      if(apresentadorEl) apresentadorEl.value = full.nome_apresentador || '';
+      this.wz.apresentador = full.nome_apresentador || '';
+
+      // Webinar (agendamento)
+      this.selectStartMode(full.usar_sala_espera ? 'scheduled' : 'immediate');
+      document.getElementById('w_dataInicio').value = this.isoToLocalDateTimeInput(full.data_inicio);
+      document.getElementById('w_dataFim').value = this.isoToLocalDateTimeInput(full.data_fim);
+
+      // Login
+      if(login){
+        document.getElementById('chkBarraProgresso').checked = !!login.exibir_barra_progresso;
+        document.getElementById('w_progInicio').value = login.progresso_inicial ?? 0;
+        document.getElementById('chkWhats').checked = !!login.pedir_whatsapp;
+        document.getElementById('chkEmpresa').checked = !!login.pedir_empresa;
+        document.getElementById('w_botaoTitulo').value = login.titulo_botao || 'Entrar na Aula';
+      }
+
+      // Vídeo
+      this.wz.videoId = full.video_id || null;
+      document.getElementById('chkAutoplay').checked = !!full.video_autoplay;
+      document.getElementById('chkFullscreen').checked = !!full.video_fullscreen;
+      document.getElementById('chkOcultarBarra').checked = !!full.ocultar_barra_progresso;
+      document.getElementById('chkBloquearAvanco').checked = !!full.bloquear_avanco_video;
+      document.getElementById('chkModoYoutube').checked = !!full.modo_youtube;
+      document.getElementById('inputBloqueioSegundo').value = full.modo_youtube_bloqueio_segundo ?? '';
+      document.getElementById('bloqueioSegundoField').style.display = full.modo_youtube ? 'block' : 'none';
+      this.buildVideoPickGrid();
+
+      // Oferta
+      if(offer){
+        document.getElementById('w_produto').value = offer.nome_oferta || 'Comunidade FERA';
+        this.wz.produto = offer.nome_oferta || 'Comunidade FERA';
+        document.getElementById('w_ofertaTitulo').value = offer.titulo_oferta || '';
+        document.getElementById('w_precoOriginal').value = offer.preco_original_centavos != null ? this.formatCentsToMoney(offer.preco_original_centavos) : '';
+        document.getElementById('w_preco').value = offer.preco_oferta_centavos != null ? this.formatCentsToMoney(offer.preco_oferta_centavos) : '';
+        this.wz.preco = document.getElementById('w_preco').value;
+        document.getElementById('w_ofertaBotao').value = offer.texto_botao || 'inscreva-se aqui';
+        this.renderOfertaPreview();
+      }
+
+      // Chat / Vendas / Chatbot
+      this.chatMsgs = (chat || []).map(c=>({t:this.secondsToTime(c.segundo_exibicao), n:c.nome_exibido, m:c.mensagem}));
+      this.sales = (sales || []).map(s=>({t:this.secondsToTime(s.segundo_exibicao), n:s.nome_exibido}));
+      this.keywords = (keywords || []).map(k=>({rem:k.remetente_exibido, kw:k.palavra_chave, resp:k.resposta_automatica, delay:(k.delay_segundos ?? 5)+'s'}));
+      this.renderChatList();
+      this.renderSalesList();
+      this.renderKeywords();
+
+      // Audiência
+      this.setAudienceType(full.tipo_audiencia || 'dinamica');
+      document.getElementById('audMin').value = full.audiencia_min_participantes ?? 50;
+      document.getElementById('audMax').value = full.audiencia_max_participantes ?? 65;
+      document.getElementById('audLiveToggle').checked = full.mostrar_botao_ao_vivo != null ? !!full.mostrar_botao_ao_vivo : true;
+      this.updateAudiencePreview();
+
+      this.toast('Editando "'+w.nome+'"');
+    }catch(e){
+      this.toast('Erro ao carregar dados do webinar: ' + e.message);
+    }
   },
   copyWebinarLink(slug){
     const url = `${window.location.origin}/${slug}`;
@@ -552,11 +639,41 @@ const App = {
     document.getElementById('w_nome').value='';
     document.getElementById('w_titulo').value='';
     document.getElementById('w_url').value='';
+    const apresentadorEl = document.getElementById('w_apresentador');
+    if(apresentadorEl) apresentadorEl.value = '';
     const dataInicio = document.getElementById('w_dataInicio');
     const dataFim = document.getElementById('w_dataFim');
     if(dataInicio) dataInicio.value = '';
     if(dataFim) dataFim.value = '';
     this.selectStartMode('immediate');
+    // Zera as listas por-webinar — senão o que foi editado num webinar "vaza" pro próximo criado.
+    this.chatMsgs = [];
+    this.sales = [];
+    this.keywords = [];
+    this.renderChatList();
+    this.renderSalesList();
+    this.renderKeywords();
+    document.getElementById('chkBarraProgresso').checked = true;
+    document.getElementById('w_progInicio').value = 0;
+    document.getElementById('chkWhats').checked = true;
+    document.getElementById('chkEmpresa').checked = false;
+    document.getElementById('w_botaoTitulo').value = 'Entrar na Aula';
+    document.getElementById('w_produto').value = 'Comunidade FERA';
+    document.getElementById('w_ofertaTitulo').value = 'Comunidade FERA';
+    document.getElementById('w_precoOriginal').value = 'R$ 2.351,00';
+    document.getElementById('w_preco').value = 'R$ 397,00';
+    document.getElementById('w_ofertaBotao').value = 'inscreva-se aqui';
+    document.getElementById('chkAutoplay').checked = false;
+    document.getElementById('chkFullscreen').checked = false;
+    document.getElementById('chkOcultarBarra').checked = true;
+    document.getElementById('chkBloquearAvanco').checked = true;
+    document.getElementById('chkModoYoutube').checked = false;
+    document.getElementById('inputBloqueioSegundo').value = '';
+    document.getElementById('bloqueioSegundoField').style.display = 'none';
+    this.setAudienceType('dinamica');
+    document.getElementById('audMin').value = 50;
+    document.getElementById('audMax').value = 65;
+    document.getElementById('audLiveToggle').checked = true;
     document.getElementById('wizardBanner').innerHTML='';
     this.wzGo(0);
   },
@@ -707,6 +824,10 @@ const App = {
   parseMoneyToCents(value){
     const digits = String(value || '').replace(/\D/g, '');
     return digits ? Number(digits) : 0;
+  },
+  formatCentsToMoney(cents){
+    const value = (Number(cents) || 0) / 100;
+    return 'R$ ' + value.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
   },
   parseTimeToSeconds(value){
     const parts = String(value || '').split(':').map(p=>Number(p.replace(/\D/g, '') || 0));
