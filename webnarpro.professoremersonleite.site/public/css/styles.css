@@ -512,7 +512,11 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;bac
 .time-group{display:flex;gap:6px;}
 .time-group input{width:100%;text-align:center;}
 .dropzone{border:1.5px dashed var(--border);border-radius:var(--radius-sm);background:var(--bg-elev-2);padding:20px;
-  text-align:center;font-size:11.5px;color:var(--text-faint);margin-bottom:10px;line-height:1.6;}
+  text-align:center;font-size:11.5px;color:var(--text-faint);margin-bottom:10px;line-height:1.6;cursor:pointer;}
+.dropzone.drag{border-color:var(--yellow);background:var(--yellow-soft);}
+.chat-row.suporte{background:var(--yellow-soft);border-color:var(--yellow-dim);}
+.chat-row .c-badge{background:var(--yellow);color:#0a0a0a;font-size:9.5px;font-weight:800;padding:1px 6px;
+  border-radius:10px;margin-left:6px;vertical-align:middle;}
 .rte-toolbar{display:flex;gap:4px;margin-bottom:6px;}
 .rte-toolbar button{width:28px;height:28px;border:1px solid var(--border);background:var(--bg-elev-2);border-radius:5px;
   color:var(--text-dim);font-weight:700;font-size:11px;}

@@ -9,6 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tus-js-client@4.1.0/dist/tus.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <link rel="stylesheet" href="css/styles.css">
 </head>
 <body data-theme="dark">
@@ -447,17 +448,44 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>
               <div><b>Automação Inteligente de Chat</b> — gerar as mensagens automaticamente com IA ainda não está ativo nesta versão. Por enquanto, monte o chat manualmente abaixo.</div>
             </div>
-            <p style="font-size:12.5px;color:var(--text-faint);margin-top:0;">Escreva mensagens que vão aparecer no chat no exato segundo do vídeo, simulando outras pessoas comentando ao vivo.</p>
+            <p style="font-size:12.5px;color:var(--text-faint);margin-top:0;">Escreva mensagens que vão aparecer no chat no exato segundo do vídeo (sincronizado com o tempo do webinar), simulando outras pessoas comentando ao vivo.</p>
             <div class="chat-timeline"><span>00:00</span><span>duração: <span id="chatDuration">150</span> min</span><span>fim</span></div>
-            <div class="chat-msg-form">
-              <div class="field time"><label>Tempo (mm:ss)</label><input class="input" id="chatTime" placeholder="02:15" style="width:100%;"></div>
-              <div class="field"><label>Nome</label><input class="input" id="chatName" placeholder="Maria" style="width:100%;"></div>
-              <div class="field" style="flex:2;"><label>Mensagem</label><input class="input" id="chatMsg" placeholder="Consegui chegar a tempo! 🙌" style="width:100%;"></div>
-              <button class="btn btn-primary" style="height:37px;" onclick="App.addChatMsg()">Adicionar</button>
+
+            <div class="opt-toggle open" onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('open')">
+              Criar chat via planilha
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
             </div>
+            <div class="opt-body open">
+              <button class="btn btn-sm" style="margin:10px 0;" onclick="App.downloadChatTemplate()">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4M8 8l4-4 4 4"/><path d="M4 16v3a2 2 0 002 2h12a2 2 0 002-2v-3"/></svg>
+                Baixar planilha modelo
+              </button>
+              <div class="dropzone" id="chatDropzone" onclick="document.getElementById('chatFileInput').click()"
+                ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')"
+                ondrop="App.handleChatFileDrop(event)">
+                Upload de arquivo .XLSX<br>Clique ou arraste e solte aqui a planilha preenchida
+              </div>
+              <input type="file" id="chatFileInput" accept=".xlsx,.xls" style="display:none;" onchange="App.handleChatFileSelect(event)">
+              <div class="hint">Colunas: Hora / Minuto / Segundo para ser enviado, Nome do participante, Texto enviado, Suporte (preencha com qualquer coisa se a mensagem for da equipe de suporte, ou deixe em branco se for de um aluno).</div>
+            </div>
+
+            <div class="opt-toggle open" style="margin-top:18px;" onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('open')">
+              Criar mensagem individual
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+            </div>
+            <div class="opt-body open">
+              <div class="chat-msg-form">
+                <div class="field time"><label>Tempo (hh:mm:ss)</label><input class="input" id="chatTime" placeholder="00:02:15" style="width:100%;"></div>
+                <div class="field"><label>Nome</label><input class="input" id="chatName" placeholder="Maria" style="width:100%;"></div>
+                <div class="field" style="flex:2;"><label>Mensagem</label><input class="input" id="chatMsg" placeholder="Consegui chegar a tempo! 🙌" style="width:100%;"></div>
+                <label style="display:flex;align-items:center;gap:6px;font-size:12px;white-space:nowrap;padding-bottom:9px;"><input type="checkbox" id="chatIsSuporte" style="width:auto;"> É do suporte?</label>
+                <button class="btn btn-primary" style="height:37px;" onclick="App.addChatMsg()">Adicionar</button>
+              </div>
+            </div>
+
             <div class="chat-list" id="chatList"></div>
             <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;">
-              <button class="btn btn-sm" onclick="App.toast('Mensagens exportadas em XLSX')">⬇️ Exportar mensagens em XLSX</button>
+              <button class="btn btn-sm btn-danger" onclick="App.delAllChatMsgs()">🗑️ Excluir todo o chat</button>
               <button class="btn btn-sm btn-primary" onclick="App.openPublic(App.wz.nome)">🚀 Testar no player</button>
             </div>
           </div>

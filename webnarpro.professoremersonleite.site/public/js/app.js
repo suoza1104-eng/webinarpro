@@ -447,10 +447,11 @@ const App = {
     document.getElementById('webinarsCount').textContent = `Total de registros: ${list.length}`;
   },
   secondsToTime(secs){
-    secs = Math.max(0, Number(secs) || 0);
-    const mm = String(Math.floor(secs/60)).padStart(2,'0');
+    secs = Math.max(0, Math.round(Number(secs) || 0));
+    const hh = String(Math.floor(secs/3600)).padStart(2,'0');
+    const mm = String(Math.floor((secs%3600)/60)).padStart(2,'0');
     const ss = String(secs%60).padStart(2,'0');
-    return `${mm}:${ss}`;
+    return `${hh}:${mm}:${ss}`;
   },
   isoToLocalDateTimeInput(iso){
     if(!iso) return '';
@@ -524,7 +525,7 @@ const App = {
       }
 
       // Chat / Vendas / Chatbot
-      this.chatMsgs = (chat || []).map(c=>({t:this.secondsToTime(c.segundo_exibicao), n:c.nome_exibido, m:c.mensagem}));
+      this.chatMsgs = (chat || []).map(c=>({t:this.secondsToTime(c.segundo_exibicao), n:c.nome_exibido, m:c.mensagem, s:!!c.eh_suporte}));
       this.sales = (sales || []).map(s=>({t:this.secondsToTime(s.segundo_exibicao), n:s.nome_exibido}));
       this.keywords = (keywords || []).map(k=>({rem:k.remetente_exibido, kw:k.palavra_chave, resp:k.resposta_automatica, delay:(k.delay_segundos ?? 5)+'s'}));
       this.renderChatList();
@@ -872,7 +873,7 @@ const App = {
           segundo_exibicao: this.parseTimeToSeconds(c.t),
           nome_exibido: c.n,
           mensagem: c.m,
-          eh_suporte: false,
+          eh_suporte: !!c.s,
         })),
       })});
       return true;
@@ -1071,25 +1072,95 @@ const App = {
   },
   buildChatList(){ this.renderChatList(); },
   addChatMsg(){
-    const t = document.getElementById('chatTime').value.trim() || '00:00';
+    const t = document.getElementById('chatTime').value.trim() || '00:00:00';
     const n = document.getElementById('chatName').value.trim() || 'Espectador';
     const m = document.getElementById('chatMsg').value.trim();
+    const s = document.getElementById('chatIsSuporte').checked;
     if(!m) return this.toast('Escreva uma mensagem primeiro');
-    this.chatMsgs.push({t,n,m});
-    this.chatMsgs.sort((a,b)=>a.t.localeCompare(b.t));
-    saveLS('wp_chatmsgs_v2', this.chatMsgs);
+    this.chatMsgs.push({t,n,m,s});
+    this.sortChatMsgs();
     document.getElementById('chatTime').value='';
     document.getElementById('chatName').value='';
     document.getElementById('chatMsg').value='';
+    document.getElementById('chatIsSuporte').checked = false;
     this.renderChatList();
+  },
+  sortChatMsgs(){
+    this.chatMsgs.sort((a,b)=>this.parseTimeToSeconds(a.t)-this.parseTimeToSeconds(b.t));
   },
   renderChatList(){
     document.getElementById('chatList').innerHTML = this.chatMsgs.map((c,i)=>`
-      <div class="chat-row"><span class="c-time">${c.t}</span><span class="c-body"><b>${c.n}:</b> ${c.m}</span>
+      <div class="chat-row ${c.s?'suporte':''}"><span class="c-time">${c.t}</span>
+      <span class="c-body"><b>${c.n}:</b> ${c.m}${c.s?'<span class="c-badge">SUPORTE</span>':''}</span>
       <button class="c-del" onclick="App.delChatMsg(${i})">${ICONS.trash}</button></div>
-    `).join('');
+    `).join('') || `<div class="empty-state">Nenhuma mensagem ainda — adicione manualmente ou envie uma planilha.</div>`;
   },
-  delChatMsg(i){ this.chatMsgs.splice(i,1); saveLS('wp_chatmsgs_v2', this.chatMsgs); this.renderChatList(); },
+  delChatMsg(i){ this.chatMsgs.splice(i,1); this.renderChatList(); },
+  delAllChatMsgs(){
+    if(this.chatMsgs.length && !confirm('Excluir todas as mensagens do chat deste webinar?')) return;
+    this.chatMsgs = [];
+    this.renderChatList();
+    this.toast('Chat esvaziado');
+  },
+
+  downloadChatTemplate(){
+    if(!window.XLSX) return this.toast('Biblioteca de planilha ainda não carregou, tente de novo em instantes');
+    const header = ['Hora para ser enviado','Minuto para ser enviado','Segundo para ser enviado','Nome do participante','Texto enviado','Suporte(Caso não seja, deixe em branco)'];
+    const example = [
+      ['00','00','15','Maria','Boa noite, cheguei a tempo!',''],
+      ['00','00','20','Suporte - Equipe','Sejam bem-vindos à aula!','true'],
+    ];
+    const ws = XLSX.utils.aoa_to_sheet([header, ...example]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Chat');
+    XLSX.writeFile(wb, 'modelo-chat-webnarpro.xlsx');
+  },
+
+  handleChatFileSelect(e){
+    const file = e.target.files[0];
+    if(file) this.importChatFile(file);
+    e.target.value = '';
+  },
+  handleChatFileDrop(e){
+    e.preventDefault();
+    e.currentTarget.classList.remove('drag');
+    const file = e.dataTransfer.files[0];
+    if(file) this.importChatFile(file);
+  },
+  importChatFile(file){
+    if(!window.XLSX) return this.toast('Biblioteca de planilha ainda não carregou, tente de novo em instantes');
+    const reader = new FileReader();
+    reader.onload = (ev)=>{
+      try{
+        const wb = XLSX.read(ev.target.result, {type:'array'});
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(sheet, {header:1, blankrows:false});
+        let added = 0;
+        rows.slice(1).forEach(row=>{
+          if(!row || row.length === 0) return;
+          const [hora, minuto, segundo, nome, texto, suporte] = row;
+          const mensagem = String(texto ?? '').trim();
+          if(!mensagem) return;
+          const totalSecs = (Number(hora)||0)*3600 + (Number(minuto)||0)*60 + (Number(segundo)||0);
+          const isSuporte = suporte !== undefined && suporte !== null && String(suporte).trim() !== '';
+          this.chatMsgs.push({
+            t: this.secondsToTime(totalSecs),
+            n: String(nome ?? '').trim() || 'Espectador',
+            m: mensagem,
+            s: isSuporte,
+          });
+          added++;
+        });
+        if(added === 0){ this.toast('Nenhuma linha válida encontrada na planilha'); return; }
+        this.sortChatMsgs();
+        this.renderChatList();
+        this.toast(`${added} mensagens importadas da planilha!`);
+      }catch(err){
+        this.toast('Erro ao ler a planilha: ' + err.message);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  },
   renderOfertaPreview(){
     const t = document.getElementById('w_ofertaTitulo'); if(t) document.getElementById('ofertaPreviewImg').textContent = (t.value||'').slice(0,20) || 'F.E.R.A';
     const po = document.getElementById('w_precoOriginal'); if(po) document.getElementById('ofertaPreviewOriginal').textContent = 'De ' + po.value;
