@@ -259,13 +259,10 @@ const Sala = {
   },
 
   tryEnterFullscreen(){
-    // A API nativa de fullscreen não é suportada em toda página no Safari/iOS, e mesmo quando
-    // funciona, o layout continua limitado pelo max-width do CSS. Para webinars com "Habilitar
-    // fullscreen" ligado, a classe garante o vídeo ocupando o máximo da tela em qualquer
-    // navegador, independente da API nativa.
-    if(this.room?.video?.fullscreen){
-      document.getElementById('publicPage')?.classList.add('pub-fullscreen-mode');
-    }
+    // A API nativa de fullscreen não é suportada em toda página no Safari/iOS — o layout já
+    // usa a largura toda da tela por padrão (CSS), então isso é só um bônus onde o navegador
+    // suporta (some navegadores escondem a barra de endereço etc.).
+    if(!this.room?.video?.fullscreen) return;
     try{
       document.documentElement.requestFullscreen?.();
     }catch(e){}
