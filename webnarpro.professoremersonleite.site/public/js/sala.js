@@ -153,6 +153,12 @@ const Sala = {
 
     document.getElementById('publicPage').style.display = 'block';
     document.getElementById('pubMsgsSuporte').innerHTML = '<div class="empty-state">Envie uma mensagem privada para o suporte.</div>';
+    const fontSize = this.room.chatTamanhoFonte || 'media';
+    const sideEl = document.getElementById('pubSide');
+    if(sideEl){
+      sideEl.classList.remove('chat-font-pequena','chat-font-grande');
+      if(fontSize !== 'media') sideEl.classList.add('chat-font-' + fontSize);
+    }
     this.setupAudienceBadge();
     this.resetRoomScroll();
     this.bindRoomViewportReset();

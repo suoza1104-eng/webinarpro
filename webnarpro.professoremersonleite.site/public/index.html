@@ -450,6 +450,14 @@
             </div>
             <p style="font-size:12.5px;color:var(--text-faint);margin-top:0;">Escreva mensagens que vão aparecer no chat no exato segundo do vídeo (sincronizado com o tempo do webinar), simulando outras pessoas comentando ao vivo.</p>
             <div class="chat-timeline"><span>00:00</span><span>duração: <span id="chatDuration">150</span> min</span><span>fim</span></div>
+            <div class="field" style="max-width:260px;margin-bottom:18px;">
+              <label>Tamanho da fonte do chat (na sala do aluno)</label>
+              <select class="select" id="chatFontSize" style="width:100%;">
+                <option value="pequena">Pequena</option>
+                <option value="media" selected>Média</option>
+                <option value="grande">Grande</option>
+              </select>
+            </div>
 
             <div class="opt-toggle open" onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('open')">
               Criar chat via planilha

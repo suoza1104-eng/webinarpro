@@ -456,7 +456,7 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;bac
 .pub-tab{flex:1;padding:14px;background:none;border:none;color:var(--text-dim);font-weight:700;font-size:14px;
   border-bottom:2px solid transparent;}
 .pub-tab.active{color:var(--yellow);border-bottom-color:var(--yellow);}
-.pub-msgs{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;min-height:360px;max-height:520px;}
+.pub-msgs{flex:1 1 auto;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;}
 .pub-chat-support{background:var(--yellow);color:#0a0a0a;border-radius:8px;padding:10px 14px;font-size:13.5px;
   font-weight:700;margin:0 0 10px;line-height:1.5;}
 .pub-chat-msg{padding:6px 0;font-size:14px;line-height:1.45;color:var(--text);}
@@ -465,6 +465,8 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;bac
 .pub-input-row{display:flex;gap:8px;padding:10px 14px;border-top:1px solid var(--border-soft);}
 .pub-input-row .input{height:38px;font-size:14px;padding:0 12px;}
 .pub-input-row .btn{height:38px;font-size:13.5px;padding:0 16px;}
+.pub-side.chat-font-pequena .pub-chat-msg,.pub-side.chat-font-pequena .pub-chat-support{font-size:12px;}
+.pub-side.chat-font-grande .pub-chat-msg,.pub-side.chat-font-grande .pub-chat-support{font-size:16.5px;}
 @media (max-width:900px){
   .public-page.open{height:100dvh;overflow:hidden;}
   .pub-topbar,.pub-title,.pub-badges{display:none;}

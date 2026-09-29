@@ -104,7 +104,7 @@ router.get('/webinars/:slug/room', requireLeadAuth, async (req, res) => {
             w.modo_youtube, w.modo_youtube_bloqueio_segundo,
             w.data_inicio, w.data_fim, w.fuso_horario, w.usar_sala_espera,
             w.tipo_audiencia, w.audiencia_min_participantes, w.audiencia_max_participantes,
-            w.mostrar_botao_ao_vivo
+            w.mostrar_botao_ao_vivo, w.chat_tamanho_fonte
      FROM webinars w WHERE w.slug = ? LIMIT 1`,
     [req.params.slug],
   );
@@ -151,6 +151,7 @@ router.get('/webinars/:slug/room', requireLeadAuth, async (req, res) => {
     dataFim: w.data_fim,
     fusoHorario: w.fuso_horario,
     usarSalaEspera: !!w.usar_sala_espera,
+    chatTamanhoFonte: w.chat_tamanho_fonte || 'media',
     audiencia: {
       tipo: w.tipo_audiencia,
       min: w.audiencia_min_participantes,

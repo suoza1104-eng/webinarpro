@@ -491,6 +491,7 @@ const App = {
       this.selectStartMode(full.usar_sala_espera ? 'scheduled' : 'immediate');
       document.getElementById('w_dataInicio').value = this.isoToLocalDateTimeInput(full.data_inicio);
       document.getElementById('w_dataFim').value = this.isoToLocalDateTimeInput(full.data_fim);
+      document.getElementById('chatFontSize').value = full.chat_tamanho_fonte || 'media';
 
       // Login
       if(login){
@@ -647,6 +648,7 @@ const App = {
     if(dataInicio) dataInicio.value = '';
     if(dataFim) dataFim.value = '';
     this.selectStartMode('immediate');
+    document.getElementById('chatFontSize').value = 'media';
     // Zera as listas por-webinar — senão o que foi editado num webinar "vaza" pro próximo criado.
     this.chatMsgs = [];
     this.sales = [];
@@ -875,6 +877,9 @@ const App = {
           mensagem: c.m,
           eh_suporte: !!c.s,
         })),
+      })});
+      await this.apiFetch(`/api/webinars/${this.wz.id}`, {method:'PUT', body: JSON.stringify({
+        chat_tamanho_fonte: document.getElementById('chatFontSize')?.value || 'media',
       })});
       return true;
     }catch(e){

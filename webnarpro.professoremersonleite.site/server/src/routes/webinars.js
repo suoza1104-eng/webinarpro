@@ -114,6 +114,7 @@ const updateSchema = z.object({
   audiencia_min_participantes: z.number().int().nonnegative().optional(),
   audiencia_max_participantes: z.number().int().nonnegative().optional(),
   mostrar_botao_ao_vivo: z.boolean().optional(),
+  chat_tamanho_fonte: z.enum(['pequena', 'media', 'grande']).optional(),
 });
 
 const COLUMN_MAP = {
@@ -132,6 +133,7 @@ const COLUMN_MAP = {
   audiencia_min_participantes: 'audiencia_min_participantes',
   audiencia_max_participantes: 'audiencia_max_participantes',
   mostrar_botao_ao_vivo: 'mostrar_botao_ao_vivo',
+  chat_tamanho_fonte: 'chat_tamanho_fonte',
 };
 
 router.put('/:id', async (req, res) => {

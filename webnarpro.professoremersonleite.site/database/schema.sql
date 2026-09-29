@@ -103,6 +103,7 @@ CREATE TABLE webinars (
   bloquear_avanco_video   TINYINT(1) NOT NULL DEFAULT 1,
   modo_youtube      TINYINT(1) NOT NULL DEFAULT 0,          -- barra estilo YouTube: rever o já assistido, sem avançar
   modo_youtube_bloqueio_segundo INT UNSIGNED NULL,          -- a partir deste segundo, trava avanço mesmo revendo (protege o pitch)
+  chat_tamanho_fonte ENUM('pequena','media','grande') NOT NULL DEFAULT 'media',
   tipo_audiencia    ENUM('nenhuma','fixa','dinamica') NOT NULL DEFAULT 'nenhuma',
   audiencia_min_participantes INT UNSIGNED NOT NULL DEFAULT 50,
   audiencia_max_participantes INT UNSIGNED NOT NULL DEFAULT 65,
