@@ -454,6 +454,18 @@ const Sala = {
       return;
     }
     const cfg = this.room.video;
+    if(cfg.status !== 'pronto'){
+      const msg = cfg.status === 'erro'
+        ? 'Houve um erro ao processar este vídeo. Envie novamente na biblioteca de vídeos do painel.'
+        : 'O vídeo ainda está sendo processado. Isso pode levar alguns minutos em arquivos longos — tente recarregar a página daqui a pouco.';
+      document.getElementById('pubVideo').innerHTML = `
+        <div class="pub-live" style="flex-direction:column;gap:10px;">
+          <div class="pub-brand-badge" style="position:static;">⚡ WebnarPRO</div>
+          <div style="font-size:12.5px;color:var(--text-dim);text-align:center;padding:0 24px;max-width:420px;">${msg}</div>
+          <button class="btn btn-primary btn-sm" onclick="location.reload()">Recarregar página</button>
+        </div>`;
+      return;
+    }
     if(this._ytTicker) clearInterval(this._ytTicker);
     if(this._liveFollowTicker) clearInterval(this._liveFollowTicker);
     this.followLiveEdge = this.shouldObeySchedule() || seekTo > 0;
