@@ -97,11 +97,15 @@
   .offer-card button{width:100%;padding:16px;border:none;border-radius:10px;font-weight:800;font-size:16px;color:#fff;cursor:pointer;}
   @media (min-width:901px){
     .offer-pip{width:min(26vw,360px);aspect-ratio:16/9;}
+    .offer-pip.pip-size-pequeno{width:min(16vw,220px);}
+    .offer-pip.pip-size-grande{width:min(36vw,500px);}
   }
   @media (max-width:900px){
     .offer-overlay{flex-direction:column;}
     .offer-pip{position:absolute;bottom:14px;left:12px;width:130px;aspect-ratio:16/9;border-radius:8px;overflow:hidden;
       box-shadow:0 8px 24px rgba(0,0,0,.55);border:2px solid rgba(255,255,255,.25);z-index:15;}
+    .offer-pip.pip-size-pequeno{width:90px;}
+    .offer-pip.pip-size-grande{width:180px;}
     .offer-panel{flex:1 1 auto;width:100%;height:100%;}
     .offer-card{padding:36px 20px;}
   }
@@ -186,6 +190,6 @@
   <button type="button" class="offer-close-btn" onclick="Sala.closeOfferOverlay(true)">×</button>
 </div>
 
-<script src="js/sala.js?v=10"></script>
+<script src="js/sala.js?v=11"></script>
 </body>
 </html>

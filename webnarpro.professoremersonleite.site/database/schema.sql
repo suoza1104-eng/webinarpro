@@ -164,6 +164,7 @@ CREATE TABLE webinar_offer_config (
   modo_checkout         ENUM('link','embutido') NOT NULL DEFAULT 'link', -- 'link' = redireciona; 'embutido' = abre checkout embutido (PiP)
   checkout_duracao_segundos INT UNSIGNED NOT NULL DEFAULT 600,           -- quanto tempo o checkout embutido fica aberto antes de voltar sozinho
   reopen_cor            VARCHAR(9) NOT NULL DEFAULT '#FFCC00',           -- cor do botão piscante "Inscreva-se agora"
+  checkout_pip_tamanho  ENUM('pequeno','medio','grande') NOT NULL DEFAULT 'medio', -- tamanho da telinha do vídeo ao vivo durante o checkout embutido
   CONSTRAINT fk_offer_webinar FOREIGN KEY (webinar_id) REFERENCES webinars(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 

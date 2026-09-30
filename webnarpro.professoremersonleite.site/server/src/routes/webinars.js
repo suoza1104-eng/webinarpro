@@ -345,6 +345,7 @@ const offerConfigSchema = z.object({
   modo_checkout: z.enum(['link', 'embutido']).optional(),
   checkout_duracao_segundos: z.number().int().positive().optional(),
   reopen_cor: z.string().max(9).optional(),
+  checkout_pip_tamanho: z.enum(['pequeno', 'medio', 'grande']).optional(),
 });
 
 router.get('/:id/offer-config', async (req, res) => {
@@ -366,8 +367,8 @@ router.put('/:id/offer-config', async (req, res) => {
       (webinar_id, nome_oferta, titulo_oferta, preco_original_centavos, preco_oferta_centavos, texto_botao, cor_botao,
        layout_temporizador, temporizador_segundos, imagem_desktop_url, imagem_mobile_url, inicio_pitch_segundos,
        inicio_oferta_segundos, fim_oferta_segundos, link_checkout, repassar_utms, oferta_desabilitada, sorteio_habilitado,
-       modo_checkout, checkout_duracao_segundos, reopen_cor)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       modo_checkout, checkout_duracao_segundos, reopen_cor, checkout_pip_tamanho)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON DUPLICATE KEY UPDATE
       nome_oferta = VALUES(nome_oferta),
       titulo_oferta = VALUES(titulo_oferta),
@@ -388,7 +389,8 @@ router.put('/:id/offer-config', async (req, res) => {
       sorteio_habilitado = VALUES(sorteio_habilitado),
       modo_checkout = VALUES(modo_checkout),
       checkout_duracao_segundos = VALUES(checkout_duracao_segundos),
-      reopen_cor = VALUES(reopen_cor)`,
+      reopen_cor = VALUES(reopen_cor),
+      checkout_pip_tamanho = VALUES(checkout_pip_tamanho)`,
     [
       webinarId,
       data.nome_oferta,
@@ -411,6 +413,7 @@ router.put('/:id/offer-config', async (req, res) => {
       data.modo_checkout || 'link',
       data.checkout_duracao_segundos ?? 600,
       data.reopen_cor || '#FFCC00',
+      data.checkout_pip_tamanho || 'medio',
     ],
   );
 
@@ -678,9 +681,9 @@ router.post('/:id/duplicate', async (req, res) => {
     if (offerRows.length > 0) {
       const o = offerRows[0];
       await connection.query(
-        `INSERT INTO webinar_offer_config (webinar_id, nome_oferta, titulo_oferta, preco_original_centavos, preco_oferta_centavos, texto_botao, cor_botao, layout_temporizador, temporizador_segundos, imagem_desktop_url, imagem_mobile_url, inicio_pitch_segundos, inicio_oferta_segundos, fim_oferta_segundos, link_checkout, repassar_utms, oferta_desabilitada, sorteio_habilitado, modo_checkout, checkout_duracao_segundos, reopen_cor)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [newId, o.nome_oferta, o.titulo_oferta, o.preco_original_centavos, o.preco_oferta_centavos, o.texto_botao, o.cor_botao, o.layout_temporizador, o.temporizador_segundos, o.imagem_desktop_url, o.imagem_mobile_url, o.inicio_pitch_segundos, o.inicio_oferta_segundos, o.fim_oferta_segundos, o.link_checkout, o.repassar_utms, o.oferta_desabilitada, o.sorteio_habilitado, o.modo_checkout, o.checkout_duracao_segundos, o.reopen_cor]
+        `INSERT INTO webinar_offer_config (webinar_id, nome_oferta, titulo_oferta, preco_original_centavos, preco_oferta_centavos, texto_botao, cor_botao, layout_temporizador, temporizador_segundos, imagem_desktop_url, imagem_mobile_url, inicio_pitch_segundos, inicio_oferta_segundos, fim_oferta_segundos, link_checkout, repassar_utms, oferta_desabilitada, sorteio_habilitado, modo_checkout, checkout_duracao_segundos, reopen_cor, checkout_pip_tamanho)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [newId, o.nome_oferta, o.titulo_oferta, o.preco_original_centavos, o.preco_oferta_centavos, o.texto_botao, o.cor_botao, o.layout_temporizador, o.temporizador_segundos, o.imagem_desktop_url, o.imagem_mobile_url, o.inicio_pitch_segundos, o.inicio_oferta_segundos, o.fim_oferta_segundos, o.link_checkout, o.repassar_utms, o.oferta_desabilitada, o.sorteio_habilitado, o.modo_checkout, o.checkout_duracao_segundos, o.reopen_cor, o.checkout_pip_tamanho]
       );
     }
 

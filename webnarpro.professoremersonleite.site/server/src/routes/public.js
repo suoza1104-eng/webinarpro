@@ -126,7 +126,7 @@ router.get('/webinars/:slug/room', requireLeadAuth, async (req, res) => {
   const [offerRows] = await pool.query(
     `SELECT nome_oferta, titulo_oferta, preco_original_centavos, preco_oferta_centavos, texto_botao, cor_botao,
             imagem_desktop_url, imagem_mobile_url, inicio_oferta_segundos, fim_oferta_segundos,
-            link_checkout, repassar_utms, oferta_desabilitada, modo_checkout, checkout_duracao_segundos, reopen_cor
+            link_checkout, repassar_utms, oferta_desabilitada, modo_checkout, checkout_duracao_segundos, reopen_cor, checkout_pip_tamanho
      FROM webinar_offer_config WHERE webinar_id = ? LIMIT 1`,
     [w.id],
   );
@@ -145,6 +145,7 @@ router.get('/webinars/:slug/room', requireLeadAuth, async (req, res) => {
     modoCheckout: offerRows[0].modo_checkout,
     checkoutDuracaoSegundos: offerRows[0].checkout_duracao_segundos,
     reopenCor: offerRows[0].reopen_cor,
+    checkoutPipTamanho: offerRows[0].checkout_pip_tamanho,
   } : null;
 
   const [leadRows] = await pool.query(

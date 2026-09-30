@@ -1040,6 +1040,9 @@ const Sala = {
       this._videoOriginalParent = this.video.parentElement;
       pipWrap.appendChild(this.video);
     }
+    pipWrap.classList.remove('pip-size-pequeno', 'pip-size-grande');
+    const pipTamanho = (this.room.offerConfig && this.room.offerConfig.checkoutPipTamanho) || 'medio';
+    if(pipTamanho !== 'medio') pipWrap.classList.add('pip-size-' + pipTamanho);
     overlay.classList.add('open');
     document.getElementById('reopenCheckoutBtn')?.classList.remove('blink-show');
 

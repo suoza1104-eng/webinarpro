@@ -533,6 +533,7 @@ const App = {
         document.getElementById('w_ofertaBotao').value = offer.texto_botao || 'inscreva-se aqui';
         document.getElementById('w_ofertaBotaoCor').value = offer.cor_botao || '#D93B3B';
         document.getElementById('w_reopenCor').value = offer.reopen_cor || '#FFCC00';
+        document.getElementById('w_checkoutPipTamanho').value = offer.checkout_pip_tamanho || 'medio';
         document.getElementById('w_ofertaImagemUrl').value = offer.imagem_desktop_url || '';
         document.getElementById('ofertaImgDropzoneText').innerHTML = offer.imagem_desktop_url
           ? `<img src="${offer.imagem_desktop_url}" style="max-height:60px;border-radius:6px;display:block;margin:0 auto 6px;">Imagem enviada — clique pra trocar`
@@ -701,6 +702,7 @@ const App = {
     document.getElementById('w_ofertaBotao').value = 'inscreva-se aqui';
     document.getElementById('w_ofertaBotaoCor').value = '#D93B3B';
     document.getElementById('w_reopenCor').value = '#FFCC00';
+    document.getElementById('w_checkoutPipTamanho').value = 'medio';
     document.getElementById('w_ofertaImagemUrl').value = '';
     document.getElementById('ofertaImgDropzoneText').textContent = 'Clique ou arraste uma imagem (PNG, JPG, WEBP até 5MB)';
     document.getElementById('w_ofertaInicio').value = '';
@@ -1032,6 +1034,7 @@ const App = {
         modo_checkout: this.wz.modoCheckout || 'link',
         checkout_duracao_segundos: Number(document.getElementById('w_checkoutDuracao')?.value || 600),
         reopen_cor: document.getElementById('w_reopenCor')?.value || '#FFCC00',
+        checkout_pip_tamanho: document.getElementById('w_checkoutPipTamanho')?.value || 'medio',
       })});
       return true;
     }catch(e){
