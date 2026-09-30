@@ -903,7 +903,10 @@ const App = {
     }
   },
   maskTimeInput(el){
-    const digits = el.value.replace(/\D/g, '').slice(0, 6);
+    // Pega os ÚLTIMOS 6 dígitos (não os primeiros) — o campo já nasce com "00:00:00"
+    // (6 dígitos), então pegar os primeiros 6 sempre descartava o dígito recém-digitado
+    // e o campo parecia travado, sem aceitar nada.
+    const digits = el.value.replace(/\D/g, '').slice(-6);
     let hh = '00', mm = '00', ss = '00';
     if(digits.length <= 2){
       ss = digits.padStart(2, '0');
@@ -986,6 +989,12 @@ const App = {
       const chosen = (this._e4payCheckouts || []).find(c=>c.slug === select.value);
       if(chosen) document.getElementById('w_linkCheckout').value = chosen.checkout_url;
     }
+  },
+  setChatCreateTab(tab){
+    document.getElementById('chatTabIndividual').classList.toggle('active', tab === 'individual');
+    document.getElementById('chatTabPlanilha').classList.toggle('active', tab === 'planilha');
+    document.getElementById('chatCreateIndividual').style.display = tab === 'individual' ? 'block' : 'none';
+    document.getElementById('chatCreatePlanilha').style.display = tab === 'planilha' ? 'block' : 'none';
   },
   setModoCheckout(mode){
     this.wz.modoCheckout = mode;

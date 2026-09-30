@@ -10,7 +10,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tus-js-client@4.1.0/dist/tus.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<link rel="stylesheet" href="css/styles.css?v=9">
+<link rel="stylesheet" href="css/styles.css?v=10">
 </head>
 <body data-theme="dark">
 <div class="hazard-strip"></div>
@@ -478,100 +478,117 @@
 
           <!-- STEP 6 — CHAT -->
           <div class="wizard-panel" data-step="5">
-            <div class="locked-banner" style="margin-bottom:18px;">
+            <div class="locked-banner" style="margin-bottom:20px;">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>
               <div><b>Automação Inteligente de Chat</b> — gerar as mensagens automaticamente com IA ainda não está ativo nesta versão. Por enquanto, monte o chat manualmente abaixo.</div>
             </div>
-            <p style="font-size:12.5px;color:var(--text-faint);margin-top:0;">Escreva mensagens que vão aparecer no chat no exato segundo do vídeo (sincronizado com o tempo do webinar), simulando outras pessoas comentando ao vivo.</p>
-            <div class="chat-timeline"><span>00:00</span><span>duração: <span id="chatDuration">150</span> min</span><span>fim</span></div>
-            <div class="field" style="max-width:260px;margin-bottom:18px;">
-              <label>Tamanho da fonte do chat (na sala do aluno)</label>
-              <select class="select" id="chatFontSize" style="width:100%;">
-                <option value="pequena">Pequena</option>
-                <option value="media" selected>Média</option>
-                <option value="grande">Grande</option>
-              </select>
-            </div>
 
-            <div class="field-row" style="margin-bottom:18px;align-items:flex-end;">
-              <div class="field" style="max-width:120px;">
-                <label>Cor de destaque do Suporte</label>
-                <input type="color" class="input" id="w_suporteCor" value="#FFCC00" oninput="App.renderSuporteColorPreview()" style="width:100%;padding:2px;height:38px;">
+            <div class="wizard-section">
+              <div class="section-head">
+                <div class="s-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="2.7"/></svg></div>
+                <div>
+                  <div class="s-title">Aparência do chat</div>
+                  <div class="s-sub">Personalize o tamanho da fonte e a cor de destaque das mensagens do suporte, do jeito que o aluno vai ver na sala.</div>
+                </div>
               </div>
-              <div class="field" style="max-width:220px;">
-                <label>Transparência (<span id="suporteCorTransparenciaLabel">0</span>%)</label>
-                <input type="range" min="0" max="90" value="0" id="w_suporteCorTransparencia" oninput="App.renderSuporteColorPreview()" style="width:100%;">
-              </div>
-              <div class="field" style="flex:1;min-width:220px;">
-                <label>Pré-visualização</label>
-                <div style="background:var(--bg-elev-2);border-radius:8px;padding:10px 14px;">
-                  <div style="border-radius:8px;padding:10px 14px;font-size:13.5px;font-weight:700;line-height:1.5;" id="suporteColorPreviewBubble">
-                    Suporte - Prof. Emerson<br>Exemplo de mensagem destacada
+              <div class="field-row" style="margin-bottom:0;align-items:flex-end;flex-wrap:wrap;">
+                <div class="field" style="max-width:180px;">
+                  <label>Tamanho da fonte</label>
+                  <select class="select" id="chatFontSize" style="width:100%;">
+                    <option value="pequena">Pequena</option>
+                    <option value="media" selected>Média</option>
+                    <option value="grande">Grande</option>
+                  </select>
+                </div>
+                <div class="field" style="max-width:100px;">
+                  <label>Cor do Suporte</label>
+                  <input type="color" class="input" id="w_suporteCor" value="#FFCC00" oninput="App.renderSuporteColorPreview()" style="width:100%;padding:2px;height:38px;">
+                </div>
+                <div class="field" style="max-width:200px;">
+                  <label>Transparência (<span id="suporteCorTransparenciaLabel">0</span>%)</label>
+                  <input type="range" min="0" max="90" value="0" id="w_suporteCorTransparencia" oninput="App.renderSuporteColorPreview()" style="width:100%;">
+                </div>
+                <div class="field" style="flex:1;min-width:220px;">
+                  <label>Pré-visualização</label>
+                  <div style="background:var(--bg-elev);border:1px solid var(--border-soft);border-radius:8px;padding:10px 14px;">
+                    <div style="border-radius:8px;padding:10px 14px;font-size:13.5px;font-weight:700;line-height:1.5;" id="suporteColorPreviewBubble">
+                      Suporte - Prof. Emerson<br>Exemplo de mensagem destacada
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div class="opt-toggle open" onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('open')">
-              Criar chat via planilha
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
-            </div>
-            <div class="opt-body open">
-              <button class="btn btn-sm" style="margin:10px 0;" onclick="App.downloadChatTemplate()">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4M8 8l4-4 4 4"/><path d="M4 16v3a2 2 0 002 2h12a2 2 0 002-2v-3"/></svg>
-                Baixar planilha modelo
-              </button>
-              <div class="dropzone" id="chatDropzone" onclick="document.getElementById('chatFileInput').click()"
-                ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')"
-                ondrop="App.handleChatFileDrop(event)">
-                Upload de arquivo .XLSX<br>Clique ou arraste e solte aqui a planilha preenchida
+            <div class="wizard-section">
+              <div class="section-head">
+                <div class="s-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h16v11H8l-4 4V4z"/></svg></div>
+                <div>
+                  <div class="s-title">Mensagens simuladas</div>
+                  <div class="s-sub">Escreva mensagens que vão aparecer no chat no exato segundo do vídeo (sincronizado com o tempo do webinar), simulando outras pessoas comentando ao vivo.</div>
+                </div>
               </div>
-              <input type="file" id="chatFileInput" accept=".xlsx,.xls" style="display:none;" onchange="App.handleChatFileSelect(event)">
-              <div class="hint">Colunas: Hora / Minuto / Segundo para ser enviado, Nome do participante, Texto enviado, Suporte (preencha com qualquer coisa se a mensagem for da equipe de suporte, ou deixe em branco se for de um aluno).</div>
-            </div>
+              <div class="chat-timeline"><span>00:00</span><span>duração: <span id="chatDuration">150</span> min</span><span>fim</span></div>
 
-            <div class="opt-toggle open" style="margin-top:18px;" onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('open')">
-              Criar mensagem individual
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
-            </div>
-            <div class="opt-body open">
-              <div class="chat-msg-form">
-                <div class="field time"><label>Tempo (hh:mm:ss)</label><input class="input" id="chatTime" placeholder="00:00:00" maxlength="8" style="width:100%;" oninput="App.maskTimeInput(this)"></div>
-                <div class="field"><label>Nome</label><input class="input" id="chatName" placeholder="Maria" style="width:100%;"></div>
-                <div class="field" style="flex:2;"><label>Mensagem</label><input class="input" id="chatMsg" placeholder="Consegui chegar a tempo! 🙌" style="width:100%;"></div>
-                <label style="display:flex;align-items:center;gap:6px;font-size:12px;white-space:nowrap;padding-bottom:9px;"><input type="checkbox" id="chatIsSuporte" style="width:auto;"> É do suporte?</label>
-                <button class="btn btn-primary" style="height:37px;" onclick="App.addChatMsg()">Adicionar</button>
+              <div class="tab-pair" style="margin-top:18px;">
+                <button class="active" id="chatTabIndividual" onclick="App.setChatCreateTab('individual')">Mensagem individual</button>
+                <button id="chatTabPlanilha" onclick="App.setChatCreateTab('planilha')">Via planilha</button>
+              </div>
+
+              <div id="chatCreateIndividual">
+                <div class="chat-msg-form">
+                  <div class="field time"><label>Tempo (hh:mm:ss)</label><input class="input" id="chatTime" placeholder="00:00:00" maxlength="8" style="width:100%;" oninput="App.maskTimeInput(this)"></div>
+                  <div class="field"><label>Nome</label><input class="input" id="chatName" placeholder="Maria" style="width:100%;"></div>
+                  <div class="field" style="flex:2;"><label>Mensagem</label><input class="input" id="chatMsg" placeholder="Consegui chegar a tempo! 🙌" style="width:100%;"></div>
+                  <label style="display:flex;align-items:center;gap:6px;font-size:12px;white-space:nowrap;padding-bottom:9px;"><input type="checkbox" id="chatIsSuporte" style="width:auto;"> É do suporte?</label>
+                  <button class="btn btn-primary" style="height:37px;" onclick="App.addChatMsg()">Adicionar</button>
+                </div>
+              </div>
+
+              <div id="chatCreatePlanilha" style="display:none;">
+                <button class="btn btn-sm" style="margin-bottom:12px;" onclick="App.downloadChatTemplate()">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4M8 8l4-4 4 4"/><path d="M4 16v3a2 2 0 002 2h12a2 2 0 002-2v-3"/></svg>
+                  Baixar planilha modelo
+                </button>
+                <div class="dropzone" id="chatDropzone" onclick="document.getElementById('chatFileInput').click()"
+                  ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')"
+                  ondrop="App.handleChatFileDrop(event)">
+                  Upload de arquivo .XLSX<br>Clique ou arraste e solte aqui a planilha preenchida
+                </div>
+                <input type="file" id="chatFileInput" accept=".xlsx,.xls" style="display:none;" onchange="App.handleChatFileSelect(event)">
+                <div class="hint">Colunas: Hora / Minuto / Segundo para ser enviado, Nome do participante, Texto enviado, Suporte (preencha com qualquer coisa se a mensagem for da equipe de suporte, ou deixe em branco se for de um aluno).</div>
+              </div>
+
+              <div class="chat-list" id="chatList" style="margin-top:18px;"></div>
+              <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;">
+                <button class="btn btn-sm btn-danger" onclick="App.delAllChatMsgs()">🗑️ Excluir todo o chat</button>
+                <button class="btn btn-sm btn-primary" onclick="App.openPublic(App.wz.nome)">🚀 Testar no player</button>
               </div>
             </div>
 
-            <div class="chat-list" id="chatList"></div>
-            <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;">
-              <button class="btn btn-sm btn-danger" onclick="App.delAllChatMsgs()">🗑️ Excluir todo o chat</button>
-              <button class="btn btn-sm btn-primary" onclick="App.openPublic(App.wz.nome)">🚀 Testar no player</button>
-            </div>
-
-            <div class="opt-toggle open" style="margin-top:26px;" onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('open')">
-              Simulador de reações (curtidas ao vivo)
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
-            </div>
-            <div class="opt-body open">
-              <div class="toggle-row" style="margin-bottom:14px;">
-                <div><div class="t-title">Habilitar botão de reações na sala</div><div class="t-desc">Mostra o botão de curtir para o aluno e simula corações subindo sobre o vídeo, como no YouTube.</div></div>
+            <div class="wizard-section">
+              <div class="section-head">
+                <div class="s-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21s-7-4.35-9.5-8.5C1 9 2.5 6 5.5 6c2 0 3.5 1.3 4.5 3 1-1.7 2.5-3 4.5-3 3 0 4.5 3 3 6.5C19 16.65 12 21 12 21z"/></svg></div>
+                <div>
+                  <div class="s-title">Simulador de reações</div>
+                  <div class="s-sub">Desenhe a intensidade das reações automáticas ao longo do vídeo: clique e arraste no gráfico para subir ou baixar a curva. Quando o aluno clicar no ❤, os corações dele também sobem na hora.</div>
+                </div>
+              </div>
+              <div class="toggle-row" style="margin-bottom:16px;">
+                <div><div class="t-title">Habilitar botão de reações na sala</div><div class="t-sub">Mostra o botão de curtir para o aluno e simula corações subindo sobre o vídeo, como no YouTube.</div></div>
                 <label class="toggle"><input type="checkbox" id="chkHabilitarReacoes" checked onchange="App.renderReactionGraph()"><span class="track"><span class="thumb"></span></span></label>
               </div>
-              <p style="font-size:12.5px;color:var(--text-faint);margin:0 0 10px;">Desenhe a intensidade das reações automáticas ao longo do vídeo: clique e arraste no gráfico para subir ou baixar a curva. Quando o aluno clicar no ❤, os corações dele também sobem na hora.</p>
-              <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
+              <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
                 <button class="btn btn-sm" onclick="App.setReactionPreset(8)">Baixo</button>
                 <button class="btn btn-sm" onclick="App.setReactionPreset(40)">Médio</button>
                 <button class="btn btn-sm" onclick="App.setReactionPreset(85)">Alto</button>
                 <button class="btn btn-sm" onclick="App.setReactionPreset(0)">Zerar</button>
               </div>
               <div style="position:relative;">
-                <canvas id="reactionGraph" width="900" height="140" style="width:100%;height:140px;display:block;background:var(--bg-elev-2);border:1px solid var(--border-soft);border-radius:8px;cursor:crosshair;touch-action:none;"></canvas>
+                <canvas id="reactionGraph" width="900" height="140" style="width:100%;height:140px;display:block;background:var(--bg-elev);border:1px solid var(--border-soft);border-radius:8px;cursor:crosshair;touch-action:none;"></canvas>
                 <div id="reactionGraphTip" style="position:absolute;transform:translate(-50%,-100%);background:#111;color:#fff;font-size:11px;
                   font-family:var(--font-mono);padding:4px 8px;border-radius:5px;white-space:nowrap;pointer-events:none;display:none;z-index:3;"></div>
               </div>
-              <div class="chat-timeline"><span>00:00</span><span id="reactionGraphDuration">duração estimada</span><span id="reactionGraphEnd">fim</span></div>
+              <div class="chat-timeline" style="margin-top:14px;margin-bottom:0;"><span>00:00</span><span id="reactionGraphDuration">duração estimada</span><span id="reactionGraphEnd">fim</span></div>
             </div>
           </div>
 
@@ -1123,6 +1140,6 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="js/app.js?v=9"></script>
+<script src="js/app.js?v=10"></script>
 </body>
 </html>
