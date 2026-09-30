@@ -116,14 +116,37 @@ router.get('/webinars/:slug/room', requireLeadAuth, async (req, res) => {
   let video = null;
   if (w.video_id) {
     const [videoRows] = await pool.query(
-      'SELECT bunny_video_id, status_processamento, duracao_segundos FROM videos WHERE id = ? LIMIT 1',
+      'SELECT id, bunny_video_id, status_processamento, duracao_segundos FROM videos WHERE id = ? LIMIT 1',
       [w.video_id],
     );
     if (videoRows.length > 0 && videoRows[0].bunny_video_id) {
+      let statusAtual = videoRows[0].status_processamento;
+      let duracaoAtual = videoRows[0].duracao_segundos;
+
+      // O status salvo no banco só é atualizado quando alguém abre a Biblioteca de Vídeos no
+      // painel. Se ainda não estiver "pronto", confere direto na Bunny para não deixar a sala
+      // travada indefinidamente com um status desatualizado.
+      if (statusAtual !== 'pronto') {
+        try {
+          const bunnyData = await bunny.getVideo(videoRows[0].bunny_video_id);
+          const statusFresco = bunny.mapStatus(bunnyData.status);
+          if (statusFresco !== statusAtual || bunnyData.length !== duracaoAtual) {
+            await pool.query(
+              'UPDATE videos SET status_processamento = ?, duracao_segundos = ? WHERE id = ?',
+              [statusFresco, bunnyData.length || null, videoRows[0].id],
+            );
+          }
+          statusAtual = statusFresco;
+          duracaoAtual = bunnyData.length || duracaoAtual;
+        } catch (err) {
+          req.log.error(err, 'falha ao consultar status da Bunny na sala pública');
+        }
+      }
+
       video = {
         url: bunny.playbackUrl(videoRows[0].bunny_video_id),
-        status: videoRows[0].status_processamento,
-        duracaoSegundos: videoRows[0].duracao_segundos,
+        status: statusAtual,
+        duracaoSegundos: duracaoAtual,
         autoplay: !!w.video_autoplay,
         fullscreen: !!w.video_fullscreen,
         ocultarBarraProgresso: !!w.ocultar_barra_progresso,
