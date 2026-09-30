@@ -529,6 +529,9 @@ const App = {
         this.wz.preco = document.getElementById('w_preco').value;
         document.getElementById('w_ofertaBotao').value = offer.texto_botao || 'inscreva-se aqui';
         document.getElementById('w_ofertaImagemUrl').value = offer.imagem_desktop_url || '';
+        document.getElementById('ofertaImgDropzoneText').innerHTML = offer.imagem_desktop_url
+          ? `<img src="${offer.imagem_desktop_url}" style="max-height:60px;border-radius:6px;display:block;margin:0 auto 6px;">Imagem enviada — clique pra trocar`
+          : 'Clique ou arraste uma imagem (PNG, JPG, WEBP até 5MB)';
         document.getElementById('w_ofertaInicio').value = offer.inicio_oferta_segundos != null ? this.secondsToTime(offer.inicio_oferta_segundos) : '';
         document.getElementById('w_linkCheckout').value = offer.link_checkout || '';
         document.getElementById('chkOfertaDesabilitada').checked = !!offer.oferta_desabilitada;
@@ -692,6 +695,7 @@ const App = {
     document.getElementById('w_preco').value = 'R$ 397,00';
     document.getElementById('w_ofertaBotao').value = 'inscreva-se aqui';
     document.getElementById('w_ofertaImagemUrl').value = '';
+    document.getElementById('ofertaImgDropzoneText').textContent = 'Clique ou arraste uma imagem (PNG, JPG, WEBP até 5MB)';
     document.getElementById('w_ofertaInicio').value = '';
     document.getElementById('w_linkCheckout').value = '';
     document.getElementById('chkOfertaDesabilitada').checked = false;
@@ -888,6 +892,44 @@ const App = {
       return false;
     }
   },
+  maskTimeInput(el){
+    const digits = el.value.replace(/\D/g, '').slice(0, 6);
+    let hh = '00', mm = '00', ss = '00';
+    if(digits.length <= 2){
+      ss = digits.padStart(2, '0');
+    } else if(digits.length <= 4){
+      mm = digits.slice(0, -2).padStart(2, '0');
+      ss = digits.slice(-2);
+    } else {
+      hh = digits.slice(0, -4).padStart(2, '0');
+      mm = digits.slice(-4, -2);
+      ss = digits.slice(-2);
+    }
+    el.value = digits ? `${hh}:${mm}:${ss}` : '';
+  },
+  async uploadOfertaImagem(file){
+    if(!file) return;
+    const textEl = document.getElementById('ofertaImgDropzoneText');
+    const original = textEl.innerHTML;
+    textEl.textContent = 'Enviando...';
+    try{
+      const formData = new FormData();
+      formData.append('imagem', file);
+      const data = await this.apiFetch('/api/uploads/image', { method: 'POST', body: formData });
+      document.getElementById('w_ofertaImagemUrl').value = data.url;
+      textEl.innerHTML = `<img src="${data.url}" style="max-height:60px;border-radius:6px;display:block;margin:0 auto 6px;">Imagem enviada — clique pra trocar`;
+      this.renderOfertaPreview();
+    }catch(e){
+      textEl.innerHTML = original;
+      this.toast('Erro ao enviar imagem: ' + e.message);
+    }
+  },
+  handleOfertaImgDrop(event){
+    event.preventDefault();
+    event.currentTarget.classList.remove('drag');
+    const file = event.dataTransfer?.files?.[0];
+    if(file) this.uploadOfertaImagem(file);
+  },
   async loadE4payCheckouts(){
     const select = document.getElementById('w_checkoutSlug');
     if(!select || !this.wz.id) return;
@@ -899,20 +941,21 @@ const App = {
       const match = list.find(c=>c.checkout_url === currentUrl);
       select.innerHTML = list.map(c=>`<option value="${c.slug}">${escapeHtmlAdmin(c.nome_produto)} — ${this.formatCentsToMoney(c.preco_centavos)}</option>`).join('')
         + '<option value="__manual__">Outro link (colar manualmente)</option>';
-      select.value = match ? match.slug : '__manual__';
-      this.onCheckoutSlugChange();
+      select.value = match ? match.slug : (list[0] ? list[0].slug : '__manual__');
+      this.setModoCheckout(this.wz.modoCheckout || 'link');
     }catch(e){
       select.innerHTML = '<option value="__manual__">Não foi possível carregar — cole o link manualmente</option>';
       select.value = '__manual__';
-      this.onCheckoutSlugChange();
+      this.setModoCheckout(this.wz.modoCheckout || 'link');
     }
   },
   onCheckoutSlugChange(){
     const select = document.getElementById('w_checkoutSlug');
-    const manual = !select || select.value === '__manual__';
+    const isEmbutido = this.wz.modoCheckout === 'embutido';
+    const manual = !isEmbutido && select && select.value === '__manual__';
     const manualField = document.getElementById('linkCheckoutManualField');
     if(manualField) manualField.style.display = manual ? 'block' : 'none';
-    if(!manual){
+    if(!manual && select){
       const chosen = (this._e4payCheckouts || []).find(c=>c.slug === select.value);
       if(chosen) document.getElementById('w_linkCheckout').value = chosen.checkout_url;
     }
@@ -922,6 +965,20 @@ const App = {
     document.getElementById('modoCheckoutLinkCard').classList.toggle('sel', mode === 'link');
     document.getElementById('modoCheckoutEmbutidoCard').classList.toggle('sel', mode === 'embutido');
     document.getElementById('checkoutDuracaoField').style.display = mode === 'embutido' ? 'block' : 'none';
+    const select = document.getElementById('w_checkoutSlug');
+    const manualOption = select?.querySelector('option[value="__manual__"]');
+    const hint = document.getElementById('checkoutSlugHint');
+    if(mode === 'embutido'){
+      if(manualOption) manualOption.style.display = 'none';
+      if(select && select.value === '__manual__' && this._e4payCheckouts?.length){
+        select.value = this._e4payCheckouts[0].slug;
+      }
+      if(hint) hint.textContent = 'O checkout embutido só funciona com checkouts da E4Pay (por segurança do navegador).';
+    } else {
+      if(manualOption) manualOption.style.display = '';
+      if(hint) hint.textContent = 'Lista os checkouts ativos da sua conta E4Pay. Pra usar outro provedor, escolha "Outro link".';
+    }
+    this.onCheckoutSlugChange();
   },
   async saveOfferConfig(){
     try{
@@ -1367,7 +1424,19 @@ const App = {
     reader.readAsArrayBuffer(file);
   },
   renderOfertaPreview(){
-    const t = document.getElementById('w_ofertaTitulo'); if(t) document.getElementById('ofertaPreviewImg').textContent = (t.value||'').slice(0,20) || 'F.E.R.A';
+    const imgUrl = document.getElementById('w_ofertaImagemUrl')?.value;
+    const imgBox = document.getElementById('ofertaPreviewImg');
+    if(imgBox){
+      if(imgUrl){
+        imgBox.style.backgroundImage = `url("${imgUrl}")`;
+        imgBox.style.backgroundSize = 'cover';
+        imgBox.style.backgroundPosition = 'center';
+        imgBox.textContent = '';
+      } else {
+        imgBox.style.backgroundImage = '';
+      }
+    }
+    const t = document.getElementById('w_ofertaTitulo'); if(t && !imgUrl) document.getElementById('ofertaPreviewImg').textContent = (t.value||'').slice(0,20) || 'F.E.R.A';
     const po = document.getElementById('w_precoOriginal'); if(po) document.getElementById('ofertaPreviewOriginal').textContent = 'De ' + po.value;
     const pp = document.getElementById('w_preco'); if(pp) document.getElementById('ofertaPreviewPreco').textContent = 'Por ' + pp.value;
     const btn = document.getElementById('w_ofertaBotao'); if(btn) document.getElementById('ofertaPreviewBtn').textContent = btn.value || 'inscreva-se aqui';

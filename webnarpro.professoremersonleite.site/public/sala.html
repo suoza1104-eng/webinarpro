@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js"></script>
-<link rel="stylesheet" href="css/styles.css?v=7">
+<link rel="stylesheet" href="css/styles.css?v=8">
 <style>
   html,body{height:100%;overflow:hidden;background:var(--bg);}
   .sala-loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-size:13px;}
@@ -78,22 +78,32 @@
   .reopen-checkout-btn.blink-show{display:block;animation:reopenBlink 1.1s ease-in-out infinite;}
   @keyframes reopenBlink{0%,100%{opacity:1;}50%{opacity:.45;}}
 
-  .checkout-overlay{position:fixed;inset:0;z-index:700;background:#000;display:none;flex-direction:row;}
-  .checkout-overlay.open{display:flex;}
-  .checkout-pip{position:relative;background:#000;flex:0 0 auto;}
-  .checkout-pip video{width:100%;height:100%;object-fit:contain;}
-  .checkout-frame-wrap{flex:1 1 auto;background:#fff;position:relative;}
-  .checkout-frame-wrap iframe{width:100%;height:100%;border:0;display:block;}
-  .checkout-close-btn{position:absolute;top:12px;right:12px;z-index:5;width:34px;height:34px;border-radius:50%;
+  .offer-overlay{position:fixed;inset:0;z-index:700;background:#000;display:flex;flex-direction:row-reverse;
+    opacity:0;visibility:hidden;pointer-events:none;transition:opacity .35s ease,visibility 0s linear .35s;}
+  .offer-overlay.open{opacity:1;visibility:visible;pointer-events:auto;transition:opacity .35s ease;}
+  .offer-pip{position:relative;background:#000;flex:0 0 auto;}
+  .offer-pip video{width:100%;height:100%;object-fit:contain;}
+  .offer-panel{flex:1 1 auto;background:#fff;position:relative;overflow:auto;opacity:1;transition:opacity .22s ease;}
+  .offer-panel.fading{opacity:0;}
+  .offer-panel iframe{width:100%;height:100%;border:0;display:block;}
+  .offer-close-btn{position:absolute;top:12px;right:12px;z-index:20;width:34px;height:34px;border-radius:50%;
     border:none;background:rgba(0,0,0,.6);color:#fff;font-size:20px;line-height:1;cursor:pointer;}
+  .offer-card{max-width:520px;margin:0 auto;padding:44px 24px;color:#111;text-align:center;}
+  .offer-card img{width:100%;border-radius:10px;margin-bottom:18px;display:block;}
+  .offer-card .offer-title{font-weight:700;font-size:18px;margin-bottom:10px;}
+  .offer-card .offer-original{font-size:14px;color:#888;text-decoration:line-through;margin-bottom:4px;}
+  .offer-card .offer-price{font-size:34px;font-weight:800;color:#111;margin-bottom:6px;}
+  .offer-card .offer-note{font-size:13px;color:#888;margin-bottom:26px;}
+  .offer-card button{width:100%;padding:16px;border:none;border-radius:10px;font-weight:800;font-size:16px;color:#fff;cursor:pointer;}
   @media (min-width:901px){
-    .checkout-pip{width:min(46vw,720px);aspect-ratio:16/9;}
+    .offer-pip{width:min(26vw,360px);aspect-ratio:16/9;}
   }
   @media (max-width:900px){
-    .checkout-overlay{flex-direction:column;}
-    .checkout-pip{position:absolute;bottom:14px;left:12px;width:130px;aspect-ratio:16/9;border-radius:8px;overflow:hidden;
-      box-shadow:0 8px 24px rgba(0,0,0,.55);border:2px solid rgba(255,255,255,.25);z-index:10;}
-    .checkout-frame-wrap{flex:1 1 auto;width:100%;height:100%;}
+    .offer-overlay{flex-direction:column;}
+    .offer-pip{position:absolute;bottom:14px;left:12px;width:130px;aspect-ratio:16/9;border-radius:8px;overflow:hidden;
+      box-shadow:0 8px 24px rgba(0,0,0,.55);border:2px solid rgba(255,255,255,.25);z-index:15;}
+    .offer-panel{flex:1 1 auto;width:100%;height:100%;}
+    .offer-card{padding:36px 20px;}
   }
 </style>
 </head>
@@ -142,7 +152,7 @@
           <button type="button" title="Fechar">×</button>
         </div>
       </div>
-      <button type="button" class="reopen-checkout-btn" id="reopenCheckoutBtn" onclick="Sala.openCheckoutEmbed()">🛒 Inscreva-se agora</button>
+      <button type="button" class="reopen-checkout-btn" id="reopenCheckoutBtn" onclick="Sala.reopenCheckout()">🛒 Inscreva-se agora</button>
       <div class="pub-tabs">
         <button class="pub-tab active" id="tabChat" onclick="Sala.tab('chat')">Chat</button>
         <button class="pub-tab" id="tabSuporte" onclick="Sala.tab('suporte')">Suporte</button>
@@ -150,7 +160,6 @@
       </div>
       <div class="pub-msgs" id="pubMsgsChat"></div>
       <div class="pub-msgs" id="pubMsgsSuporte" style="display:none;"></div>
-      <div class="pub-msgs" id="pubMsgsOferta" style="display:none;"></div>
       <div class="pub-input-row">
         <input class="input" id="pubInput" placeholder="Digite algo..." style="flex:1;" onkeydown="if(event.key==='Enter')Sala.send()">
         <div class="pub-like-wrap" id="pubLikeWrap">
@@ -171,12 +180,12 @@
 
 <div class="sale-toast" id="saleToast"></div>
 
-<div class="checkout-overlay" id="checkoutOverlay">
-  <div class="checkout-pip" id="checkoutPipWrap"></div>
-  <div class="checkout-frame-wrap" id="checkoutFrameWrap"></div>
-  <button type="button" class="checkout-close-btn" onclick="Sala.closeCheckoutEmbed(true)">×</button>
+<div class="offer-overlay" id="offerOverlay">
+  <div class="offer-pip" id="offerPipWrap"></div>
+  <div class="offer-panel" id="offerPanelWrap"></div>
+  <button type="button" class="offer-close-btn" onclick="Sala.closeOfferOverlay(true)">×</button>
 </div>
 
-<script src="js/sala.js?v=7"></script>
+<script src="js/sala.js?v=8"></script>
 </body>
 </html>

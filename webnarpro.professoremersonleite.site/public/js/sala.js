@@ -938,47 +938,41 @@ const Sala = {
   },
 
   tab(t){
+    if(t === 'oferta'){ this.openOfferOverlay('offer'); return; }
     this.activeTab = t;
     document.getElementById('tabChat').classList.toggle('active', t === 'chat');
     document.getElementById('tabSuporte').classList.toggle('active', t === 'suporte');
-    document.getElementById('tabOferta')?.classList.toggle('active', t === 'oferta');
     document.getElementById('pubMsgsChat').style.display = t === 'chat' ? 'flex' : 'none';
     document.getElementById('pubMsgsSuporte').style.display = t === 'suporte' ? 'flex' : 'none';
-    const ofertaBox = document.getElementById('pubMsgsOferta');
-    if(ofertaBox) ofertaBox.style.display = t === 'oferta' ? 'block' : 'none';
   },
 
-  // ---------- OFERTA / CHECKOUT ----------
+  // ---------- OFERTA / CHECKOUT (overlay em tela cheia com o vídeo em PiP) ----------
   formatCents(cents){
     return (Number(cents || 0) / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   },
 
   showOfferTab(){
     this.offerShown = true;
-    const offer = this.room.offerConfig;
-    if(!offer) return;
+    if(!this.room.offerConfig) return;
     const tabBtn = document.getElementById('tabOferta');
     if(tabBtn) tabBtn.style.display = '';
-    this.renderOfferCard();
-    this.tab('oferta');
+    this.openOfferOverlay('offer');
   },
 
-  renderOfferCard(){
+  offerCardHtml(){
     const cfg = this.room.offerConfig;
-    const box = document.getElementById('pubMsgsOferta');
-    if(!cfg || !box) return;
+    if(!cfg) return '';
     const original = cfg.precoOriginalCentavos
-      ? `<div style="font-size:11px;color:var(--text-faint);text-decoration:line-through;">De ${this.formatCents(cfg.precoOriginalCentavos)}</div>`
+      ? `<div class="offer-original">De ${this.formatCents(cfg.precoOriginalCentavos)}</div>`
       : '';
-    box.innerHTML = `
-      <div style="padding:6px;">
-        ${cfg.imagemDesktopUrl ? `<img src="${escapeHtml(cfg.imagemDesktopUrl)}" style="width:100%;border-radius:8px;margin-bottom:10px;display:block;">` : ''}
-        ${cfg.tituloOferta ? `<div style="font-weight:700;font-size:14px;margin-bottom:8px;">${escapeHtml(cfg.tituloOferta)}</div>` : ''}
+    return `
+      <div class="offer-card">
+        ${cfg.imagemDesktopUrl ? `<img src="${escapeHtml(cfg.imagemDesktopUrl)}">` : ''}
+        ${cfg.tituloOferta ? `<div class="offer-title">${escapeHtml(cfg.tituloOferta)}</div>` : ''}
         ${original}
-        <div style="font-size:19px;font-weight:800;color:var(--text);margin-bottom:4px;">Por ${this.formatCents(cfg.precoOfertaCentavos)}</div>
-        <div style="font-size:11px;color:var(--text-faint);margin-bottom:14px;">Por tempo limitado — Oferta só hoje!</div>
-        <button class="btn btn-primary" style="width:100%;justify-content:center;background:${cfg.corBotao || '#D93B3B'};border-color:${cfg.corBotao || '#D93B3B'};"
-          onclick="Sala.onBuyClick()">${escapeHtml(cfg.textoBotao || 'inscreva-se aqui')}</button>
+        <div class="offer-price">Por ${this.formatCents(cfg.precoOfertaCentavos)}</div>
+        <div class="offer-note">Por tempo limitado — Oferta só hoje!</div>
+        <button style="background:${cfg.corBotao || '#D93B3B'};" onclick="Sala.onBuyClick()">${escapeHtml(cfg.textoBotao || 'inscreva-se aqui')}</button>
       </div>`;
   },
 
@@ -986,7 +980,8 @@ const Sala = {
     const cfg = this.room.offerConfig;
     if(!cfg || !cfg.linkCheckout) return;
     if(cfg.modoCheckout === 'embutido'){
-      this.openCheckoutEmbed();
+      this.switchOfferPanel(`<iframe src="${escapeHtml(this.buildCheckoutUrl())}" allow="payment"></iframe>`);
+      this.startCheckoutAutoCloseTimer();
     } else {
       window.location.href = cfg.linkCheckout;
     }
@@ -1005,42 +1000,66 @@ const Sala = {
     return base + (base.includes('?') ? '&' : '?') + qs;
   },
 
-  openCheckoutEmbed(){
+  startCheckoutAutoCloseTimer(){
+    clearTimeout(this._checkoutAutoCloseTimer);
     const cfg = this.room.offerConfig;
-    if(!cfg || !cfg.linkCheckout) return;
-    const overlay = document.getElementById('checkoutOverlay');
-    const pipWrap = document.getElementById('checkoutPipWrap');
-    const frameWrap = document.getElementById('checkoutFrameWrap');
-    if(!overlay || !pipWrap || !frameWrap) return;
+    const durMs = ((cfg && cfg.checkoutDuracaoSegundos) || 600) * 1000;
+    this._checkoutAutoCloseTimer = setTimeout(()=>this.closeOfferOverlay(true), durMs);
+  },
+
+  // Troca o conteúdo do painel com um fade suave, sem fechar o overlay nem mexer no PiP do vídeo.
+  switchOfferPanel(html){
+    const panel = document.getElementById('offerPanelWrap');
+    if(!panel) return;
+    panel.classList.add('fading');
+    setTimeout(()=>{
+      panel.innerHTML = html;
+      panel.classList.remove('fading');
+    }, 220);
+  },
+
+  openOfferOverlay(mode){
+    const overlay = document.getElementById('offerOverlay');
+    const pipWrap = document.getElementById('offerPipWrap');
+    const panel = document.getElementById('offerPanelWrap');
+    if(!overlay || !pipWrap || !panel) return;
 
     if(this.video && !pipWrap.contains(this.video)){
       this._videoOriginalParent = this.video.parentElement;
       pipWrap.appendChild(this.video);
     }
-    frameWrap.innerHTML = `<iframe src="${escapeHtml(this.buildCheckoutUrl())}" allow="payment"></iframe>`;
     overlay.classList.add('open');
     document.getElementById('reopenCheckoutBtn')?.classList.remove('blink-show');
 
-    clearTimeout(this._checkoutAutoCloseTimer);
-    const durMs = (cfg.checkoutDuracaoSegundos || 600) * 1000;
-    this._checkoutAutoCloseTimer = setTimeout(()=>this.closeCheckoutEmbed(true), durMs);
+    if(mode === 'checkout'){
+      panel.innerHTML = `<iframe src="${escapeHtml(this.buildCheckoutUrl())}" allow="payment"></iframe>`;
+      this.startCheckoutAutoCloseTimer();
+    } else {
+      clearTimeout(this._checkoutAutoCloseTimer);
+      panel.innerHTML = this.offerCardHtml();
+    }
   },
 
-  closeCheckoutEmbed(showReopenBlink){
-    const overlay = document.getElementById('checkoutOverlay');
+  reopenCheckout(){
+    document.getElementById('reopenCheckoutBtn')?.classList.remove('blink-show');
+    this.openOfferOverlay('checkout');
+  },
+
+  closeOfferOverlay(showReopenBlink){
+    const overlay = document.getElementById('offerOverlay');
     if(overlay) overlay.classList.remove('open');
     clearTimeout(this._checkoutAutoCloseTimer);
     if(this.video && this._videoOriginalParent){
       this._videoOriginalParent.appendChild(this.video);
       this._videoOriginalParent = null;
     }
-    const frameWrap = document.getElementById('checkoutFrameWrap');
-    if(frameWrap) frameWrap.innerHTML = '';
+    const panel = document.getElementById('offerPanelWrap');
+    if(panel) panel.innerHTML = '';
     if(showReopenBlink) document.getElementById('reopenCheckoutBtn')?.classList.add('blink-show');
   },
 
   onCheckoutPurchaseConfirmed(){
-    this.closeCheckoutEmbed(false);
+    this.closeOfferOverlay(false);
     this.pushSale({ nomeExibido: (this.room.lead && this.room.lead.nome) || 'Você', tituloNotificacao: 'Compra confirmada!' });
   },
 

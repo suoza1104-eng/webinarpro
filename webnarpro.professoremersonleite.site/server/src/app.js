@@ -14,8 +14,12 @@ const videosRouter = require('./routes/videos');
 const publicRouter = require('./routes/public');
 const abTestsRouter = require('./routes/ab-tests');
 const atendimentosRouter = require('./routes/atendimentos');
+const uploadsRouter = require('./routes/uploads');
+const fs = require('fs');
 
 const app = express();
+
+fs.mkdirSync(path.join(__dirname, '..', 'uploads'), { recursive: true });
 
 app.set('trust proxy', 1);
 
@@ -60,7 +64,9 @@ app.use('/api/videos', videosRouter);
 app.use('/api/public', publicRouter);
 app.use('/api/ab-tests', abTestsRouter);
 app.use('/api/atendimentos', atendimentosRouter);
+app.use('/api/uploads', uploadsRouter);
 
+app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 app.use(express.static(path.join(__dirname, '..', '..', 'public')));
 
 function pickVariant(variants) {

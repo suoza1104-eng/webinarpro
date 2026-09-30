@@ -10,7 +10,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tus-js-client@4.1.0/dist/tus.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<link rel="stylesheet" href="css/styles.css?v=7">
+<link rel="stylesheet" href="css/styles.css?v=8">
 </head>
 <body data-theme="dark">
 <div class="hazard-strip"></div>
@@ -411,23 +411,21 @@
                   <div class="type-card" onclick="App.selTimerLayout(this)"><div class="t-name" style="text-align:center;"><span class="badge badge-red">🔥 05:00</span></div><div class="t-desc" style="text-align:center;">Urgente</div></div>
                 </div>
                 <div class="field-row">
-                  <div class="field"><label>Imagem da oferta (URL)</label><input class="input" id="w_ofertaImagemUrl" placeholder="https://.../banner-oferta.png" style="width:100%;" oninput="App.renderOfertaPreview()"></div>
+                  <div class="field">
+                    <label>Imagem da oferta</label>
+                    <div class="dropzone" id="ofertaImgDropzone" onclick="document.getElementById('ofertaImgInput').click()"
+                      ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')"
+                      ondrop="App.handleOfertaImgDrop(event)">
+                      <span id="ofertaImgDropzoneText">Clique ou arraste uma imagem (PNG, JPG, WEBP até 5MB)</span>
+                    </div>
+                    <input type="file" id="ofertaImgInput" accept="image/png,image/jpeg,image/webp,image/gif" style="display:none;" onchange="App.uploadOfertaImagem(event.target.files[0])">
+                    <input type="hidden" id="w_ofertaImagemUrl">
+                  </div>
                 </div>
                 <div class="field-row">
-                  <div class="field"><label>A aba "Oferta" abre no vídeo em (hh:mm:ss)</label><input class="input" id="w_ofertaInicio" placeholder="00:02:05" style="width:100%;"></div>
+                  <div class="field"><label>A aba "Oferta" abre no vídeo em (hh:mm:ss)</label><input class="input" id="w_ofertaInicio" placeholder="00:00:00" maxlength="8" style="width:100%;" oninput="App.maskTimeInput(this)"></div>
                 </div>
-                <div class="field">
-                  <label>Checkout</label>
-                  <select class="select" id="w_checkoutSlug" style="width:100%;" onchange="App.onCheckoutSlugChange()">
-                    <option value="">Carregando checkouts da E4Pay...</option>
-                  </select>
-                  <div class="hint">Lista os checkouts ativos da sua conta E4Pay. Pra usar outro link (outro provedor), escolha "Outro link" abaixo.</div>
-                </div>
-                <div class="field" id="linkCheckoutManualField" style="display:none;">
-                  <label>Link do checkout (manual)</label>
-                  <input class="input" id="w_linkCheckout" placeholder="https://..." style="width:100%;">
-                </div>
-                <label style="display:block;font-size:12.5px;font-weight:600;color:var(--text-dim);margin:18px 0 10px;">O que acontece quando a pessoa clica em comprar</label>
+                <label style="display:block;font-size:12.5px;font-weight:600;color:var(--text-dim);margin:0 0 10px;">O que acontece quando a pessoa clica em comprar</label>
                 <div class="grid-2" style="margin-bottom:18px;">
                   <div class="type-card sel" id="modoCheckoutLinkCard" onclick="App.setModoCheckout('link')">
                     <div class="t-name">Redireciona pro link</div><div class="t-desc">Sai da sala e vai direto pro checkout, como um link normal.</div>
@@ -436,9 +434,20 @@
                     <div class="t-name">Checkout embutido</div><div class="t-desc">O vídeo encolhe e o checkout abre do lado (ou em PiP no celular), sem sair da sala.</div>
                   </div>
                 </div>
-                <div class="field" id="checkoutDuracaoField" style="max-width:280px;display:none;">
+                <div class="field" id="checkoutDuracaoField" style="max-width:280px;display:none;margin-bottom:18px;">
                   <label>Duração do checkout embutido antes de voltar sozinho (segundos)</label>
                   <input class="input" type="number" id="w_checkoutDuracao" value="600" style="width:100%;">
+                </div>
+                <div class="field">
+                  <label>Checkout</label>
+                  <select class="select" id="w_checkoutSlug" style="width:100%;" onchange="App.onCheckoutSlugChange()">
+                    <option value="">Carregando checkouts da E4Pay...</option>
+                  </select>
+                  <div class="hint" id="checkoutSlugHint">Lista os checkouts ativos da sua conta E4Pay.</div>
+                </div>
+                <div class="field" id="linkCheckoutManualField" style="display:none;">
+                  <label>Link do checkout (manual)</label>
+                  <input class="input" id="w_linkCheckout" placeholder="https://..." style="width:100%;">
                 </div>
                 <div class="card">
                   <div class="toggle-row"><div><div class="t-title">Desabilitar oferta</div></div><label class="toggle"><input type="checkbox" id="chkOfertaDesabilitada" onchange="App.renderOfertaPreview()"><span class="track"><span class="thumb"></span></span></label></div>
@@ -501,7 +510,7 @@
             </div>
             <div class="opt-body open">
               <div class="chat-msg-form">
-                <div class="field time"><label>Tempo (hh:mm:ss)</label><input class="input" id="chatTime" placeholder="00:02:15" style="width:100%;"></div>
+                <div class="field time"><label>Tempo (hh:mm:ss)</label><input class="input" id="chatTime" placeholder="00:00:00" maxlength="8" style="width:100%;" oninput="App.maskTimeInput(this)"></div>
                 <div class="field"><label>Nome</label><input class="input" id="chatName" placeholder="Maria" style="width:100%;"></div>
                 <div class="field" style="flex:2;"><label>Mensagem</label><input class="input" id="chatMsg" placeholder="Consegui chegar a tempo! 🙌" style="width:100%;"></div>
                 <label style="display:flex;align-items:center;gap:6px;font-size:12px;white-space:nowrap;padding-bottom:9px;"><input type="checkbox" id="chatIsSuporte" style="width:auto;"> É do suporte?</label>
@@ -1088,6 +1097,6 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="js/app.js?v=7"></script>
+<script src="js/app.js?v=8"></script>
 </body>
 </html>
