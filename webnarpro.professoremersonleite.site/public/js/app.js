@@ -528,7 +528,15 @@ const App = {
         document.getElementById('w_preco').value = offer.preco_oferta_centavos != null ? this.formatCentsToMoney(offer.preco_oferta_centavos) : '';
         this.wz.preco = document.getElementById('w_preco').value;
         document.getElementById('w_ofertaBotao').value = offer.texto_botao || 'inscreva-se aqui';
+        document.getElementById('w_ofertaImagemUrl').value = offer.imagem_desktop_url || '';
+        document.getElementById('w_ofertaInicio').value = offer.inicio_oferta_segundos != null ? this.secondsToTime(offer.inicio_oferta_segundos) : '';
+        document.getElementById('w_linkCheckout').value = offer.link_checkout || '';
+        document.getElementById('chkOfertaDesabilitada').checked = !!offer.oferta_desabilitada;
+        document.getElementById('w_checkoutDuracao').value = offer.checkout_duracao_segundos ?? 600;
+        this.setModoCheckout(offer.modo_checkout || 'link');
         this.renderOfertaPreview();
+      } else {
+        this.setModoCheckout('link');
       }
 
       // Chat / Vendas / Chatbot
@@ -683,6 +691,12 @@ const App = {
     document.getElementById('w_precoOriginal').value = 'R$ 2.351,00';
     document.getElementById('w_preco').value = 'R$ 397,00';
     document.getElementById('w_ofertaBotao').value = 'inscreva-se aqui';
+    document.getElementById('w_ofertaImagemUrl').value = '';
+    document.getElementById('w_ofertaInicio').value = '';
+    document.getElementById('w_linkCheckout').value = '';
+    document.getElementById('chkOfertaDesabilitada').checked = false;
+    document.getElementById('w_checkoutDuracao').value = 600;
+    this.setModoCheckout('link');
     document.getElementById('chkAutoplay').checked = false;
     document.getElementById('chkFullscreen').checked = false;
     document.getElementById('chkOcultarBarra').checked = true;
@@ -873,6 +887,12 @@ const App = {
       return false;
     }
   },
+  setModoCheckout(mode){
+    this.wz.modoCheckout = mode;
+    document.getElementById('modoCheckoutLinkCard').classList.toggle('sel', mode === 'link');
+    document.getElementById('modoCheckoutEmbutidoCard').classList.toggle('sel', mode === 'embutido');
+    document.getElementById('checkoutDuracaoField').style.display = mode === 'embutido' ? 'block' : 'none';
+  },
   async saveOfferConfig(){
     try{
       await this.apiFetch(`/api/webinars/${this.wz.id}/offer-config`, {method:'PUT', body: JSON.stringify({
@@ -881,6 +901,12 @@ const App = {
         preco_original_centavos: this.parseMoneyToCents(document.getElementById('w_precoOriginal')?.value || ''),
         preco_oferta_centavos: this.parseMoneyToCents(document.getElementById('w_preco')?.value || ''),
         texto_botao: document.getElementById('w_ofertaBotao')?.value || 'inscreva-se aqui',
+        imagem_desktop_url: document.getElementById('w_ofertaImagemUrl')?.value.trim() || null,
+        inicio_oferta_segundos: document.getElementById('w_ofertaInicio')?.value.trim() ? this.parseTimeToSeconds(document.getElementById('w_ofertaInicio').value) : null,
+        link_checkout: document.getElementById('w_linkCheckout')?.value.trim() || '',
+        oferta_desabilitada: !!document.getElementById('chkOfertaDesabilitada')?.checked,
+        modo_checkout: this.wz.modoCheckout || 'link',
+        checkout_duracao_segundos: Number(document.getElementById('w_checkoutDuracao')?.value || 600),
       })});
       return true;
     }catch(e){

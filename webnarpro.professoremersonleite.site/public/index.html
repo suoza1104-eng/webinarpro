@@ -10,7 +10,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tus-js-client@4.1.0/dist/tus.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<link rel="stylesheet" href="css/styles.css?v=5">
+<link rel="stylesheet" href="css/styles.css?v=6">
 </head>
 <body data-theme="dark">
 <div class="hazard-strip"></div>
@@ -411,19 +411,27 @@
                   <div class="type-card" onclick="App.selTimerLayout(this)"><div class="t-name" style="text-align:center;"><span class="badge badge-red">🔥 05:00</span></div><div class="t-desc" style="text-align:center;">Urgente</div></div>
                 </div>
                 <div class="field-row">
-                  <div class="field"><label>Imagem da oferta (desktop)</label><div class="dropzone">imageBanner.png<br>0 Bytes</div></div>
-                  <div class="field"><label>Imagem da oferta (mobile)</label><div class="dropzone">imageBannerMobile.png<br>0 Bytes</div></div>
+                  <div class="field"><label>Imagem da oferta (URL)</label><input class="input" id="w_ofertaImagemUrl" placeholder="https://.../banner-oferta.png" style="width:100%;" oninput="App.renderOfertaPreview()"></div>
                 </div>
                 <div class="field-row">
-                  <div class="field"><label>Início da pitch (h/m/s)</label><div class="time-group"><input class="input" value="01"><input class="input" value="40"><input class="input" value="00"></div></div>
-                  <div class="field"><label>Início da oferta</label><div class="time-group"><input class="input" value="02"><input class="input" value="04"><input class="input" value="05"></div></div>
-                  <div class="field"><label>Fim da oferta</label><div class="time-group"><input class="input" value="00"><input class="input" value="00"><input class="input" value="00"></div></div>
+                  <div class="field"><label>A aba "Oferta" abre no vídeo em (hh:mm:ss)</label><input class="input" id="w_ofertaInicio" placeholder="00:02:05" style="width:100%;"></div>
                 </div>
-                <div class="field"><label>Link da oferta</label><input class="input" placeholder="https://suaempresa.webnarpro.com.br/checkout-comunidade-fera-397/" style="width:100%;"></div>
+                <div class="field"><label>Link do checkout</label><input class="input" id="w_linkCheckout" placeholder="https://e4pay.professoremersonleite.site/#c/comunidade-fera-397" style="width:100%;"></div>
+                <label style="display:block;font-size:12.5px;font-weight:600;color:var(--text-dim);margin:18px 0 10px;">O que acontece quando a pessoa clica em comprar</label>
+                <div class="grid-2" style="margin-bottom:18px;">
+                  <div class="type-card sel" id="modoCheckoutLinkCard" onclick="App.setModoCheckout('link')">
+                    <div class="t-name">Redireciona pro link</div><div class="t-desc">Sai da sala e vai direto pro checkout, como um link normal.</div>
+                  </div>
+                  <div class="type-card" id="modoCheckoutEmbutidoCard" onclick="App.setModoCheckout('embutido')">
+                    <div class="t-name">Checkout embutido</div><div class="t-desc">O vídeo encolhe e o checkout abre do lado (ou em PiP no celular), sem sair da sala.</div>
+                  </div>
+                </div>
+                <div class="field" id="checkoutDuracaoField" style="max-width:280px;display:none;">
+                  <label>Duração do checkout embutido antes de voltar sozinho (segundos)</label>
+                  <input class="input" type="number" id="w_checkoutDuracao" value="600" style="width:100%;">
+                </div>
                 <div class="card">
-                  <div class="toggle-row"><div><div class="t-title">Repassar UTM's pro link da oferta</div></div><label class="toggle"><input type="checkbox"><span class="track"><span class="thumb"></span></span></label></div>
-                  <div class="toggle-row"><div><div class="t-title">Desabilitar oferta</div></div><label class="toggle"><input type="checkbox"><span class="track"><span class="thumb"></span></span></label></div>
-                  <div class="toggle-row"><div><div class="t-title">Habilitar sorteio</div></div><label class="toggle"><input type="checkbox"><span class="track"><span class="thumb"></span></span></label></div>
+                  <div class="toggle-row"><div><div class="t-title">Desabilitar oferta</div></div><label class="toggle"><input type="checkbox" id="chkOfertaDesabilitada" onchange="App.renderOfertaPreview()"><span class="track"><span class="thumb"></span></span></label></div>
                 </div>
               </div>
               <div>
@@ -1070,6 +1078,6 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="js/app.js?v=5"></script>
+<script src="js/app.js?v=6"></script>
 </body>
 </html>

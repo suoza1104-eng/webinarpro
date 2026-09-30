@@ -159,6 +159,8 @@ CREATE TABLE webinar_offer_config (
   repassar_utms         TINYINT(1) NOT NULL DEFAULT 0,
   oferta_desabilitada   TINYINT(1) NOT NULL DEFAULT 0,
   sorteio_habilitado    TINYINT(1) NOT NULL DEFAULT 0,
+  modo_checkout         ENUM('link','embutido') NOT NULL DEFAULT 'link', -- 'link' = redireciona; 'embutido' = abre checkout embutido (PiP)
+  checkout_duracao_segundos INT UNSIGNED NOT NULL DEFAULT 600,           -- quanto tempo o checkout embutido fica aberto antes de voltar sozinho
   CONSTRAINT fk_offer_webinar FOREIGN KEY (webinar_id) REFERENCES webinars(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 

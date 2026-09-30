@@ -122,6 +122,35 @@ router.get('/webinars/:slug/room', requireLeadAuth, async (req, res) => {
     ocultarMarca: !!loginConfigRows[0]?.ocultar_marca,
   };
 
+  const [offerRows] = await pool.query(
+    `SELECT nome_oferta, titulo_oferta, preco_original_centavos, preco_oferta_centavos, texto_botao, cor_botao,
+            imagem_desktop_url, imagem_mobile_url, inicio_oferta_segundos, fim_oferta_segundos,
+            link_checkout, repassar_utms, oferta_desabilitada, modo_checkout, checkout_duracao_segundos
+     FROM webinar_offer_config WHERE webinar_id = ? LIMIT 1`,
+    [w.id],
+  );
+  const offerConfig = offerRows[0] && !offerRows[0].oferta_desabilitada ? {
+    nomeOferta: offerRows[0].nome_oferta,
+    tituloOferta: offerRows[0].titulo_oferta,
+    precoOriginalCentavos: offerRows[0].preco_original_centavos,
+    precoOfertaCentavos: offerRows[0].preco_oferta_centavos,
+    textoBotao: offerRows[0].texto_botao,
+    corBotao: offerRows[0].cor_botao,
+    imagemDesktopUrl: offerRows[0].imagem_desktop_url,
+    imagemMobileUrl: offerRows[0].imagem_mobile_url,
+    inicioOfertaSegundos: offerRows[0].inicio_oferta_segundos,
+    fimOfertaSegundos: offerRows[0].fim_oferta_segundos,
+    linkCheckout: offerRows[0].link_checkout,
+    modoCheckout: offerRows[0].modo_checkout,
+    checkoutDuracaoSegundos: offerRows[0].checkout_duracao_segundos,
+  } : null;
+
+  const [leadRows] = await pool.query(
+    'SELECT nome, email, whatsapp FROM leads WHERE id = ? LIMIT 1',
+    [req.leadId],
+  );
+  const lead = leadRows[0] || null;
+
   let video = null;
   if (w.video_id) {
     const [videoRows] = await pool.query(
@@ -190,6 +219,8 @@ router.get('/webinars/:slug/room', requireLeadAuth, async (req, res) => {
     chatTamanhoFonte: w.chat_tamanho_fonte || 'media',
     habilitarReacoes: w.habilitar_reacoes == null ? true : !!w.habilitar_reacoes,
     branding,
+    offerConfig,
+    lead,
     audiencia: {
       tipo: w.tipo_audiencia,
       min: w.audiencia_min_participantes,

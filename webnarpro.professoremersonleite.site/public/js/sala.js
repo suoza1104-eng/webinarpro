@@ -838,6 +838,10 @@ const Sala = {
       this.pushSale(sales[this.shownSaleIdx]);
       this.shownSaleIdx++;
     }
+    const offer = this.room.offerConfig;
+    if(offer && !this.offerShown && offer.inicioOfertaSegundos != null && currentTime >= offer.inicioOfertaSegundos){
+      this.showOfferTab();
+    }
   },
 
   checkHeartbeat(currentTime, duration){
@@ -937,8 +941,107 @@ const Sala = {
     this.activeTab = t;
     document.getElementById('tabChat').classList.toggle('active', t === 'chat');
     document.getElementById('tabSuporte').classList.toggle('active', t === 'suporte');
+    document.getElementById('tabOferta')?.classList.toggle('active', t === 'oferta');
     document.getElementById('pubMsgsChat').style.display = t === 'chat' ? 'flex' : 'none';
     document.getElementById('pubMsgsSuporte').style.display = t === 'suporte' ? 'flex' : 'none';
+    const ofertaBox = document.getElementById('pubMsgsOferta');
+    if(ofertaBox) ofertaBox.style.display = t === 'oferta' ? 'block' : 'none';
+  },
+
+  // ---------- OFERTA / CHECKOUT ----------
+  formatCents(cents){
+    return (Number(cents || 0) / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  },
+
+  showOfferTab(){
+    this.offerShown = true;
+    const offer = this.room.offerConfig;
+    if(!offer) return;
+    const tabBtn = document.getElementById('tabOferta');
+    if(tabBtn) tabBtn.style.display = '';
+    this.renderOfferCard();
+    this.tab('oferta');
+  },
+
+  renderOfferCard(){
+    const cfg = this.room.offerConfig;
+    const box = document.getElementById('pubMsgsOferta');
+    if(!cfg || !box) return;
+    const original = cfg.precoOriginalCentavos
+      ? `<div style="font-size:11px;color:var(--text-faint);text-decoration:line-through;">De ${this.formatCents(cfg.precoOriginalCentavos)}</div>`
+      : '';
+    box.innerHTML = `
+      <div style="padding:6px;">
+        ${cfg.imagemDesktopUrl ? `<img src="${escapeHtml(cfg.imagemDesktopUrl)}" style="width:100%;border-radius:8px;margin-bottom:10px;display:block;">` : ''}
+        ${cfg.tituloOferta ? `<div style="font-weight:700;font-size:14px;margin-bottom:8px;">${escapeHtml(cfg.tituloOferta)}</div>` : ''}
+        ${original}
+        <div style="font-size:19px;font-weight:800;color:var(--text);margin-bottom:4px;">Por ${this.formatCents(cfg.precoOfertaCentavos)}</div>
+        <div style="font-size:11px;color:var(--text-faint);margin-bottom:14px;">Por tempo limitado — Oferta só hoje!</div>
+        <button class="btn btn-primary" style="width:100%;justify-content:center;background:${cfg.corBotao || '#D93B3B'};border-color:${cfg.corBotao || '#D93B3B'};"
+          onclick="Sala.onBuyClick()">${escapeHtml(cfg.textoBotao || 'inscreva-se aqui')}</button>
+      </div>`;
+  },
+
+  onBuyClick(){
+    const cfg = this.room.offerConfig;
+    if(!cfg || !cfg.linkCheckout) return;
+    if(cfg.modoCheckout === 'embutido'){
+      this.openCheckoutEmbed();
+    } else {
+      window.location.href = cfg.linkCheckout;
+    }
+  },
+
+  buildCheckoutUrl(){
+    const cfg = this.room.offerConfig;
+    const base = (cfg && cfg.linkCheckout) || '';
+    const lead = this.room.lead || {};
+    const params = new URLSearchParams();
+    if(lead.nome) params.set('nome', lead.nome);
+    if(lead.email) params.set('email', lead.email);
+    if(lead.whatsapp) params.set('telefone', lead.whatsapp);
+    const qs = params.toString();
+    if(!qs) return base;
+    return base + (base.includes('?') ? '&' : '?') + qs;
+  },
+
+  openCheckoutEmbed(){
+    const cfg = this.room.offerConfig;
+    if(!cfg || !cfg.linkCheckout) return;
+    const overlay = document.getElementById('checkoutOverlay');
+    const pipWrap = document.getElementById('checkoutPipWrap');
+    const frameWrap = document.getElementById('checkoutFrameWrap');
+    if(!overlay || !pipWrap || !frameWrap) return;
+
+    if(this.video && !pipWrap.contains(this.video)){
+      this._videoOriginalParent = this.video.parentElement;
+      pipWrap.appendChild(this.video);
+    }
+    frameWrap.innerHTML = `<iframe src="${escapeHtml(this.buildCheckoutUrl())}" allow="payment"></iframe>`;
+    overlay.classList.add('open');
+    document.getElementById('reopenCheckoutBtn')?.classList.remove('blink-show');
+
+    clearTimeout(this._checkoutAutoCloseTimer);
+    const durMs = (cfg.checkoutDuracaoSegundos || 600) * 1000;
+    this._checkoutAutoCloseTimer = setTimeout(()=>this.closeCheckoutEmbed(true), durMs);
+  },
+
+  closeCheckoutEmbed(showReopenBlink){
+    const overlay = document.getElementById('checkoutOverlay');
+    if(overlay) overlay.classList.remove('open');
+    clearTimeout(this._checkoutAutoCloseTimer);
+    if(this.video && this._videoOriginalParent){
+      this._videoOriginalParent.appendChild(this.video);
+      this._videoOriginalParent = null;
+    }
+    const frameWrap = document.getElementById('checkoutFrameWrap');
+    if(frameWrap) frameWrap.innerHTML = '';
+    if(showReopenBlink) document.getElementById('reopenCheckoutBtn')?.classList.add('blink-show');
+  },
+
+  onCheckoutPurchaseConfirmed(){
+    this.closeCheckoutEmbed(false);
+    this.pushSale({ nomeExibido: (this.room.lead && this.room.lead.nome) || 'Você', tituloNotificacao: 'Compra confirmada!' });
   },
 
   pushSupport(nome, txt){
@@ -1016,5 +1119,12 @@ const Sala = {
     }catch(e){}
   },
 };
+
+window.addEventListener('message', (event)=>{
+  const data = event.data;
+  if(data && data.source === 'e4pay-checkout' && data.event === 'compra_aprovada'){
+    Sala.onCheckoutPurchaseConfirmed();
+  }
+});
 
 document.addEventListener('DOMContentLoaded', ()=>Sala.init());
