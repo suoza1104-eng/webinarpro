@@ -320,6 +320,33 @@ CREATE TABLE ab_test_assignments (
   INDEX idx_assign_variant (variant_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- ---------------------------------------------------------------------
+-- 17. SALAS DE ATENDIMENTO — suporte real, 1 a 1, entre lead e equipe
+-- ---------------------------------------------------------------------
+CREATE TABLE atendimentos (
+  id                BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  webinar_id        BIGINT UNSIGNED NOT NULL,
+  lead_id           BIGINT UNSIGNED NOT NULL,
+  status            ENUM('aberto','em_atendimento','encerrado') NOT NULL DEFAULT 'aberto',
+  atendente_id      BIGINT UNSIGNED NULL,
+  ultima_mensagem_em DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  criado_em         DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_atendimentos_webinar_lead (webinar_id, lead_id),
+  CONSTRAINT fk_atendimentos_webinar FOREIGN KEY (webinar_id) REFERENCES webinars(id) ON DELETE CASCADE,
+  CONSTRAINT fk_atendimentos_lead FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE CASCADE,
+  CONSTRAINT fk_atendimentos_user FOREIGN KEY (atendente_id) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE atendimento_mensagens (
+  id                BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  atendimento_id    BIGINT UNSIGNED NOT NULL,
+  remetente         ENUM('lead','suporte') NOT NULL,
+  mensagem          VARCHAR(1000) NOT NULL,
+  criado_em         DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_atendmsg_atendimento FOREIGN KEY (atendimento_id) REFERENCES atendimentos(id) ON DELETE CASCADE,
+  INDEX idx_atendmsg_atendimento_criado (atendimento_id, criado_em)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- =====================================================================

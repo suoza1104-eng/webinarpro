@@ -70,6 +70,9 @@ function loadLS(key, fallback){
 function saveLS(key, val){
   try{ localStorage.setItem(key, JSON.stringify(val)); }catch(e){}
 }
+function escapeHtmlAdmin(str){
+  return String(str ?? '').replace(/[&<>"']/g, (c)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
 
 const App = {
   currentView:'dashboard',
@@ -1280,32 +1283,117 @@ const App = {
       </tr>`).join('');
   },
 
-  // ---------- SALAS ----------
-  renderSalas(){
-    const salas = [];
-    document.getElementById('salasGrid').innerHTML = salas.map((s,i)=>`
-      <div class="card" style="margin-top:0;">
-        <div class="thumb" style="width:100%;height:100px;margin-bottom:12px;">${ICONS.play}</div>
-        <div style="display:flex;gap:6px;margin-bottom:10px;"><span class="badge badge-green">${s.status}</span><span class="badge badge-grey">${s.tipo}</span></div>
-        <div style="font-size:11.5px;color:var(--text-faint);margin-bottom:6px;">${s.data}</div>
-        <div style="font-weight:700;font-size:13.5px;margin-bottom:14px;">${s.nome}</div>
-        <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="App.openAttend(${i}, '${s.nome}')">Sala de Atendimento</button>
-      </div>`).join('');
+  // ---------- SALAS DE ATENDIMENTO ----------
+  salasTab: 'open',
+  setSalasTab(tab){
+    this.salasTab = tab;
+    document.getElementById('salasTabMine').classList.toggle('active', tab==='mine');
+    document.getElementById('salasTabDone').classList.toggle('active', tab==='done');
+    document.getElementById('salasTabOpen').classList.toggle('active', tab==='open');
+    this.renderSalas();
   },
-  openAttend(i, nome){
-    document.getElementById('attendTitle').textContent = 'Sala de Atendimento — ' + nome;
-    document.getElementById('attendList').innerHTML = [].map(a=>`<div class="a-item"><div class="a-name">${a.n}</div><div class="a-wait">${a.w}</div></div>`).join('');
-    document.getElementById('attendMsgs').innerHTML = '';
+  formatDateTime(iso){
+    if(!iso) return '';
+    return new Date(iso).toLocaleString('pt-BR', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'});
+  },
+  async renderSalas(){
+    const grid = document.getElementById('salasGrid');
+    const statusMap = {mine:'em_atendimento', done:'encerrado', open:'aberto'};
+    const search = document.getElementById('salasSearch')?.value.trim() || '';
+    const params = new URLSearchParams({status: statusMap[this.salasTab]});
+    if(this.salasTab === 'mine') params.set('mine', '1');
+    if(search) params.set('search', search);
+    try{
+      const rows = await this.apiFetch('/api/atendimentos?' + params.toString());
+      if(rows.length === 0){
+        grid.innerHTML = `<div class="empty-state">Nenhuma conversa por aqui ainda.</div>`;
+        return;
+      }
+      grid.innerHTML = rows.map(r=>`
+        <div class="card" style="margin-top:0;">
+          <div style="display:flex;gap:6px;margin-bottom:10px;align-items:center;">
+            <span class="badge badge-grey">${escapeHtmlAdmin(r.webinar_nome)}</span>
+            ${r.atendente_nome ? `<span class="badge badge-green">${escapeHtmlAdmin(r.atendente_nome)}</span>` : ''}
+          </div>
+          <div style="font-weight:700;font-size:13.5px;margin-bottom:4px;">${escapeHtmlAdmin(r.lead_nome)}</div>
+          <div style="font-size:11.5px;color:var(--text-faint);margin-bottom:10px;">${escapeHtmlAdmin(r.ultima_mensagem || '(sem mensagens)')}</div>
+          <div style="font-size:10.5px;color:var(--text-faint);margin-bottom:14px;">${this.formatDateTime(r.ultima_mensagem_em)}</div>
+          <div style="display:flex;gap:8px;">
+            ${this.salasTab==='open' ? `<button class="btn btn-sm" onclick="App.dispensarSala(${r.id})">Dispensar</button>
+              <button class="btn btn-primary btn-sm" style="flex:1;justify-content:center;" onclick="App.atenderSala(${r.id})">Atender</button>`
+              : `<button class="btn btn-primary btn-sm" style="width:100%;justify-content:center;" onclick="App.openAttend(${r.id})">Abrir conversa</button>`}
+          </div>
+        </div>`).join('');
+    }catch(e){
+      grid.innerHTML = `<div class="empty-state">Erro ao carregar: ${e.message}</div>`;
+    }
+  },
+  async atenderSala(id){
+    try{
+      await this.apiFetch(`/api/atendimentos/${id}/atender`, {method:'POST'});
+      this.openAttend(id);
+      this.renderSalas();
+    }catch(e){ this.toast('Erro: ' + e.message); }
+  },
+  async dispensarSala(id){
+    if(!confirm('Dispensar esta conversa sem responder?')) return;
+    try{
+      await this.apiFetch(`/api/atendimentos/${id}/dispensar`, {method:'POST'});
+      this.renderSalas();
+    }catch(e){ this.toast('Erro: ' + e.message); }
+  },
+  async openAttend(id){
+    this._attendId = id;
     document.getElementById('attendModal').classList.add('open');
+    document.getElementById('attendMsgs').innerHTML = '<div class="empty-state">Carregando...</div>';
+    await this.loadAttendThread();
+    if(this._attendPoll) clearInterval(this._attendPoll);
+    this._attendPoll = setInterval(()=>this.loadAttendThread(true), 4000);
   },
-  closeAttend(){ document.getElementById('attendModal').classList.remove('open'); },
-  sendAttendReply(){
+  async loadAttendThread(silent){
+    if(!this._attendId) return;
+    try{
+      const data = await this.apiFetch(`/api/atendimentos/${this._attendId}/mensagens`);
+      const a = data.atendimento;
+      document.getElementById('attendTitle').textContent = 'Sala de Atendimento';
+      document.getElementById('attendInfoBar').innerHTML = `
+        <div class="a-meta"><b>${escapeHtmlAdmin(a.lead_nome || '')}</b><br>${escapeHtmlAdmin(a.lead_email || '')}${a.lead_whatsapp ? ' · ' + escapeHtmlAdmin(a.lead_whatsapp) : ''}</div>
+        <div class="a-actions">
+          ${a.status !== 'encerrado' ? `<button class="btn btn-sm" onclick="App.encerrarAttend()">Encerrar atendimento</button>` : `<span class="badge badge-grey">Encerrado</span>`}
+        </div>`;
+      const box = document.getElementById('attendMsgs');
+      const wasNearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 60;
+      box.innerHTML = data.mensagens.map(m=>`
+        <div class="ai-bubble ${m.remetente==='suporte' ? 'mine' : ''}"><div class="b-txt">${escapeHtmlAdmin(m.mensagem)}</div></div>
+      `).join('') || '<div class="empty-state">Nenhuma mensagem ainda.</div>';
+      if(!silent || wasNearBottom) box.scrollTop = box.scrollHeight;
+    }catch(e){
+      if(!silent) document.getElementById('attendMsgs').innerHTML = `<div class="empty-state">Erro: ${e.message}</div>`;
+    }
+  },
+  closeAttend(){
+    document.getElementById('attendModal').classList.remove('open');
+    if(this._attendPoll) clearInterval(this._attendPoll);
+    this._attendId = null;
+  },
+  async sendAttendReply(){
     const input = document.getElementById('attendInput');
-    if(!input.value.trim()) return;
-    const box = document.getElementById('attendMsgs');
-    box.innerHTML += `<div class="ai-bubble mine"><div class="b-txt">${input.value}</div></div>`;
-    input.value='';
-    box.scrollTop = box.scrollHeight;
+    const mensagem = input.value.trim();
+    if(!mensagem || !this._attendId) return;
+    input.value = '';
+    try{
+      await this.apiFetch(`/api/atendimentos/${this._attendId}/mensagens`, {method:'POST', body: JSON.stringify({mensagem})});
+      await this.loadAttendThread();
+    }catch(e){ this.toast('Erro ao enviar: ' + e.message); }
+  },
+  async encerrarAttend(){
+    if(!this._attendId) return;
+    try{
+      await this.apiFetch(`/api/atendimentos/${this._attendId}/encerrar`, {method:'POST'});
+      this.closeAttend();
+      this.renderSalas();
+      this.toast('Atendimento encerrado');
+    }catch(e){ this.toast('Erro: ' + e.message); }
   },
 
   // ---------- PÁGINA PÚBLICA (visão do aluno) ----------

@@ -13,6 +13,7 @@ const webinarsRouter = require('./routes/webinars');
 const videosRouter = require('./routes/videos');
 const publicRouter = require('./routes/public');
 const abTestsRouter = require('./routes/ab-tests');
+const atendimentosRouter = require('./routes/atendimentos');
 
 const app = express();
 
@@ -57,6 +58,7 @@ app.use('/api/webinars', webinarsRouter);
 app.use('/api/videos', videosRouter);
 app.use('/api/public', publicRouter);
 app.use('/api/ab-tests', abTestsRouter);
+app.use('/api/atendimentos', atendimentosRouter);
 
 app.use(express.static(path.join(__dirname, '..', '..', 'public')));
 

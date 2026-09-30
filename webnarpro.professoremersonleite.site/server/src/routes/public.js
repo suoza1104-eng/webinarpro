@@ -199,4 +199,47 @@ router.post('/webinars/:slug/heartbeat', heartbeatLimiter, requireLeadAuth, asyn
   res.json({ ok: true });
 });
 
+// Sala de atendimento — conversa real e privada entre o lead e a equipe de suporte
+const supportSendLimiter = rateLimit({ windowMs: 60 * 1000, limit: 15 });
+
+async function findOrCreateAtendimento(webinarId, leadId) {
+  const [existing] = await pool.query(
+    'SELECT id FROM atendimentos WHERE webinar_id = ? AND lead_id = ? LIMIT 1',
+    [webinarId, leadId],
+  );
+  if (existing.length > 0) return existing[0].id;
+  const [result] = await pool.query(
+    'INSERT INTO atendimentos (webinar_id, lead_id) VALUES (?, ?)',
+    [webinarId, leadId],
+  );
+  return result.insertId;
+}
+
+router.post('/webinars/:slug/support-message', supportSendLimiter, requireLeadAuth, async (req, res) => {
+  const mensagem = (req.body?.mensagem || '').toString().trim().slice(0, 1000);
+  if (!mensagem) return res.status(400).json({ error: 'Mensagem vazia' });
+
+  const atendimentoId = await findOrCreateAtendimento(req.webinarId, req.leadId);
+  await pool.query(
+    "INSERT INTO atendimento_mensagens (atendimento_id, remetente, mensagem) VALUES (?, 'lead', ?)",
+    [atendimentoId, mensagem],
+  );
+  await pool.query('UPDATE atendimentos SET ultima_mensagem_em = NOW() WHERE id = ?', [atendimentoId]);
+  res.status(201).json({ ok: true });
+});
+
+router.get('/webinars/:slug/support-messages', requireLeadAuth, async (req, res) => {
+  const [existing] = await pool.query(
+    'SELECT id, status FROM atendimentos WHERE webinar_id = ? AND lead_id = ? LIMIT 1',
+    [req.webinarId, req.leadId],
+  );
+  if (existing.length === 0) return res.json({ status: null, mensagens: [] });
+
+  const [mensagens] = await pool.query(
+    'SELECT remetente, mensagem, criado_em FROM atendimento_mensagens WHERE atendimento_id = ? ORDER BY criado_em ASC',
+    [existing[0].id],
+  );
+  res.json({ status: existing[0].status, mensagens });
+});
+
 module.exports = router;

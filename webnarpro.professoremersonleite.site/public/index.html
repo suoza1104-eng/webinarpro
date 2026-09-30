@@ -726,10 +726,14 @@
             <p class="page-sub">Converse com quem está assistindo, em tempo real.</p>
           </div>
         </div>
+        <div class="tab-pair" style="margin-bottom:16px;">
+          <button id="salasTabMine" onclick="App.setSalasTab('mine')">Meus atendimentos</button>
+          <button id="salasTabDone" onclick="App.setSalasTab('done')">Atendidos</button>
+          <button class="active" id="salasTabOpen" onclick="App.setSalasTab('open')">Sem atendimento</button>
+        </div>
         <div class="toolbar">
-          <div class="input-search" style="flex:1;max-width:320px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="10" cy="10" r="6"/><line x1="15" y1="15" x2="20" y2="20"/></svg><input placeholder="Buscar pelo nome do webinar"></div>
-          <select class="select"><option>Em andamento</option><option>Agendado</option><option>Finalizado</option></select>
-          <select class="select"><option>Todos os tipos</option></select>
+          <div class="input-search" style="flex:1;max-width:320px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="10" cy="10" r="6"/><line x1="15" y1="15" x2="20" y2="20"/></svg><input id="salasSearch" placeholder="Buscar pelo nome" oninput="App.renderSalas()"></div>
+          <button class="btn btn-sm" onclick="App.renderSalas()">↻ Atualizar</button>
         </div>
         <div class="grid-3" id="salasGrid"></div>
       </section>
@@ -972,12 +976,12 @@
       <h3 id="attendTitle">Sala de Atendimento</h3>
       <button class="icon-btn" onclick="App.closeAttend()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>
     </div>
+    <div class="attend-info-bar" id="attendInfoBar"></div>
     <div class="modal-body">
-      <div class="attend-list" id="attendList"></div>
       <div class="attend-chat">
         <div class="attend-msgs" id="attendMsgs"></div>
         <div class="attend-input-row">
-          <input class="input" id="attendInput" placeholder="Digite sua resposta...">
+          <input class="input" id="attendInput" placeholder="Digite sua resposta..." onkeydown="if(event.key==='Enter')App.sendAttendReply()">
           <button class="btn btn-primary btn-sm" onclick="App.sendAttendReply()">Enviar</button>
         </div>
       </div>

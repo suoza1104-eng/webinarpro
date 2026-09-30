@@ -153,6 +153,7 @@ const Sala = {
 
     document.getElementById('publicPage').style.display = 'block';
     document.getElementById('pubMsgsSuporte').innerHTML = '<div class="empty-state">Envie uma mensagem privada para o suporte.</div>';
+    this.startSupportPolling();
     const fontSize = this.room.chatTamanhoFonte || 'media';
     const sideEl = document.getElementById('pubSide');
     if(sideEl){
@@ -854,6 +855,35 @@ const Sala = {
     box.scrollTop = box.scrollHeight;
   },
 
+  startSupportPolling(){
+    if(this._supportTicker) clearInterval(this._supportTicker);
+    this.loadSupportMessages();
+    this._supportTicker = setInterval(()=>this.loadSupportMessages(), 4000);
+  },
+
+  async loadSupportMessages(){
+    if(!this.leadToken) return;
+    try{
+      const res = await fetch('/api/public/webinars/' + encodeURIComponent(this.slug) + '/support-messages', {
+        headers: { Authorization: 'Bearer ' + this.leadToken },
+      });
+      if(!res.ok) return;
+      const data = await res.json();
+      const box = document.getElementById('pubMsgsSuporte');
+      if(!box) return;
+      if(!data.mensagens || data.mensagens.length === 0){
+        box.innerHTML = '<div class="empty-state">Envie uma mensagem privada para o suporte.</div>';
+        return;
+      }
+      const wasNearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 60;
+      box.innerHTML = data.mensagens.map(m => m.remetente === 'suporte'
+        ? `<div class="pub-chat-support">Suporte<br>${escapeHtml(m.mensagem)}</div>`
+        : `<div class="pub-chat-msg mine"><span class="name">Você:</span>${escapeHtml(m.mensagem)}</div>`
+      ).join('');
+      if(wasNearBottom) box.scrollTop = box.scrollHeight;
+    }catch(e){}
+  },
+
   async send(){
     const inp = document.getElementById('pubInput');
     const val = inp.value.trim();
@@ -861,10 +891,14 @@ const Sala = {
     inp.value = '';
 
     if(this.activeTab === 'suporte'){
-      const box = document.getElementById('pubMsgsSuporte');
-      if(box.querySelector('.empty-state')) box.innerHTML = '';
-      box.insertAdjacentHTML('beforeend', `<div class="pub-chat-msg mine"><span class="name">Você:</span>${escapeHtml(val)}</div>`);
-      box.scrollTop = box.scrollHeight;
+      try{
+        await fetch('/api/public/webinars/' + encodeURIComponent(this.slug) + '/support-message', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + this.leadToken },
+          body: JSON.stringify({ mensagem: val }),
+        });
+        await this.loadSupportMessages();
+      }catch(e){}
       return;
     }
 
