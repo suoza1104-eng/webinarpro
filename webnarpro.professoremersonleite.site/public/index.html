@@ -10,7 +10,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tus-js-client@4.1.0/dist/tus.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<link rel="stylesheet" href="css/styles.css?v=6">
+<link rel="stylesheet" href="css/styles.css?v=7">
 </head>
 <body data-theme="dark">
 <div class="hazard-strip"></div>
@@ -416,7 +416,17 @@
                 <div class="field-row">
                   <div class="field"><label>A aba "Oferta" abre no vídeo em (hh:mm:ss)</label><input class="input" id="w_ofertaInicio" placeholder="00:02:05" style="width:100%;"></div>
                 </div>
-                <div class="field"><label>Link do checkout</label><input class="input" id="w_linkCheckout" placeholder="https://e4pay.professoremersonleite.site/#c/comunidade-fera-397" style="width:100%;"></div>
+                <div class="field">
+                  <label>Checkout</label>
+                  <select class="select" id="w_checkoutSlug" style="width:100%;" onchange="App.onCheckoutSlugChange()">
+                    <option value="">Carregando checkouts da E4Pay...</option>
+                  </select>
+                  <div class="hint">Lista os checkouts ativos da sua conta E4Pay. Pra usar outro link (outro provedor), escolha "Outro link" abaixo.</div>
+                </div>
+                <div class="field" id="linkCheckoutManualField" style="display:none;">
+                  <label>Link do checkout (manual)</label>
+                  <input class="input" id="w_linkCheckout" placeholder="https://..." style="width:100%;">
+                </div>
                 <label style="display:block;font-size:12.5px;font-weight:600;color:var(--text-dim);margin:18px 0 10px;">O que acontece quando a pessoa clica em comprar</label>
                 <div class="grid-2" style="margin-bottom:18px;">
                   <div class="type-card sel" id="modoCheckoutLinkCard" onclick="App.setModoCheckout('link')">
@@ -1078,6 +1088,6 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="js/app.js?v=6"></script>
+<script src="js/app.js?v=7"></script>
 </body>
 </html>

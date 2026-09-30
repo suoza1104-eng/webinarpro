@@ -736,6 +736,7 @@ const App = {
     if(n===11){
       nextBtn.onclick = ()=>App.publishWebinar();
     }
+    if(n===4) this.loadE4payCheckouts();
     if(n===5) this.renderReactionGraph();
     if(n===7) this.updateAudiencePreview();
     document.querySelector('.wizard-card').scrollIntoView({behavior:'smooth', block:'start'});
@@ -885,6 +886,35 @@ const App = {
     }catch(e){
       this.toast('Erro ao salvar login: ' + e.message);
       return false;
+    }
+  },
+  async loadE4payCheckouts(){
+    const select = document.getElementById('w_checkoutSlug');
+    if(!select || !this.wz.id) return;
+    select.innerHTML = '<option value="">Carregando...</option>';
+    try{
+      const list = await this.apiFetch(`/api/webinars/${this.wz.id}/e4pay-checkouts`);
+      this._e4payCheckouts = list;
+      const currentUrl = document.getElementById('w_linkCheckout')?.value || '';
+      const match = list.find(c=>c.checkout_url === currentUrl);
+      select.innerHTML = list.map(c=>`<option value="${c.slug}">${escapeHtmlAdmin(c.nome_produto)} — ${this.formatCentsToMoney(c.preco_centavos)}</option>`).join('')
+        + '<option value="__manual__">Outro link (colar manualmente)</option>';
+      select.value = match ? match.slug : '__manual__';
+      this.onCheckoutSlugChange();
+    }catch(e){
+      select.innerHTML = '<option value="__manual__">Não foi possível carregar — cole o link manualmente</option>';
+      select.value = '__manual__';
+      this.onCheckoutSlugChange();
+    }
+  },
+  onCheckoutSlugChange(){
+    const select = document.getElementById('w_checkoutSlug');
+    const manual = !select || select.value === '__manual__';
+    const manualField = document.getElementById('linkCheckoutManualField');
+    if(manualField) manualField.style.display = manual ? 'block' : 'none';
+    if(!manual){
+      const chosen = (this._e4payCheckouts || []).find(c=>c.slug === select.value);
+      if(chosen) document.getElementById('w_linkCheckout').value = chosen.checkout_url;
     }
   },
   setModoCheckout(mode){

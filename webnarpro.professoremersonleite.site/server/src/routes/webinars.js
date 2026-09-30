@@ -292,6 +292,34 @@ router.put('/:id/login-config', async (req, res) => {
   res.json({ ok: true });
 });
 
+// Lista os checkouts ativos cadastrados na E4Pay (mesma conta), pra escolher no lugar
+// de colar um link na mão. Não depende de um webinar específico, só confirma que quem
+// pediu é um usuário autenticado da conta.
+router.get('/:id/e4pay-checkouts', async (req, res) => {
+  const webinarId = await getOwnedWebinarId(req.params.id, req.accountId);
+  if (!webinarId) return res.status(404).json({ error: 'Webinar não encontrado' });
+  if (!process.env.E4PAY_API_URL || !process.env.E4PAY_API_KEY) {
+    return res.status(503).json({ error: 'Integração com a E4Pay não configurada' });
+  }
+  try {
+    const r = await fetch(`${process.env.E4PAY_API_URL}/api/integrations/checkouts`, {
+      headers: { 'X-Api-Key': process.env.E4PAY_API_KEY },
+    });
+    if (!r.ok) throw new Error(`E4Pay respondeu ${r.status}`);
+    const checkouts = await r.json();
+    res.json(checkouts.map((c) => ({
+      slug: c.slug,
+      nome_produto: c.nome_produto,
+      preco_centavos: c.preco_centavos,
+      imagem_url: c.imagem_url ? `${process.env.E4PAY_API_URL}${c.imagem_url}` : null,
+      checkout_url: `${process.env.E4PAY_API_URL}/#c/${c.slug}`,
+    })));
+  } catch (err) {
+    req.log.error(err, 'falha ao listar checkouts da E4Pay');
+    res.status(502).json({ error: 'Não foi possível consultar os checkouts da E4Pay agora' });
+  }
+});
+
 const offerConfigSchema = z.object({
   nome_oferta: z.string().min(1).max(150),
   titulo_oferta: z.string().max(255).nullable().optional(),
