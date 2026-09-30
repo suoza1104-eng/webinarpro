@@ -151,7 +151,7 @@ const Sala = {
       return false;
     }
 
-    document.getElementById('publicPage').style.display = 'block';
+    document.getElementById('publicPage').style.display = 'flex';
     document.getElementById('pubMsgsSuporte').innerHTML = '<div class="empty-state">Envie uma mensagem privada para o suporte.</div>';
     this.startSupportPolling();
     this.setupReactions();
