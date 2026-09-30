@@ -753,18 +753,28 @@ const Sala = {
     scrub.addEventListener('touchmove', (e)=>seekFromEvent(e.touches[0]));
 
     const wrap = document.querySelector('.yt-wrap');
+    const controlsEl = document.getElementById('ytControls');
     let hideTimer;
     const showControls = ()=>{
       wrap.classList.add('yt-show');
       clearTimeout(hideTimer);
-      hideTimer = setTimeout(()=>{ if(!el.paused) wrap.classList.remove('yt-show'); }, 4000);
+      hideTimer = setTimeout(()=>{ if(!el.paused) wrap.classList.remove('yt-show'); }, 3000);
+    };
+    const hideControlsNow = ()=>{
+      clearTimeout(hideTimer);
+      wrap.classList.remove('yt-show');
     };
     wrap.addEventListener('mousemove', showControls);
     wrap.addEventListener('mouseenter', showControls);
-    // No touch, não existe "hover" de verdade — sem isso os controles ficavam com
-    // opacity:0/pointer-events:none o tempo todo e o primeiro toque nunca acertava o botão.
-    wrap.addEventListener('touchstart', showControls, { passive: true });
-    wrap.addEventListener('click', showControls);
+    // No touch não existe "hover" de verdade, então usamos o clique/toque pra alternar:
+    // tocar em cima dos próprios controles (barra, botões) só renova o tempo de exibição;
+    // tocar no vídeo "vazio" alterna mostrar/esconder — inclusive fechando na hora se a
+    // pessoa tocar de novo, em vez de ficar preso aberto pra sempre.
+    wrap.addEventListener('click', (e)=>{
+      if(controlsEl.contains(e.target)){ showControls(); return; }
+      if(wrap.classList.contains('yt-show')) hideControlsNow();
+      else showControls();
+    });
     showControls();
 
     this._ytTicker = setInterval(()=>this.ytTick(), 300);
