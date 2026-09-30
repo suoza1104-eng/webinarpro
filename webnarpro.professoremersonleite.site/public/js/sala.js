@@ -755,10 +755,14 @@ const Sala = {
     const showControls = ()=>{
       wrap.classList.add('yt-show');
       clearTimeout(hideTimer);
-      hideTimer = setTimeout(()=>{ if(!el.paused) wrap.classList.remove('yt-show'); }, 3000);
+      hideTimer = setTimeout(()=>{ if(!el.paused) wrap.classList.remove('yt-show'); }, 4000);
     };
     wrap.addEventListener('mousemove', showControls);
     wrap.addEventListener('mouseenter', showControls);
+    // No touch, não existe "hover" de verdade — sem isso os controles ficavam com
+    // opacity:0/pointer-events:none o tempo todo e o primeiro toque nunca acertava o botão.
+    wrap.addEventListener('touchstart', showControls, { passive: true });
+    wrap.addEventListener('click', showControls);
     showControls();
 
     this._ytTicker = setInterval(()=>this.ytTick(), 300);
