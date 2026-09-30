@@ -10,7 +10,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tus-js-client@4.1.0/dist/tus.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<link rel="stylesheet" href="css/styles.css?v=8">
+<link rel="stylesheet" href="css/styles.css?v=9">
 </head>
 <body data-theme="dark">
 <div class="hazard-strip"></div>
@@ -400,6 +400,7 @@
                 </div>
                 <div class="field-row">
                   <div class="field" style="flex:2;"><label>Texto do botão</label><input class="input" id="w_ofertaBotao" value="inscreva-se aqui" oninput="App.renderOfertaPreview()" style="width:100%;"></div>
+                  <div class="field"><label>Cor do botão</label><input type="color" class="input" id="w_ofertaBotaoCor" value="#D93B3B" oninput="App.renderOfertaPreview()" style="width:60px;padding:2px;height:38px;"></div>
                   <div class="field"><label>Tempo do temporizador (h/m/s)</label>
                     <div class="time-group"><input class="input" value="00"><input class="input" value="05"><input class="input" value="00"></div>
                   </div>
@@ -434,9 +435,15 @@
                     <div class="t-name">Checkout embutido</div><div class="t-desc">O vídeo encolhe e o checkout abre do lado (ou em PiP no celular), sem sair da sala.</div>
                   </div>
                 </div>
-                <div class="field" id="checkoutDuracaoField" style="max-width:280px;display:none;margin-bottom:18px;">
-                  <label>Duração do checkout embutido antes de voltar sozinho (segundos)</label>
-                  <input class="input" type="number" id="w_checkoutDuracao" value="600" style="width:100%;">
+                <div class="field-row" id="checkoutDuracaoField" style="display:none;margin-bottom:18px;">
+                  <div class="field" style="max-width:280px;">
+                    <label>Duração do checkout embutido antes de voltar sozinho (segundos)</label>
+                    <input class="input" type="number" id="w_checkoutDuracao" value="600" style="width:100%;">
+                  </div>
+                  <div class="field">
+                    <label>Cor do botão piscante "Inscreva-se agora"</label>
+                    <input type="color" class="input" id="w_reopenCor" value="#FFCC00" style="width:60px;padding:2px;height:38px;">
+                  </div>
                 </div>
                 <div class="field">
                   <label>Checkout</label>
@@ -484,6 +491,25 @@
                 <option value="media" selected>Média</option>
                 <option value="grande">Grande</option>
               </select>
+            </div>
+
+            <div class="field-row" style="margin-bottom:18px;align-items:flex-end;">
+              <div class="field" style="max-width:120px;">
+                <label>Cor de destaque do Suporte</label>
+                <input type="color" class="input" id="w_suporteCor" value="#FFCC00" oninput="App.renderSuporteColorPreview()" style="width:100%;padding:2px;height:38px;">
+              </div>
+              <div class="field" style="max-width:220px;">
+                <label>Transparência (<span id="suporteCorTransparenciaLabel">0</span>%)</label>
+                <input type="range" min="0" max="90" value="0" id="w_suporteCorTransparencia" oninput="App.renderSuporteColorPreview()" style="width:100%;">
+              </div>
+              <div class="field" style="flex:1;min-width:220px;">
+                <label>Pré-visualização</label>
+                <div style="background:var(--bg-elev-2);border-radius:8px;padding:10px 14px;">
+                  <div style="border-radius:8px;padding:10px 14px;font-size:13.5px;font-weight:700;line-height:1.5;" id="suporteColorPreviewBubble">
+                    Suporte - Prof. Emerson<br>Exemplo de mensagem destacada
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div class="opt-toggle open" onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('open')">
@@ -1097,6 +1123,6 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="js/app.js?v=8"></script>
+<script src="js/app.js?v=9"></script>
 </body>
 </html>

@@ -116,6 +116,8 @@ const updateSchema = z.object({
   mostrar_botao_ao_vivo: z.boolean().optional(),
   chat_tamanho_fonte: z.enum(['pequena', 'media', 'grande']).optional(),
   habilitar_reacoes: z.boolean().optional(),
+  suporte_cor_destaque: z.string().max(9).optional(),
+  suporte_cor_transparencia: z.number().int().min(0).max(100).optional(),
 });
 
 const COLUMN_MAP = {
@@ -136,6 +138,8 @@ const COLUMN_MAP = {
   mostrar_botao_ao_vivo: 'mostrar_botao_ao_vivo',
   chat_tamanho_fonte: 'chat_tamanho_fonte',
   habilitar_reacoes: 'habilitar_reacoes',
+  suporte_cor_destaque: 'suporte_cor_destaque',
+  suporte_cor_transparencia: 'suporte_cor_transparencia',
 };
 
 router.put('/:id', async (req, res) => {
@@ -340,6 +344,7 @@ const offerConfigSchema = z.object({
   sorteio_habilitado: z.boolean().optional(),
   modo_checkout: z.enum(['link', 'embutido']).optional(),
   checkout_duracao_segundos: z.number().int().positive().optional(),
+  reopen_cor: z.string().max(9).optional(),
 });
 
 router.get('/:id/offer-config', async (req, res) => {
@@ -361,8 +366,8 @@ router.put('/:id/offer-config', async (req, res) => {
       (webinar_id, nome_oferta, titulo_oferta, preco_original_centavos, preco_oferta_centavos, texto_botao, cor_botao,
        layout_temporizador, temporizador_segundos, imagem_desktop_url, imagem_mobile_url, inicio_pitch_segundos,
        inicio_oferta_segundos, fim_oferta_segundos, link_checkout, repassar_utms, oferta_desabilitada, sorteio_habilitado,
-       modo_checkout, checkout_duracao_segundos)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       modo_checkout, checkout_duracao_segundos, reopen_cor)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON DUPLICATE KEY UPDATE
       nome_oferta = VALUES(nome_oferta),
       titulo_oferta = VALUES(titulo_oferta),
@@ -382,7 +387,8 @@ router.put('/:id/offer-config', async (req, res) => {
       oferta_desabilitada = VALUES(oferta_desabilitada),
       sorteio_habilitado = VALUES(sorteio_habilitado),
       modo_checkout = VALUES(modo_checkout),
-      checkout_duracao_segundos = VALUES(checkout_duracao_segundos)`,
+      checkout_duracao_segundos = VALUES(checkout_duracao_segundos),
+      reopen_cor = VALUES(reopen_cor)`,
     [
       webinarId,
       data.nome_oferta,
@@ -404,6 +410,7 @@ router.put('/:id/offer-config', async (req, res) => {
       boolToTinyInt(data.sorteio_habilitado ?? false),
       data.modo_checkout || 'link',
       data.checkout_duracao_segundos ?? 600,
+      data.reopen_cor || '#FFCC00',
     ],
   );
 
@@ -633,8 +640,8 @@ router.post('/:id/duplicate', async (req, res) => {
         usar_sala_espera, video_id, video_autoplay, video_fullscreen, ocultar_barra_progresso,
         bloquear_avanco_video, modo_youtube, modo_youtube_bloqueio_segundo, tipo_audiencia,
         audiencia_min_participantes, audiencia_max_participantes, mostrar_botao_ao_vivo,
-        habilitar_reacoes, status, criado_por
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        habilitar_reacoes, suporte_cor_destaque, suporte_cor_transparencia, status, criado_por
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         req.accountId, newName, orig.titulo, newSlug, orig.idioma, orig.nome_apresentador,
         orig.avatar_apresentador_url, orig.tipo_agendamento, orig.repeticao_automatica,
@@ -642,7 +649,8 @@ router.post('/:id/duplicate', async (req, res) => {
         orig.video_id, orig.video_autoplay, orig.video_fullscreen, orig.ocultar_barra_progresso,
         orig.bloquear_avanco_video, orig.modo_youtube, orig.modo_youtube_bloqueio_segundo,
         orig.tipo_audiencia, orig.audiencia_min_participantes, orig.audiencia_max_participantes,
-        orig.mostrar_botao_ao_vivo, orig.habilitar_reacoes, 'rascunho', req.userId
+        orig.mostrar_botao_ao_vivo, orig.habilitar_reacoes, orig.suporte_cor_destaque,
+        orig.suporte_cor_transparencia, 'rascunho', req.userId
       ]
     );
 
@@ -670,9 +678,9 @@ router.post('/:id/duplicate', async (req, res) => {
     if (offerRows.length > 0) {
       const o = offerRows[0];
       await connection.query(
-        `INSERT INTO webinar_offer_config (webinar_id, nome_oferta, titulo_oferta, preco_original_centavos, preco_oferta_centavos, texto_botao, cor_botao, layout_temporizador, temporizador_segundos, imagem_desktop_url, imagem_mobile_url, inicio_pitch_segundos, inicio_oferta_segundos, fim_oferta_segundos, link_checkout, repassar_utms, oferta_desabilitada, sorteio_habilitado, modo_checkout, checkout_duracao_segundos)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [newId, o.nome_oferta, o.titulo_oferta, o.preco_original_centavos, o.preco_oferta_centavos, o.texto_botao, o.cor_botao, o.layout_temporizador, o.temporizador_segundos, o.imagem_desktop_url, o.imagem_mobile_url, o.inicio_pitch_segundos, o.inicio_oferta_segundos, o.fim_oferta_segundos, o.link_checkout, o.repassar_utms, o.oferta_desabilitada, o.sorteio_habilitado, o.modo_checkout, o.checkout_duracao_segundos]
+        `INSERT INTO webinar_offer_config (webinar_id, nome_oferta, titulo_oferta, preco_original_centavos, preco_oferta_centavos, texto_botao, cor_botao, layout_temporizador, temporizador_segundos, imagem_desktop_url, imagem_mobile_url, inicio_pitch_segundos, inicio_oferta_segundos, fim_oferta_segundos, link_checkout, repassar_utms, oferta_desabilitada, sorteio_habilitado, modo_checkout, checkout_duracao_segundos, reopen_cor)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [newId, o.nome_oferta, o.titulo_oferta, o.preco_original_centavos, o.preco_oferta_centavos, o.texto_botao, o.cor_botao, o.layout_temporizador, o.temporizador_segundos, o.imagem_desktop_url, o.imagem_mobile_url, o.inicio_pitch_segundos, o.inicio_oferta_segundos, o.fim_oferta_segundos, o.link_checkout, o.repassar_utms, o.oferta_desabilitada, o.sorteio_habilitado, o.modo_checkout, o.checkout_duracao_segundos, o.reopen_cor]
       );
     }
 

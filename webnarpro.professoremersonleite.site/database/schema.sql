@@ -104,6 +104,8 @@ CREATE TABLE webinars (
   modo_youtube      TINYINT(1) NOT NULL DEFAULT 0,          -- barra estilo YouTube: rever o já assistido, sem avançar
   modo_youtube_bloqueio_segundo INT UNSIGNED NULL,          -- a partir deste segundo, trava avanço mesmo revendo (protege o pitch)
   chat_tamanho_fonte ENUM('pequena','media','grande') NOT NULL DEFAULT 'media',
+  suporte_cor_destaque VARCHAR(9) NOT NULL DEFAULT '#FFCC00',       -- cor de fundo das mensagens do suporte no chat
+  suporte_cor_transparencia INT UNSIGNED NOT NULL DEFAULT 0,        -- 0 = opaco, 100 = totalmente transparente
   tipo_audiencia    ENUM('nenhuma','fixa','dinamica') NOT NULL DEFAULT 'nenhuma',
   audiencia_min_participantes INT UNSIGNED NOT NULL DEFAULT 50,
   audiencia_max_participantes INT UNSIGNED NOT NULL DEFAULT 65,
@@ -161,6 +163,7 @@ CREATE TABLE webinar_offer_config (
   sorteio_habilitado    TINYINT(1) NOT NULL DEFAULT 0,
   modo_checkout         ENUM('link','embutido') NOT NULL DEFAULT 'link', -- 'link' = redireciona; 'embutido' = abre checkout embutido (PiP)
   checkout_duracao_segundos INT UNSIGNED NOT NULL DEFAULT 600,           -- quanto tempo o checkout embutido fica aberto antes de voltar sozinho
+  reopen_cor            VARCHAR(9) NOT NULL DEFAULT '#FFCC00',           -- cor do botão piscante "Inscreva-se agora"
   CONSTRAINT fk_offer_webinar FOREIGN KEY (webinar_id) REFERENCES webinars(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 

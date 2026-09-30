@@ -496,6 +496,9 @@ const App = {
       document.getElementById('w_dataInicio').value = this.isoToLocalDateTimeInput(full.data_inicio);
       document.getElementById('w_dataFim').value = this.isoToLocalDateTimeInput(full.data_fim);
       document.getElementById('chatFontSize').value = full.chat_tamanho_fonte || 'media';
+      document.getElementById('w_suporteCor').value = full.suporte_cor_destaque || '#FFCC00';
+      document.getElementById('w_suporteCorTransparencia').value = full.suporte_cor_transparencia ?? 0;
+      this.renderSuporteColorPreview();
 
       // Login
       if(login){
@@ -528,6 +531,8 @@ const App = {
         document.getElementById('w_preco').value = offer.preco_oferta_centavos != null ? this.formatCentsToMoney(offer.preco_oferta_centavos) : '';
         this.wz.preco = document.getElementById('w_preco').value;
         document.getElementById('w_ofertaBotao').value = offer.texto_botao || 'inscreva-se aqui';
+        document.getElementById('w_ofertaBotaoCor').value = offer.cor_botao || '#D93B3B';
+        document.getElementById('w_reopenCor').value = offer.reopen_cor || '#FFCC00';
         document.getElementById('w_ofertaImagemUrl').value = offer.imagem_desktop_url || '';
         document.getElementById('ofertaImgDropzoneText').innerHTML = offer.imagem_desktop_url
           ? `<img src="${offer.imagem_desktop_url}" style="max-height:60px;border-radius:6px;display:block;margin:0 auto 6px;">Imagem enviada — clique pra trocar`
@@ -694,12 +699,17 @@ const App = {
     document.getElementById('w_precoOriginal').value = 'R$ 2.351,00';
     document.getElementById('w_preco').value = 'R$ 397,00';
     document.getElementById('w_ofertaBotao').value = 'inscreva-se aqui';
+    document.getElementById('w_ofertaBotaoCor').value = '#D93B3B';
+    document.getElementById('w_reopenCor').value = '#FFCC00';
     document.getElementById('w_ofertaImagemUrl').value = '';
     document.getElementById('ofertaImgDropzoneText').textContent = 'Clique ou arraste uma imagem (PNG, JPG, WEBP até 5MB)';
     document.getElementById('w_ofertaInicio').value = '';
     document.getElementById('w_linkCheckout').value = '';
     document.getElementById('chkOfertaDesabilitada').checked = false;
     document.getElementById('w_checkoutDuracao').value = 600;
+    document.getElementById('w_suporteCor').value = '#FFCC00';
+    document.getElementById('w_suporteCorTransparencia').value = 0;
+    this.renderSuporteColorPreview();
     this.setModoCheckout('link');
     document.getElementById('chkAutoplay').checked = false;
     document.getElementById('chkFullscreen').checked = false;
@@ -930,6 +940,23 @@ const App = {
     const file = event.dataTransfer?.files?.[0];
     if(file) this.uploadOfertaImagem(file);
   },
+  hexToRgba(hex, transparenciaPct){
+    hex = (hex || '#FFCC00').replace('#', '');
+    if(hex.length === 3) hex = hex.split('').map(c=>c+c).join('');
+    const r = parseInt(hex.substring(0,2), 16) || 0;
+    const g = parseInt(hex.substring(2,4), 16) || 0;
+    const b = parseInt(hex.substring(4,6), 16) || 0;
+    const alpha = 1 - (Number(transparenciaPct || 0) / 100);
+    return `rgba(${r},${g},${b},${alpha})`;
+  },
+  renderSuporteColorPreview(){
+    const color = document.getElementById('w_suporteCor')?.value || '#FFCC00';
+    const transp = Number(document.getElementById('w_suporteCorTransparencia')?.value || 0);
+    const label = document.getElementById('suporteCorTransparenciaLabel');
+    if(label) label.textContent = transp;
+    const bubble = document.getElementById('suporteColorPreviewBubble');
+    if(bubble) bubble.style.background = this.hexToRgba(color, transp);
+  },
   async loadE4payCheckouts(){
     const select = document.getElementById('w_checkoutSlug');
     if(!select || !this.wz.id) return;
@@ -964,7 +991,7 @@ const App = {
     this.wz.modoCheckout = mode;
     document.getElementById('modoCheckoutLinkCard').classList.toggle('sel', mode === 'link');
     document.getElementById('modoCheckoutEmbutidoCard').classList.toggle('sel', mode === 'embutido');
-    document.getElementById('checkoutDuracaoField').style.display = mode === 'embutido' ? 'block' : 'none';
+    document.getElementById('checkoutDuracaoField').style.display = mode === 'embutido' ? 'flex' : 'none';
     const select = document.getElementById('w_checkoutSlug');
     const manualOption = select?.querySelector('option[value="__manual__"]');
     const hint = document.getElementById('checkoutSlugHint');
@@ -988,12 +1015,14 @@ const App = {
         preco_original_centavos: this.parseMoneyToCents(document.getElementById('w_precoOriginal')?.value || ''),
         preco_oferta_centavos: this.parseMoneyToCents(document.getElementById('w_preco')?.value || ''),
         texto_botao: document.getElementById('w_ofertaBotao')?.value || 'inscreva-se aqui',
+        cor_botao: document.getElementById('w_ofertaBotaoCor')?.value || '#D93B3B',
         imagem_desktop_url: document.getElementById('w_ofertaImagemUrl')?.value.trim() || null,
         inicio_oferta_segundos: document.getElementById('w_ofertaInicio')?.value.trim() ? this.parseTimeToSeconds(document.getElementById('w_ofertaInicio').value) : null,
         link_checkout: document.getElementById('w_linkCheckout')?.value.trim() || '',
         oferta_desabilitada: !!document.getElementById('chkOfertaDesabilitada')?.checked,
         modo_checkout: this.wz.modoCheckout || 'link',
         checkout_duracao_segundos: Number(document.getElementById('w_checkoutDuracao')?.value || 600),
+        reopen_cor: document.getElementById('w_reopenCor')?.value || '#FFCC00',
       })});
       return true;
     }catch(e){
@@ -1014,6 +1043,8 @@ const App = {
       await this.apiFetch(`/api/webinars/${this.wz.id}`, {method:'PUT', body: JSON.stringify({
         chat_tamanho_fonte: document.getElementById('chatFontSize')?.value || 'media',
         habilitar_reacoes: !!document.getElementById('chkHabilitarReacoes')?.checked,
+        suporte_cor_destaque: document.getElementById('w_suporteCor')?.value || '#FFCC00',
+        suporte_cor_transparencia: Number(document.getElementById('w_suporteCorTransparencia')?.value || 0),
       })});
       await this.apiFetch(`/api/webinars/${this.wz.id}/reaction-keyframes`, {method:'PUT', body: JSON.stringify({
         keyframes: (this.reactionPoints || []).map(p=>({segundo: p.segundo, intensidade: p.intensidade})),
@@ -1440,6 +1471,9 @@ const App = {
     const po = document.getElementById('w_precoOriginal'); if(po) document.getElementById('ofertaPreviewOriginal').textContent = 'De ' + po.value;
     const pp = document.getElementById('w_preco'); if(pp) document.getElementById('ofertaPreviewPreco').textContent = 'Por ' + pp.value;
     const btn = document.getElementById('w_ofertaBotao'); if(btn) document.getElementById('ofertaPreviewBtn').textContent = btn.value || 'inscreva-se aqui';
+    const btnCor = document.getElementById('w_ofertaBotaoCor');
+    const previewBtn = document.getElementById('ofertaPreviewBtn');
+    if(btnCor && previewBtn){ previewBtn.style.background = btnCor.value; previewBtn.style.borderColor = btnCor.value; }
   },
   selTimerLayout(el){
     el.parentElement.querySelectorAll('.type-card').forEach(c=>c.classList.remove('sel'));

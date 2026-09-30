@@ -104,7 +104,8 @@ router.get('/webinars/:slug/room', requireLeadAuth, async (req, res) => {
             w.modo_youtube, w.modo_youtube_bloqueio_segundo,
             w.data_inicio, w.data_fim, w.fuso_horario, w.usar_sala_espera,
             w.tipo_audiencia, w.audiencia_min_participantes, w.audiencia_max_participantes,
-            w.mostrar_botao_ao_vivo, w.chat_tamanho_fonte, w.habilitar_reacoes
+            w.mostrar_botao_ao_vivo, w.chat_tamanho_fonte, w.habilitar_reacoes,
+            w.suporte_cor_destaque, w.suporte_cor_transparencia
      FROM webinars w WHERE w.slug = ? LIMIT 1`,
     [req.params.slug],
   );
@@ -125,7 +126,7 @@ router.get('/webinars/:slug/room', requireLeadAuth, async (req, res) => {
   const [offerRows] = await pool.query(
     `SELECT nome_oferta, titulo_oferta, preco_original_centavos, preco_oferta_centavos, texto_botao, cor_botao,
             imagem_desktop_url, imagem_mobile_url, inicio_oferta_segundos, fim_oferta_segundos,
-            link_checkout, repassar_utms, oferta_desabilitada, modo_checkout, checkout_duracao_segundos
+            link_checkout, repassar_utms, oferta_desabilitada, modo_checkout, checkout_duracao_segundos, reopen_cor
      FROM webinar_offer_config WHERE webinar_id = ? LIMIT 1`,
     [w.id],
   );
@@ -143,6 +144,7 @@ router.get('/webinars/:slug/room', requireLeadAuth, async (req, res) => {
     linkCheckout: offerRows[0].link_checkout,
     modoCheckout: offerRows[0].modo_checkout,
     checkoutDuracaoSegundos: offerRows[0].checkout_duracao_segundos,
+    reopenCor: offerRows[0].reopen_cor,
   } : null;
 
   const [leadRows] = await pool.query(
@@ -218,6 +220,8 @@ router.get('/webinars/:slug/room', requireLeadAuth, async (req, res) => {
     usarSalaEspera: !!w.usar_sala_espera,
     chatTamanhoFonte: w.chat_tamanho_fonte || 'media',
     habilitarReacoes: w.habilitar_reacoes == null ? true : !!w.habilitar_reacoes,
+    suporteCorDestaque: w.suporte_cor_destaque || '#FFCC00',
+    suporteCorTransparencia: w.suporte_cor_transparencia ?? 0,
     branding,
     offerConfig,
     lead,

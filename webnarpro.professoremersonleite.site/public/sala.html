@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js"></script>
-<link rel="stylesheet" href="css/styles.css?v=8">
+<link rel="stylesheet" href="css/styles.css?v=9">
 <style>
   html,body{height:100%;overflow:hidden;background:var(--bg);}
   .sala-loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-size:13px;}
@@ -81,7 +81,7 @@
   .offer-overlay{position:fixed;inset:0;z-index:700;background:#000;display:flex;flex-direction:row-reverse;
     opacity:0;visibility:hidden;pointer-events:none;transition:opacity .35s ease,visibility 0s linear .35s;}
   .offer-overlay.open{opacity:1;visibility:visible;pointer-events:auto;transition:opacity .35s ease;}
-  .offer-pip{position:relative;background:#000;flex:0 0 auto;}
+  .offer-pip{position:relative;background:#000;flex:0 0 auto;cursor:pointer;}
   .offer-pip video{width:100%;height:100%;object-fit:contain;}
   .offer-panel{flex:1 1 auto;background:#fff;position:relative;overflow:auto;opacity:1;transition:opacity .22s ease;}
   .offer-panel.fading{opacity:0;}
@@ -181,11 +181,11 @@
 <div class="sale-toast" id="saleToast"></div>
 
 <div class="offer-overlay" id="offerOverlay">
-  <div class="offer-pip" id="offerPipWrap"></div>
+  <div class="offer-pip" id="offerPipWrap" onclick="Sala.closeOfferOverlay(true)" title="Voltar para o vídeo ao vivo"></div>
   <div class="offer-panel" id="offerPanelWrap"></div>
   <button type="button" class="offer-close-btn" onclick="Sala.closeOfferOverlay(true)">×</button>
 </div>
 
-<script src="js/sala.js?v=8"></script>
+<script src="js/sala.js?v=9"></script>
 </body>
 </html>

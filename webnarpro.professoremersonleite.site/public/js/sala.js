@@ -177,6 +177,8 @@ const Sala = {
     document.getElementById('pubMsgsSuporte').innerHTML = '<div class="empty-state">Envie uma mensagem privada para o suporte.</div>';
     this.startSupportPolling();
     this.setupReactions();
+    const reopenBtn = document.getElementById('reopenCheckoutBtn');
+    if(reopenBtn && this.room.offerConfig?.reopenCor) reopenBtn.style.background = this.room.offerConfig.reopenCor;
     const fontSize = this.room.chatTamanhoFonte || 'media';
     const sideEl = document.getElementById('pubSide');
     if(sideEl){
@@ -1063,9 +1065,20 @@ const Sala = {
     this.pushSale({ nomeExibido: (this.room.lead && this.room.lead.nome) || 'Você', tituloNotificacao: 'Compra confirmada!' });
   },
 
+  hexToRgba(hex, transparenciaPct){
+    hex = (hex || '#FFCC00').replace('#', '');
+    if(hex.length === 3) hex = hex.split('').map(c=>c+c).join('');
+    const r = parseInt(hex.substring(0,2), 16) || 0;
+    const g = parseInt(hex.substring(2,4), 16) || 0;
+    const b = parseInt(hex.substring(4,6), 16) || 0;
+    const alpha = 1 - (Number(transparenciaPct || 0) / 100);
+    return `rgba(${r},${g},${b},${alpha})`;
+  },
+
   pushSupport(nome, txt){
     const box = document.getElementById('pubMsgsChat');
-    box.insertAdjacentHTML('beforeend', `<div class="pub-chat-support">${escapeHtml(nome)}<br>${escapeHtml(txt)}</div>`);
+    const bg = this.hexToRgba(this.room.suporteCorDestaque, this.room.suporteCorTransparencia);
+    box.insertAdjacentHTML('beforeend', `<div class="pub-chat-support" style="background:${bg};">${escapeHtml(nome)}<br>${escapeHtml(txt)}</div>`);
     box.scrollTop = box.scrollHeight;
   },
 
