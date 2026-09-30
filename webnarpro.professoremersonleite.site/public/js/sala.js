@@ -653,9 +653,10 @@ const Sala = {
     this.hidePlayOverlay();
     const wrap = document.getElementById('pubVideo');
     if(!wrap) return;
+    const icon = unmuteOnly ? '🔇' : '▶';
     wrap.insertAdjacentHTML('beforeend', `
       <button class="pub-play-overlay ${unmuteOnly ? 'pub-play-overlay--sound' : ''}" id="pubPlayOverlay" onclick="Sala.resumeFromOverlay(${unmuteOnly ? 'true' : 'false'})">
-        <span class="pub-play-overlay-icon">▶</span>
+        <span class="pub-play-overlay-icon">${icon}</span>
         <span>${label}</span>
       </button>`);
   },
