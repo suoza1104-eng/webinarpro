@@ -828,14 +828,29 @@ const Sala = {
     });
   },
 
+  REACTION_EMOJIS: ['❤️','😄','🎉','😮','💯'],
+
   setupReactions(){
     this.reactionsEnabled = this.room.habilitarReacoes !== false;
-    const likeBtn = document.getElementById('pubLikeBtn');
-    if(likeBtn) likeBtn.style.display = this.reactionsEnabled ? 'flex' : 'none';
+    const likeWrap = document.getElementById('pubLikeWrap');
+    if(likeWrap) likeWrap.style.display = this.reactionsEnabled ? 'flex' : 'none';
+    if(!this._likeMenuOutsideBound){
+      this._likeMenuOutsideBound = true;
+      document.addEventListener('click', (e)=>{
+        const wrap = document.getElementById('pubLikeWrap');
+        const menu = document.getElementById('pubLikeMenu');
+        if(!wrap || !menu || !menu.classList.contains('open')) return;
+        if(!wrap.contains(e.target)) menu.classList.remove('open');
+      });
+    }
     if(this._reactionTicker) clearInterval(this._reactionTicker);
     if(this.reactionsEnabled){
       this._reactionTicker = setInterval(()=>this.tickReactions(), 700);
     }
+  },
+
+  toggleReactionMenu(){
+    document.getElementById('pubLikeMenu')?.classList.toggle('open');
   },
 
   getReactionIntensity(seconds){
@@ -867,16 +882,18 @@ const Sala = {
     if(!wrap) return;
     const el = document.createElement('div');
     el.className = 'pub-reaction';
-    el.textContent = emoji || (Math.random() < 0.75 ? '❤️' : ['👍','🎉','😮'][Math.floor(Math.random() * 3)]);
+    el.textContent = emoji || this.REACTION_EMOJIS[Math.floor(Math.random() * this.REACTION_EMOJIS.length)];
     el.style.left = (10 + Math.random() * 80) + '%';
     el.style.setProperty('--drift', (Math.random() * 40 - 20) + 'px');
     wrap.appendChild(el);
     setTimeout(()=>el.remove(), 2900);
   },
 
-  sendReaction(){
+  sendReaction(emoji){
+    document.getElementById('pubLikeMenu')?.classList.remove('open');
+    const chosen = emoji || '❤️';
     for(let i=0;i<5;i++){
-      setTimeout(()=>this.spawnReaction('❤️'), i * 90);
+      setTimeout(()=>this.spawnReaction(chosen), i * 90);
     }
   },
 

@@ -924,27 +924,61 @@ const App = {
     const canvas = document.getElementById('reactionGraph');
     if(!canvas) return;
     this._reactionGraphBound = true;
+    const tip = document.getElementById('reactionGraphTip');
     let dragging = false;
-    const paint = (e)=>{
+
+    const posFromEvent = (e)=>{
       const rect = canvas.getBoundingClientRect();
       const clientX = e.touches ? e.touches[0].clientX : e.clientX;
       const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-      const x = (clientX - rect.left) / rect.width;
-      const y = (clientY - rect.top) / rect.height;
-      const pts = this.reactionPoints;
-      if(!pts || !pts.length) return;
-      const idx = Math.round(x * (pts.length - 1));
-      if(idx < 0 || idx >= pts.length) return;
-      const intensidade = Math.max(0, Math.min(100, Math.round((1 - y) * 100)));
-      pts[idx].intensidade = intensidade;
-      this.renderReactionGraph();
+      return {
+        cx: (clientX - rect.left) * (canvas.width / rect.width),
+        cy: (clientY - rect.top) * (canvas.height / rect.height),
+        cssX: clientX - rect.left,
+        cssY: clientY - rect.top,
+      };
     };
+    const idxFromCanvasX = (cx)=>{
+      const geom = this._reactionGraphGeom;
+      const pts = this.reactionPoints;
+      if(!geom || !pts || !pts.length) return null;
+      const stepX = geom.plotW / (pts.length - 1);
+      return Math.max(0, Math.min(pts.length - 1, Math.round((cx - geom.marginLeft) / stepX)));
+    };
+    const showTip = (pos, idx)=>{
+      if(!tip) return;
+      const p = this.reactionPoints[idx];
+      tip.textContent = this.secondsToTime(p.segundo) + ' — ' + p.intensidade + '%';
+      tip.style.left = pos.cssX + 'px';
+      tip.style.top = Math.max(0, pos.cssY - 10) + 'px';
+      tip.style.display = 'block';
+    };
+    const hideTip = ()=>{ if(tip) tip.style.display = 'none'; };
+
+    const paint = (e)=>{
+      const pos = posFromEvent(e);
+      const geom = this._reactionGraphGeom;
+      const idx = idxFromCanvasX(pos.cx);
+      if(idx == null || !geom) return;
+      const intensidade = Math.max(0, Math.min(100, Math.round((1 - (pos.cy - geom.marginTop) / geom.plotH) * 100)));
+      this.reactionPoints[idx].intensidade = intensidade;
+      this.renderReactionGraph();
+      showTip(pos, idx);
+    };
+
     canvas.addEventListener('mousedown', e=>{ dragging = true; paint(e); });
     window.addEventListener('mousemove', e=>{ if(dragging) paint(e); });
     window.addEventListener('mouseup', ()=>{ dragging = false; });
+    canvas.addEventListener('mousemove', e=>{
+      if(dragging) return;
+      const pos = posFromEvent(e);
+      const idx = idxFromCanvasX(pos.cx);
+      if(idx != null) showTip(pos, idx);
+    });
+    canvas.addEventListener('mouseleave', hideTip);
     canvas.addEventListener('touchstart', e=>{ dragging = true; paint(e); e.preventDefault(); }, {passive:false});
     canvas.addEventListener('touchmove', e=>{ if(dragging){ paint(e); e.preventDefault(); } }, {passive:false});
-    canvas.addEventListener('touchend', ()=>{ dragging = false; });
+    canvas.addEventListener('touchend', ()=>{ dragging = false; hideTip(); });
   },
   renderReactionGraph(){
     this.initReactionGraphEvents();
@@ -953,24 +987,37 @@ const App = {
     if(!canvas || !pts || !pts.length) return;
     const ctx = canvas.getContext('2d');
     const w = canvas.width, h = canvas.height;
+    const marginLeft = 36, marginTop = 6, marginBottom = 6;
+    const plotW = w - marginLeft;
+    const plotH = h - marginTop - marginBottom;
+    this._reactionGraphGeom = {marginLeft, marginTop, plotW, plotH};
+
     ctx.clearRect(0,0,w,h);
     ctx.strokeStyle = 'rgba(255,255,255,.08)';
+    ctx.fillStyle = 'rgba(255,255,255,.45)';
+    ctx.font = '10px monospace';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
     ctx.lineWidth = 1;
-    for(let i=1;i<4;i++){
-      const y = h - (h*i/4);
-      ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke();
-    }
-    const stepX = w / (pts.length - 1);
+    [0,25,50,75,100].forEach(pct=>{
+      const y = marginTop + plotH - (pct/100)*plotH;
+      ctx.beginPath(); ctx.moveTo(marginLeft, y); ctx.lineTo(w, y); ctx.stroke();
+      ctx.fillText(pct+'%', marginLeft - 6, y);
+    });
+
+    const stepX = plotW / (pts.length - 1);
     ctx.beginPath();
     pts.forEach((p,i)=>{
-      const x = i*stepX;
-      const y = h - (p.intensidade/100)*h;
+      const x = marginLeft + i*stepX;
+      const y = marginTop + plotH - (p.intensidade/100)*plotH;
       if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
     });
     ctx.strokeStyle = '#F2C230';
     ctx.lineWidth = 2.5;
     ctx.stroke();
-    ctx.lineTo(w,h); ctx.lineTo(0,h); ctx.closePath();
+    ctx.lineTo(marginLeft + plotW, marginTop + plotH);
+    ctx.lineTo(marginLeft, marginTop + plotH);
+    ctx.closePath();
     ctx.fillStyle = 'rgba(242,194,48,.18)';
     ctx.fill();
 

@@ -116,7 +116,16 @@
       <div class="pub-msgs" id="pubMsgsSuporte" style="display:none;"></div>
       <div class="pub-input-row">
         <input class="input" id="pubInput" placeholder="Digite algo..." style="flex:1;" onkeydown="if(event.key==='Enter')Sala.send()">
-        <button type="button" class="pub-like-btn" id="pubLikeBtn" onclick="Sala.sendReaction()" title="Curtir">❤</button>
+        <div class="pub-like-wrap" id="pubLikeWrap">
+          <div class="pub-like-menu" id="pubLikeMenu">
+            <button type="button" onclick="Sala.sendReaction('❤️')">❤️</button>
+            <button type="button" onclick="Sala.sendReaction('😄')">😄</button>
+            <button type="button" onclick="Sala.sendReaction('🎉')">🎉</button>
+            <button type="button" onclick="Sala.sendReaction('😮')">😮</button>
+            <button type="button" onclick="Sala.sendReaction('💯')">💯</button>
+          </div>
+          <button type="button" class="pub-like-btn" id="pubLikeBtn" onclick="Sala.toggleReactionMenu()" title="Reagir">❤</button>
+        </div>
         <button class="btn btn-primary btn-sm" onclick="Sala.send()">Enviar</button>
       </div>
     </div>

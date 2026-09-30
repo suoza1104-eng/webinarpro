@@ -513,7 +513,11 @@
                 <button class="btn btn-sm" onclick="App.setReactionPreset(85)">Alto</button>
                 <button class="btn btn-sm" onclick="App.setReactionPreset(0)">Zerar</button>
               </div>
-              <canvas id="reactionGraph" width="900" height="140" style="width:100%;height:140px;display:block;background:var(--bg-elev-2);border:1px solid var(--border-soft);border-radius:8px;cursor:crosshair;touch-action:none;"></canvas>
+              <div style="position:relative;">
+                <canvas id="reactionGraph" width="900" height="140" style="width:100%;height:140px;display:block;background:var(--bg-elev-2);border:1px solid var(--border-soft);border-radius:8px;cursor:crosshair;touch-action:none;"></canvas>
+                <div id="reactionGraphTip" style="position:absolute;transform:translate(-50%,-100%);background:#111;color:#fff;font-size:11px;
+                  font-family:var(--font-mono);padding:4px 8px;border-radius:5px;white-space:nowrap;pointer-events:none;display:none;z-index:3;"></div>
+              </div>
               <div class="chat-timeline"><span>00:00</span><span id="reactionGraphDuration">duração estimada</span><span id="reactionGraphEnd">fim</span></div>
             </div>
           </div>
