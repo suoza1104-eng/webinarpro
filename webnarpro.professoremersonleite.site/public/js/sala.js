@@ -154,6 +154,7 @@ const Sala = {
     document.getElementById('publicPage').style.display = 'block';
     document.getElementById('pubMsgsSuporte').innerHTML = '<div class="empty-state">Envie uma mensagem privada para o suporte.</div>';
     this.startSupportPolling();
+    this.setupReactions();
     const fontSize = this.room.chatTamanhoFonte || 'media';
     const sideEl = document.getElementById('pubSide');
     if(sideEl){
@@ -825,6 +826,58 @@ const Sala = {
         }).catch(()=>{});
       }
     });
+  },
+
+  setupReactions(){
+    this.reactionsEnabled = this.room.habilitarReacoes !== false;
+    const likeBtn = document.getElementById('pubLikeBtn');
+    if(likeBtn) likeBtn.style.display = this.reactionsEnabled ? 'flex' : 'none';
+    if(this._reactionTicker) clearInterval(this._reactionTicker);
+    if(this.reactionsEnabled){
+      this._reactionTicker = setInterval(()=>this.tickReactions(), 700);
+    }
+  },
+
+  getReactionIntensity(seconds){
+    const pts = this.room.reactionKeyframes;
+    if(!pts || pts.length === 0) return 0;
+    if(seconds <= pts[0].segundo) return pts[0].intensidade;
+    const last = pts[pts.length - 1];
+    if(seconds >= last.segundo) return last.intensidade;
+    for(let i=0;i<pts.length-1;i++){
+      const a = pts[i], b = pts[i+1];
+      if(seconds >= a.segundo && seconds <= b.segundo){
+        const ratio = (seconds - a.segundo) / (b.segundo - a.segundo || 1);
+        return a.intensidade + (b.intensidade - a.intensidade) * ratio;
+      }
+    }
+    return 0;
+  },
+
+  tickReactions(){
+    if(!this.reactionsEnabled || !this.video || this.video.paused) return;
+    const intensity = this.getReactionIntensity(this.video.currentTime);
+    if(intensity <= 0) return;
+    if(Math.random() * 100 < intensity) this.spawnReaction();
+    if(intensity > 60 && Math.random() * 100 < (intensity - 60)) this.spawnReaction();
+  },
+
+  spawnReaction(emoji){
+    const wrap = document.getElementById('pubVideo');
+    if(!wrap) return;
+    const el = document.createElement('div');
+    el.className = 'pub-reaction';
+    el.textContent = emoji || (Math.random() < 0.75 ? '❤️' : ['👍','🎉','😮'][Math.floor(Math.random() * 3)]);
+    el.style.left = (10 + Math.random() * 80) + '%';
+    el.style.setProperty('--drift', (Math.random() * 40 - 20) + 'px');
+    wrap.appendChild(el);
+    setTimeout(()=>el.remove(), 2900);
+  },
+
+  sendReaction(){
+    for(let i=0;i<5;i++){
+      setTimeout(()=>this.spawnReaction('❤️'), i * 90);
+    }
   },
 
   pushSale(s){

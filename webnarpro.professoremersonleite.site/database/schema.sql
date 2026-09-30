@@ -108,6 +108,7 @@ CREATE TABLE webinars (
   audiencia_min_participantes INT UNSIGNED NOT NULL DEFAULT 50,
   audiencia_max_participantes INT UNSIGNED NOT NULL DEFAULT 65,
   mostrar_botao_ao_vivo TINYINT(1) NOT NULL DEFAULT 1,
+  habilitar_reacoes TINYINT(1) NOT NULL DEFAULT 1,         -- botão de curtir + simulador de reações na sala
   status            ENUM('rascunho','ativo','pausado','finalizado') NOT NULL DEFAULT 'rascunho',
   criado_por        BIGINT UNSIGNED NULL,
   criado_em         DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -186,6 +187,20 @@ CREATE TABLE webinar_sales_notifications (
   titulo_notificacao VARCHAR(120) NOT NULL DEFAULT 'Venda confirmada!',
   CONSTRAINT fk_sales_webinar FOREIGN KEY (webinar_id) REFERENCES webinars(id) ON DELETE CASCADE,
   INDEX idx_sales_webinar_tempo (webinar_id, segundo_exibicao)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ---------------------------------------------------------------------
+-- 9b. CURVA DE INTENSIDADE DAS REAÇÕES SIMULADAS (etapa "Chat")
+--     Cada ponto marca a intensidade (0-100) de curtidas/corações num
+--     segundo do vídeo; o player interpola entre pontos vizinhos.
+-- ---------------------------------------------------------------------
+CREATE TABLE webinar_reaction_keyframes (
+  id                BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  webinar_id        BIGINT UNSIGNED NOT NULL,
+  segundo           INT UNSIGNED NOT NULL,
+  intensidade       TINYINT UNSIGNED NOT NULL,               -- 0 a 100
+  CONSTRAINT fk_reactionkf_webinar FOREIGN KEY (webinar_id) REFERENCES webinars(id) ON DELETE CASCADE,
+  INDEX idx_reactionkf_webinar_tempo (webinar_id, segundo)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ---------------------------------------------------------------------

@@ -496,6 +496,26 @@
               <button class="btn btn-sm btn-danger" onclick="App.delAllChatMsgs()">🗑️ Excluir todo o chat</button>
               <button class="btn btn-sm btn-primary" onclick="App.openPublic(App.wz.nome)">🚀 Testar no player</button>
             </div>
+
+            <div class="opt-toggle open" style="margin-top:26px;" onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('open')">
+              Simulador de reações (curtidas ao vivo)
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+            </div>
+            <div class="opt-body open">
+              <div class="toggle-row" style="margin-bottom:14px;">
+                <div><div class="t-title">Habilitar botão de reações na sala</div><div class="t-desc">Mostra o botão de curtir para o aluno e simula corações subindo sobre o vídeo, como no YouTube.</div></div>
+                <label class="toggle"><input type="checkbox" id="chkHabilitarReacoes" checked onchange="App.renderReactionGraph()"><span class="track"><span class="thumb"></span></span></label>
+              </div>
+              <p style="font-size:12.5px;color:var(--text-faint);margin:0 0 10px;">Desenhe a intensidade das reações automáticas ao longo do vídeo: clique e arraste no gráfico para subir ou baixar a curva. Quando o aluno clicar no ❤, os corações dele também sobem na hora.</p>
+              <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
+                <button class="btn btn-sm" onclick="App.setReactionPreset(8)">Baixo</button>
+                <button class="btn btn-sm" onclick="App.setReactionPreset(40)">Médio</button>
+                <button class="btn btn-sm" onclick="App.setReactionPreset(85)">Alto</button>
+                <button class="btn btn-sm" onclick="App.setReactionPreset(0)">Zerar</button>
+              </div>
+              <canvas id="reactionGraph" width="900" height="140" style="width:100%;height:140px;display:block;background:var(--bg-elev-2);border:1px solid var(--border-soft);border-radius:8px;cursor:crosshair;touch-action:none;"></canvas>
+              <div class="chat-timeline"><span>00:00</span><span id="reactionGraphDuration">duração estimada</span><span id="reactionGraphEnd">fim</span></div>
+            </div>
           </div>
 
           <!-- STEP 7 — VENDAS -->

@@ -474,13 +474,14 @@ const App = {
     this.toast('Carregando "'+w.nome+'"...');
 
     try{
-      const [full, login, offer, chat, sales, keywords] = await Promise.all([
+      const [full, login, offer, chat, sales, keywords, reactionKf] = await Promise.all([
         this.apiFetch('/api/webinars/' + w.id),
         this.apiFetch('/api/webinars/' + w.id + '/login-config').catch(()=>null),
         this.apiFetch('/api/webinars/' + w.id + '/offer-config').catch(()=>null),
         this.apiFetch('/api/webinars/' + w.id + '/chat-messages').catch(()=>[]),
         this.apiFetch('/api/webinars/' + w.id + '/sales-notifications').catch(()=>[]),
         this.apiFetch('/api/webinars/' + w.id + '/chatbot-keywords').catch(()=>[]),
+        this.apiFetch('/api/webinars/' + w.id + '/reaction-keyframes').catch(()=>[]),
       ]);
 
       // Início
@@ -535,6 +536,12 @@ const App = {
       this.renderChatList();
       this.renderSalesList();
       this.renderKeywords();
+
+      document.getElementById('chkHabilitarReacoes').checked = full.habilitar_reacoes != null ? !!full.habilitar_reacoes : true;
+      this.reactionPoints = (reactionKf && reactionKf.length > 0)
+        ? reactionKf.map(k=>({segundo:k.segundo, intensidade:k.intensidade}))
+        : this.makeDefaultReactionPoints();
+      this.renderReactionGraph();
 
       // Audiência
       this.setAudienceType(full.tipo_audiencia || 'dinamica');
@@ -656,9 +663,12 @@ const App = {
     this.chatMsgs = [];
     this.sales = [];
     this.keywords = [];
+    this.reactionPoints = this.makeDefaultReactionPoints();
     this.renderChatList();
     this.renderSalesList();
     this.renderKeywords();
+    document.getElementById('chkHabilitarReacoes').checked = true;
+    this.renderReactionGraph();
     document.getElementById('chkBarraProgresso').checked = true;
     document.getElementById('w_progInicio').value = 0;
     document.getElementById('chkWhats').checked = true;
@@ -708,6 +718,7 @@ const App = {
     if(n===11){
       nextBtn.onclick = ()=>App.publishWebinar();
     }
+    if(n===5) this.renderReactionGraph();
     if(n===7) this.updateAudiencePreview();
     document.querySelector('.wizard-card').scrollIntoView({behavior:'smooth', block:'start'});
   },
@@ -883,12 +894,89 @@ const App = {
       })});
       await this.apiFetch(`/api/webinars/${this.wz.id}`, {method:'PUT', body: JSON.stringify({
         chat_tamanho_fonte: document.getElementById('chatFontSize')?.value || 'media',
+        habilitar_reacoes: !!document.getElementById('chkHabilitarReacoes')?.checked,
+      })});
+      await this.apiFetch(`/api/webinars/${this.wz.id}/reaction-keyframes`, {method:'PUT', body: JSON.stringify({
+        keyframes: (this.reactionPoints || []).map(p=>({segundo: p.segundo, intensidade: p.intensidade})),
       })});
       return true;
     }catch(e){
       this.toast('Erro ao salvar chat: ' + e.message);
       return false;
     }
+  },
+  makeDefaultReactionPoints(){
+    const totalSeconds = 3600;
+    const numPoints = 37;
+    const pts = [];
+    for(let i=0;i<numPoints;i++){
+      pts.push({segundo: Math.round(i*totalSeconds/(numPoints-1)), intensidade: 15});
+    }
+    return pts;
+  },
+  setReactionPreset(value){
+    if(!this.reactionPoints) this.reactionPoints = this.makeDefaultReactionPoints();
+    this.reactionPoints.forEach(p=>p.intensidade = value);
+    this.renderReactionGraph();
+  },
+  initReactionGraphEvents(){
+    if(this._reactionGraphBound) return;
+    const canvas = document.getElementById('reactionGraph');
+    if(!canvas) return;
+    this._reactionGraphBound = true;
+    let dragging = false;
+    const paint = (e)=>{
+      const rect = canvas.getBoundingClientRect();
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      const x = (clientX - rect.left) / rect.width;
+      const y = (clientY - rect.top) / rect.height;
+      const pts = this.reactionPoints;
+      if(!pts || !pts.length) return;
+      const idx = Math.round(x * (pts.length - 1));
+      if(idx < 0 || idx >= pts.length) return;
+      const intensidade = Math.max(0, Math.min(100, Math.round((1 - y) * 100)));
+      pts[idx].intensidade = intensidade;
+      this.renderReactionGraph();
+    };
+    canvas.addEventListener('mousedown', e=>{ dragging = true; paint(e); });
+    window.addEventListener('mousemove', e=>{ if(dragging) paint(e); });
+    window.addEventListener('mouseup', ()=>{ dragging = false; });
+    canvas.addEventListener('touchstart', e=>{ dragging = true; paint(e); e.preventDefault(); }, {passive:false});
+    canvas.addEventListener('touchmove', e=>{ if(dragging){ paint(e); e.preventDefault(); } }, {passive:false});
+    canvas.addEventListener('touchend', ()=>{ dragging = false; });
+  },
+  renderReactionGraph(){
+    this.initReactionGraphEvents();
+    const canvas = document.getElementById('reactionGraph');
+    const pts = this.reactionPoints;
+    if(!canvas || !pts || !pts.length) return;
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width, h = canvas.height;
+    ctx.clearRect(0,0,w,h);
+    ctx.strokeStyle = 'rgba(255,255,255,.08)';
+    ctx.lineWidth = 1;
+    for(let i=1;i<4;i++){
+      const y = h - (h*i/4);
+      ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke();
+    }
+    const stepX = w / (pts.length - 1);
+    ctx.beginPath();
+    pts.forEach((p,i)=>{
+      const x = i*stepX;
+      const y = h - (p.intensidade/100)*h;
+      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    });
+    ctx.strokeStyle = '#F2C230';
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+    ctx.lineTo(w,h); ctx.lineTo(0,h); ctx.closePath();
+    ctx.fillStyle = 'rgba(242,194,48,.18)';
+    ctx.fill();
+
+    const dur = pts[pts.length-1].segundo;
+    const durEl = document.getElementById('reactionGraphDuration');
+    if(durEl) durEl.textContent = 'duração estimada: ' + Math.round(dur/60) + ' min';
   },
   async saveSalesConfig(){
     try{

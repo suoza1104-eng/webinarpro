@@ -104,7 +104,7 @@ router.get('/webinars/:slug/room', requireLeadAuth, async (req, res) => {
             w.modo_youtube, w.modo_youtube_bloqueio_segundo,
             w.data_inicio, w.data_fim, w.fuso_horario, w.usar_sala_espera,
             w.tipo_audiencia, w.audiencia_min_participantes, w.audiencia_max_participantes,
-            w.mostrar_botao_ao_vivo, w.chat_tamanho_fonte
+            w.mostrar_botao_ao_vivo, w.chat_tamanho_fonte, w.habilitar_reacoes
      FROM webinars w WHERE w.slug = ? LIMIT 1`,
     [req.params.slug],
   );
@@ -167,6 +167,10 @@ router.get('/webinars/:slug/room', requireLeadAuth, async (req, res) => {
      FROM webinar_sales_notifications WHERE webinar_id = ? ORDER BY segundo_exibicao`,
     [w.id],
   );
+  const [reactionKeyframes] = await pool.query(
+    `SELECT segundo, intensidade FROM webinar_reaction_keyframes WHERE webinar_id = ? ORDER BY segundo`,
+    [w.id],
+  );
 
   res.json({
     status: w.status,
@@ -175,6 +179,7 @@ router.get('/webinars/:slug/room', requireLeadAuth, async (req, res) => {
     fusoHorario: w.fuso_horario,
     usarSalaEspera: !!w.usar_sala_espera,
     chatTamanhoFonte: w.chat_tamanho_fonte || 'media',
+    habilitarReacoes: w.habilitar_reacoes == null ? true : !!w.habilitar_reacoes,
     audiencia: {
       tipo: w.tipo_audiencia,
       min: w.audiencia_min_participantes,
@@ -184,6 +189,7 @@ router.get('/webinars/:slug/room', requireLeadAuth, async (req, res) => {
     video,
     chatMessages,
     salesNotifications,
+    reactionKeyframes,
   });
 });
 

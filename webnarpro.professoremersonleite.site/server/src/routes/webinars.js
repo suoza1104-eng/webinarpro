@@ -115,6 +115,7 @@ const updateSchema = z.object({
   audiencia_max_participantes: z.number().int().nonnegative().optional(),
   mostrar_botao_ao_vivo: z.boolean().optional(),
   chat_tamanho_fonte: z.enum(['pequena', 'media', 'grande']).optional(),
+  habilitar_reacoes: z.boolean().optional(),
 });
 
 const COLUMN_MAP = {
@@ -134,6 +135,7 @@ const COLUMN_MAP = {
   audiencia_max_participantes: 'audiencia_max_participantes',
   mostrar_botao_ao_vivo: 'mostrar_botao_ao_vivo',
   chat_tamanho_fonte: 'chat_tamanho_fonte',
+  habilitar_reacoes: 'habilitar_reacoes',
 };
 
 router.put('/:id', async (req, res) => {
@@ -418,6 +420,51 @@ router.put('/:id/chat-messages', async (req, res) => {
   }
 });
 
+const reactionKeyframesSchema = z.object({
+  keyframes: z.array(z.object({
+    segundo: z.number().int().nonnegative(),
+    intensidade: z.number().int().min(0).max(100),
+  })).max(400),
+});
+
+router.get('/:id/reaction-keyframes', async (req, res) => {
+  const webinarId = await getOwnedWebinarId(req.params.id, req.accountId);
+  if (!webinarId) return res.status(404).json({ error: 'Webinar não encontrado' });
+  const [rows] = await pool.query(
+    'SELECT segundo, intensidade FROM webinar_reaction_keyframes WHERE webinar_id = ? ORDER BY segundo',
+    [webinarId],
+  );
+  res.json(rows);
+});
+
+router.put('/:id/reaction-keyframes', async (req, res) => {
+  const parsed = reactionKeyframesSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const webinarId = await getOwnedWebinarId(req.params.id, req.accountId, connection);
+    if (!webinarId) {
+      await connection.rollback();
+      return res.status(404).json({ error: 'Webinar não encontrado' });
+    }
+    await connection.query('DELETE FROM webinar_reaction_keyframes WHERE webinar_id = ?', [webinarId]);
+    for (const kf of parsed.data.keyframes) {
+      await connection.query(
+        'INSERT INTO webinar_reaction_keyframes (webinar_id, segundo, intensidade) VALUES (?, ?, ?)',
+        [webinarId, kf.segundo, kf.intensidade],
+      );
+    }
+    await connection.commit();
+    res.json({ ok: true });
+  } catch (err) {
+    await connection.rollback();
+    throw err;
+  } finally {
+    connection.release();
+  }
+});
+
 const salesNotificationsSchema = z.object({
   sales: z.array(z.object({
     segundo_exibicao: z.number().int().nonnegative(),
@@ -548,8 +595,8 @@ router.post('/:id/duplicate', async (req, res) => {
         usar_sala_espera, video_id, video_autoplay, video_fullscreen, ocultar_barra_progresso,
         bloquear_avanco_video, modo_youtube, modo_youtube_bloqueio_segundo, tipo_audiencia,
         audiencia_min_participantes, audiencia_max_participantes, mostrar_botao_ao_vivo,
-        status, criado_por
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        habilitar_reacoes, status, criado_por
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         req.accountId, newName, orig.titulo, newSlug, orig.idioma, orig.nome_apresentador,
         orig.avatar_apresentador_url, orig.tipo_agendamento, orig.repeticao_automatica,
@@ -557,7 +604,7 @@ router.post('/:id/duplicate', async (req, res) => {
         orig.video_id, orig.video_autoplay, orig.video_fullscreen, orig.ocultar_barra_progresso,
         orig.bloquear_avanco_video, orig.modo_youtube, orig.modo_youtube_bloqueio_segundo,
         orig.tipo_audiencia, orig.audiencia_min_participantes, orig.audiencia_max_participantes,
-        orig.mostrar_botao_ao_vivo, 'rascunho', req.userId
+        orig.mostrar_botao_ao_vivo, orig.habilitar_reacoes, 'rascunho', req.userId
       ]
     );
 
@@ -614,6 +661,18 @@ router.post('/:id/duplicate', async (req, res) => {
         `INSERT INTO webinar_sales_notifications (webinar_id, segundo_exibicao, nome_exibido, titulo_notificacao)
          VALUES (?, ?, ?, ?)`,
         [newId, sale.segundo_exibicao, sale.nome_exibido, sale.titulo_notificacao]
+      );
+    }
+
+    // Copiar webinar_reaction_keyframes
+    const [reactionRows] = await connection.query(
+      'SELECT segundo, intensidade FROM webinar_reaction_keyframes WHERE webinar_id = ?',
+      [orig.id]
+    );
+    for (const kf of reactionRows) {
+      await connection.query(
+        'INSERT INTO webinar_reaction_keyframes (webinar_id, segundo, intensidade) VALUES (?, ?, ?)',
+        [newId, kf.segundo, kf.intensidade]
       );
     }
 

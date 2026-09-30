@@ -116,6 +116,7 @@
       <div class="pub-msgs" id="pubMsgsSuporte" style="display:none;"></div>
       <div class="pub-input-row">
         <input class="input" id="pubInput" placeholder="Digite algo..." style="flex:1;" onkeydown="if(event.key==='Enter')Sala.send()">
+        <button type="button" class="pub-like-btn" id="pubLikeBtn" onclick="Sala.sendReaction()" title="Curtir">❤</button>
         <button class="btn btn-primary btn-sm" onclick="Sala.send()">Enviar</button>
       </div>
     </div>
