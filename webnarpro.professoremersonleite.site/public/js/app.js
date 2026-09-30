@@ -501,6 +501,8 @@ const App = {
       if(login){
         document.getElementById('chkBarraProgresso').checked = !!login.exibir_barra_progresso;
         document.getElementById('w_progInicio').value = login.progresso_inicial ?? 0;
+        document.getElementById('w_logoUrl').value = login.logo_url || '';
+        document.getElementById('chkOcultarMarca').checked = !!login.ocultar_marca;
         document.getElementById('chkWhats').checked = !!login.pedir_whatsapp;
         document.getElementById('chkEmpresa').checked = !!login.pedir_empresa;
         document.getElementById('w_botaoTitulo').value = login.titulo_botao || 'Entrar na Aula';
@@ -671,6 +673,8 @@ const App = {
     this.renderReactionGraph();
     document.getElementById('chkBarraProgresso').checked = true;
     document.getElementById('w_progInicio').value = 0;
+    document.getElementById('w_logoUrl').value = '';
+    document.getElementById('chkOcultarMarca').checked = false;
     document.getElementById('chkWhats').checked = true;
     document.getElementById('chkEmpresa').checked = false;
     document.getElementById('w_botaoTitulo').value = 'Entrar na Aula';
@@ -860,6 +864,8 @@ const App = {
         pedir_whatsapp: document.getElementById('chkWhats')?.checked ?? true,
         pedir_empresa: document.getElementById('chkEmpresa')?.checked ?? false,
         titulo_botao: document.getElementById('w_botaoTitulo')?.value || 'Entrar na Aula',
+        logo_url: document.getElementById('w_logoUrl')?.value.trim() || null,
+        ocultar_marca: document.getElementById('chkOcultarMarca')?.checked ?? false,
       })});
       return true;
     }catch(e){

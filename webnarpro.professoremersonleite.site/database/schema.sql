@@ -133,6 +133,7 @@ CREATE TABLE webinar_login_config (
   titulo_botao      VARCHAR(60) NOT NULL DEFAULT 'Entrar na Aula',
   cor_botao         VARCHAR(9)  NOT NULL DEFAULT '#1F9D57',
   cor_texto_botao   VARCHAR(9)  NOT NULL DEFAULT '#FFFFFF',
+  ocultar_marca     TINYINT(1) NOT NULL DEFAULT 0,            -- esconde a marca "WebnarPRO" da sala pública
   CONSTRAINT fk_login_webinar FOREIGN KEY (webinar_id) REFERENCES webinars(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 

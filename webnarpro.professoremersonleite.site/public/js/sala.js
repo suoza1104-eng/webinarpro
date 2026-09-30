@@ -36,6 +36,27 @@ const Sala = {
     el.style.display = 'flex';
   },
 
+  applyTopbarBranding(){
+    const cfg = (this.info && this.info.loginConfig) || {};
+    const topbar = document.getElementById('pubTopbar');
+    if(!topbar) return;
+    if(cfg.logo_url){
+      topbar.innerHTML = `<img src="${escapeHtml(cfg.logo_url)}" alt="logo" style="height:22px;width:auto;display:block;">`;
+    } else if(cfg.ocultar_marca){
+      topbar.style.display = 'none';
+    }
+  },
+
+  brandHtml(staticPos){
+    const b = (this.room && this.room.branding) || (this.info && this.info.loginConfig) || {};
+    const logoUrl = b.logoUrl || b.logo_url;
+    const hide = b.ocultarMarca || b.ocultar_marca;
+    const posStyle = staticPos ? 'position:static;' : '';
+    if(logoUrl) return `<img src="${escapeHtml(logoUrl)}" alt="logo" class="pub-brand-badge pub-brand-logo" style="${posStyle}">`;
+    if(hide) return '';
+    return `<div class="pub-brand-badge" style="${posStyle}">⚡ WebnarPRO</div>`;
+  },
+
   async loadInfo(){
     try{
       const res = await fetch('/api/public/webinars/' + encodeURIComponent(this.slug));
@@ -49,6 +70,7 @@ const Sala = {
     document.getElementById('salaLoading').style.display = 'none';
     document.getElementById('pubTitle').textContent = this.info.titulo || 'Aula ao vivo';
     document.title = (this.info.titulo || 'WebnarPRO') + ' — Sala';
+    this.applyTopbarBranding();
 
     if(this.isPreview && !this.leadToken){
       await this.autoRegisterPreview();
@@ -359,7 +381,7 @@ const Sala = {
         <div class="pub-wait-title">${startsAt}</div>
         <div class="pub-wait-count">${countdown}</div>
         <div class="pub-wait-sub">A transmissão começa automaticamente no horário marcado.</div>
-        <div class="pub-brand-badge">⚡ WebnarPRO</div>
+        ${this.brandHtml()}
       </div>`;
   },
 
@@ -379,7 +401,7 @@ const Sala = {
     const apresentador = this.info?.nomeApresentador;
     document.getElementById('pubVideo').innerHTML = `
       <div class="pub-live" style="flex-direction:column;gap:10px;">
-        <div class="pub-brand-badge" style="position:static;">⚡ WebnarPRO</div>
+        ${this.brandHtml(true)}
         <div style="font-family:var(--font-display);font-size:18px;text-align:center;padding:0 20px;">A aula chegou ao fim</div>
         <div style="font-size:12.5px;color:var(--text-dim);text-align:center;padding:0 20px;">
           Obrigado por assistir${apresentador ? ' até aqui com ' + escapeHtml(apresentador) : ''}!
@@ -443,7 +465,7 @@ const Sala = {
           <div class="pub-stripe left"></div><div class="pub-stripe right"></div>
           <div class="pub-cd-text">INICIAREMOS EM</div>
           <div class="pub-cd-num">${mm}:${ss}</div>
-          <div class="pub-brand-badge">⚡ WebnarPRO</div>
+          ${this.brandHtml()}
         </div>`;
     };
     render();
@@ -458,7 +480,7 @@ const Sala = {
     this.bindWakeLockRestore();
     this.requestWakeLock();
     if(!this.room.video){
-      document.getElementById('pubVideo').innerHTML = `<div class="pub-live"><div class="pub-brand-badge">⚡ WebnarPRO</div>Vídeo ainda não configurado para este webinar.</div>`;
+      document.getElementById('pubVideo').innerHTML = `<div class="pub-live">${this.brandHtml()}Vídeo ainda não configurado para este webinar.</div>`;
       return;
     }
     const cfg = this.room.video;
@@ -468,7 +490,7 @@ const Sala = {
         : 'O vídeo ainda está sendo processado. Isso pode levar alguns minutos em arquivos longos — tente recarregar a página daqui a pouco.';
       document.getElementById('pubVideo').innerHTML = `
         <div class="pub-live" style="flex-direction:column;gap:10px;">
-          <div class="pub-brand-badge" style="position:static;">⚡ WebnarPRO</div>
+          ${this.brandHtml(true)}
           <div style="font-size:12.5px;color:var(--text-dim);text-align:center;padding:0 24px;max-width:420px;">${msg}</div>
           <button class="btn btn-primary btn-sm" onclick="location.reload()">Recarregar página</button>
         </div>`;
@@ -482,6 +504,7 @@ const Sala = {
     if(cfg.modoYoutube){
       document.getElementById('pubVideo').innerHTML = `
         <div class="yt-wrap">
+          <div class="pub-live-badge">AO VIVO</div>
           <video id="pubVideoEl" playsinline style="width:100%;height:100%;object-fit:contain;background:#000;"></video>
           <div class="yt-controls" id="ytControls">
             <div class="yt-scrub" id="ytScrub">

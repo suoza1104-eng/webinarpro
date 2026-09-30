@@ -244,6 +244,7 @@ const loginConfigSchema = z.object({
   titulo_botao: z.string().min(1).max(60).optional(),
   cor_botao: z.string().max(9).optional(),
   cor_texto_botao: z.string().max(9).optional(),
+  ocultar_marca: z.boolean().optional(),
 });
 
 router.get('/:id/login-config', async (req, res) => {
@@ -262,8 +263,8 @@ router.put('/:id/login-config', async (req, res) => {
 
   await pool.query(
     `INSERT INTO webinar_login_config
-      (webinar_id, logo_url, exibir_barra_progresso, progresso_inicial, pedir_whatsapp, pedir_empresa, titulo_botao, cor_botao, cor_texto_botao)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (webinar_id, logo_url, exibir_barra_progresso, progresso_inicial, pedir_whatsapp, pedir_empresa, titulo_botao, cor_botao, cor_texto_botao, ocultar_marca)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON DUPLICATE KEY UPDATE
       logo_url = VALUES(logo_url),
       exibir_barra_progresso = VALUES(exibir_barra_progresso),
@@ -272,7 +273,8 @@ router.put('/:id/login-config', async (req, res) => {
       pedir_empresa = VALUES(pedir_empresa),
       titulo_botao = VALUES(titulo_botao),
       cor_botao = VALUES(cor_botao),
-      cor_texto_botao = VALUES(cor_texto_botao)`,
+      cor_texto_botao = VALUES(cor_texto_botao),
+      ocultar_marca = VALUES(ocultar_marca)`,
     [
       webinarId,
       data.logo_url || null,
@@ -283,6 +285,7 @@ router.put('/:id/login-config', async (req, res) => {
       data.titulo_botao || 'Entrar na Aula',
       data.cor_botao || '#1F9D57',
       data.cor_texto_botao || '#FFFFFF',
+      boolToTinyInt(data.ocultar_marca ?? false),
     ],
   );
 
@@ -618,9 +621,9 @@ router.post('/:id/duplicate', async (req, res) => {
     if (loginRows.length > 0) {
       const l = loginRows[0];
       await connection.query(
-        `INSERT INTO webinar_login_config (webinar_id, logo_url, exibir_barra_progresso, progresso_inicial, pedir_whatsapp, pedir_empresa, titulo_botao, cor_botao, cor_texto_botao)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [newId, l.logo_url, l.exibir_barra_progresso, l.progresso_inicial, l.pedir_whatsapp, l.pedir_empresa, l.titulo_botao, l.cor_botao, l.cor_texto_botao]
+        `INSERT INTO webinar_login_config (webinar_id, logo_url, exibir_barra_progresso, progresso_inicial, pedir_whatsapp, pedir_empresa, titulo_botao, cor_botao, cor_texto_botao, ocultar_marca)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [newId, l.logo_url, l.exibir_barra_progresso, l.progresso_inicial, l.pedir_whatsapp, l.pedir_empresa, l.titulo_botao, l.cor_botao, l.cor_texto_botao, l.ocultar_marca]
       );
     }
 

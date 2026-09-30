@@ -113,6 +113,15 @@ router.get('/webinars/:slug/room', requireLeadAuth, async (req, res) => {
 
   if (w.id !== req.webinarId) return res.status(403).json({ error: 'Token não pertence a este webinar' });
 
+  const [loginConfigRows] = await pool.query(
+    'SELECT logo_url, ocultar_marca FROM webinar_login_config WHERE webinar_id = ? LIMIT 1',
+    [w.id],
+  );
+  const branding = {
+    logoUrl: loginConfigRows[0]?.logo_url || null,
+    ocultarMarca: !!loginConfigRows[0]?.ocultar_marca,
+  };
+
   let video = null;
   if (w.video_id) {
     const [videoRows] = await pool.query(
@@ -180,6 +189,7 @@ router.get('/webinars/:slug/room', requireLeadAuth, async (req, res) => {
     usarSalaEspera: !!w.usar_sala_espera,
     chatTamanhoFonte: w.chat_tamanho_fonte || 'media',
     habilitarReacoes: w.habilitar_reacoes == null ? true : !!w.habilitar_reacoes,
+    branding,
     audiencia: {
       tipo: w.tipo_audiencia,
       min: w.audiencia_min_participantes,

@@ -292,11 +292,11 @@
           <div class="wizard-panel" data-step="2">
             <div style="display:grid;grid-template-columns:1fr 300px;gap:26px;">
               <div>
-                <label style="display:block;font-size:12.5px;font-weight:600;color:var(--text-dim);margin-bottom:10px;">Logo do webinar</label>
-                <div class="dropzone">logo.png<br>0 Bytes</div>
-                <div style="display:flex;gap:10px;margin-bottom:22px;">
-                  <button class="btn btn-sm"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4M8 8l4-4 4 4"/><path d="M4 16v3a2 2 0 002 2h12a2 2 0 002-2v-3"/></svg> Alterar imagem</button>
-                  <button class="btn btn-sm btn-danger"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M9 7V4h6v3"/><path d="M6 7l1 13a2 2 0 002 2h6a2 2 0 002-2l1-13"/></svg> Excluir imagem</button>
+                <label style="display:block;font-size:12.5px;font-weight:600;color:var(--text-dim);margin-bottom:10px;">Logo própria (URL da imagem)</label>
+                <div class="field" style="margin-bottom:14px;"><input class="input" id="w_logoUrl" placeholder="https://.../sua-logo.png" style="width:100%;" oninput="App.renderLoginPreview()"></div>
+                <div class="toggle-row" style="margin-bottom:22px;">
+                  <div><div class="t-title">Ocultar marca WebnarPRO</div><div class="t-desc">Some com o "⚡ WebnarPRO" da sala pública. Se você configurar uma logo própria acima, ela aparece no lugar.</div></div>
+                  <label class="toggle"><input type="checkbox" id="chkOcultarMarca" onchange="App.renderLoginPreview()"><span class="track"><span class="thumb"></span></span></label>
                 </div>
 
                 <label style="display:block;font-size:12.5px;font-weight:600;color:var(--text-dim);margin-bottom:10px;">Barra de progresso</label>
