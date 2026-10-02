@@ -32,6 +32,7 @@ app.use(helmet({
       'script-src-attr': ["'unsafe-inline'"],
       'connect-src': ["'self'", 'https://video.bunnycdn.com', 'https://*.b-cdn.net'],
       'media-src': ["'self'", 'https://*.b-cdn.net', 'blob:'],
+      'worker-src': ["'self'", 'blob:'],
       'img-src': ["'self'", 'data:', 'https://*.b-cdn.net', 'https:'],
       'frame-src': ["'self'", 'https://e4pay.professoremersonleite.site'],
     },
