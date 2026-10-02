@@ -196,6 +196,8 @@ const Sala = {
       const note = document.getElementById('pubReplayNote');
       if(inputRow) inputRow.style.display = 'none';
       if(note) note.style.display = 'block';
+      const saved = this.loadReplayProgress();
+      this.maxPlayedTime = saved?.maxPlayed || 0;
       this.showCover();
       return true;
     }
@@ -462,6 +464,29 @@ const Sala = {
     return h ? `${h}:${String(m).padStart(2,'0')}:${ss}` : `${mm}:${ss}`;
   },
 
+  replayProgressKey(){
+    return 'wp_replay_' + this.slug;
+  },
+  loadReplayProgress(){
+    try{
+      const raw = localStorage.getItem(this.replayProgressKey());
+      return raw ? JSON.parse(raw) : null;
+    }catch(e){ return null; }
+  },
+  saveReplayProgress(maxPlayed){
+    try{
+      localStorage.setItem(this.replayProgressKey(), JSON.stringify({ maxPlayed }));
+    }catch(e){}
+  },
+
+  // No replay, a trava de avanço usa o início da oferta como ponto X (em vez do bloqueioSegundo
+  // da live) — assim o aluno é livre pra navegar até a oferta, mas dali pra frente só avança
+  // assistindo de verdade. Sem oferta configurada, não existe trava nenhuma.
+  getReplayLockSecond(){
+    const offer = this.room.offerConfig;
+    return (offer && offer.inicioOfertaSegundos != null) ? offer.inicioOfertaSegundos : null;
+  },
+
   // O "agora" de verdade — sempre cresce com o relógio, nunca para (nem se o espectador pausar).
   // É o que a extremidade direita da barra representa.
   getLiveEdge(){
@@ -480,10 +505,13 @@ const Sala = {
   getMaxSeekable(currentTimeOverride){
     const cfg = this.room.video;
     const liveEdge = this.getLiveEdge();
-    const X = cfg.bloqueioSegundo;
+    const X = this.isReplay ? this.getReplayLockSecond() : cfg.bloqueioSegundo;
     if(X == null || liveEdge <= X) return liveEdge;
     const currentTime = currentTimeOverride != null ? currentTimeOverride : (this.video ? this.video.currentTime : 0);
-    return currentTime >= X ? currentTime : X;
+    // No replay o teto nunca recua: é o maior ponto já assistido (persistido), não a posição atual —
+    // assim dar replay pra trás não derruba o que a pessoa já desbloqueou.
+    const watched = this.isReplay ? Math.max(currentTime, this.maxPlayedTime || 0) : currentTime;
+    return watched >= X ? watched : X;
   },
 
   startCountdown(initialSecs){
@@ -507,7 +535,7 @@ const Sala = {
     render();
     this._countdown = setInterval(()=>{
       secs--;
-      if(secs <= 0){ clearInterval(this._countdown); this.startLive(0); return; }
+      if(secs <= 0){ clearInterval(this._countdown); this.startLive(this.isReplay ? (this.maxPlayedTime || 0) : 0); return; }
       render();
     }, 1000);
   },
@@ -685,11 +713,24 @@ const Sala = {
 
     el.addEventListener('timeupdate', ()=>{
       if(el.currentTime > this.maxPlayedTime) this.maxPlayedTime = el.currentTime;
+      if(this.isReplay){
+        const sec = Math.floor(this.maxPlayedTime);
+        if(sec !== this._lastSavedReplaySec){
+          this._lastSavedReplaySec = sec;
+          this.saveReplayProgress(this.maxPlayedTime);
+        }
+      }
       this.checkScheduledContent(el.currentTime);
       this.checkHeartbeat(el.currentTime, el.duration);
     });
 
-    el.addEventListener('ended', ()=>this.showEnded());
+    el.addEventListener('ended', ()=>{
+      if(this.isReplay){
+        this.maxPlayedTime = Math.max(this.maxPlayedTime, this.room.video?.duracaoSegundos || el.duration || 0);
+        this.saveReplayProgress(this.maxPlayedTime);
+      }
+      this.showEnded();
+    });
     el.addEventListener('volumechange', ()=>this.syncVolumeUI());
     this._liveFollowTicker = setInterval(()=>this.maintainLiveEdge(), 1000);
     this.syncVolumeUI();
