@@ -106,6 +106,7 @@ CREATE TABLE webinars (
   chat_tamanho_fonte ENUM('pequena','media','grande') NOT NULL DEFAULT 'media',
   suporte_cor_destaque VARCHAR(9) NOT NULL DEFAULT '#FFCC00',       -- cor de fundo das mensagens do suporte no chat
   suporte_cor_transparencia INT UNSIGNED NOT NULL DEFAULT 0,        -- 0 = opaco, 100 = totalmente transparente
+  tema_sala ENUM('escuro','claro') NOT NULL DEFAULT 'escuro',       -- tema visual da sala pública (vídeo + chat)
   tipo_audiencia    ENUM('nenhuma','fixa','dinamica') NOT NULL DEFAULT 'nenhuma',
   audiencia_min_participantes INT UNSIGNED NOT NULL DEFAULT 50,
   audiencia_max_participantes INT UNSIGNED NOT NULL DEFAULT 65,

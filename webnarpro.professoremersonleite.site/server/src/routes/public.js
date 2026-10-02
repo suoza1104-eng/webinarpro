@@ -14,7 +14,7 @@ router.get('/webinars/:slug', async (req, res) => {
     `SELECT w.titulo, w.nome_apresentador, w.avatar_apresentador_url, w.status,
             w.data_inicio, w.data_fim, w.fuso_horario, w.usar_sala_espera,
             w.tipo_audiencia, w.audiencia_min_participantes, w.audiencia_max_participantes,
-            w.mostrar_botao_ao_vivo
+            w.mostrar_botao_ao_vivo, w.tema_sala
      FROM webinars w
      WHERE w.slug = ? LIMIT 1`,
     [req.params.slug],
@@ -38,6 +38,7 @@ router.get('/webinars/:slug', async (req, res) => {
     dataFim: w.data_fim,
     fusoHorario: w.fuso_horario,
     usarSalaEspera: !!w.usar_sala_espera,
+    temaSala: w.tema_sala || 'escuro',
     audiencia: {
       tipo: w.tipo_audiencia,
       min: w.audiencia_min_participantes,
@@ -105,7 +106,7 @@ router.get('/webinars/:slug/room', requireLeadAuth, async (req, res) => {
             w.data_inicio, w.data_fim, w.fuso_horario, w.usar_sala_espera,
             w.tipo_audiencia, w.audiencia_min_participantes, w.audiencia_max_participantes,
             w.mostrar_botao_ao_vivo, w.chat_tamanho_fonte, w.habilitar_reacoes,
-            w.suporte_cor_destaque, w.suporte_cor_transparencia
+            w.suporte_cor_destaque, w.suporte_cor_transparencia, w.tema_sala
      FROM webinars w WHERE w.slug = ? LIMIT 1`,
     [req.params.slug],
   );
@@ -157,7 +158,7 @@ router.get('/webinars/:slug/room', requireLeadAuth, async (req, res) => {
   let video = null;
   if (w.video_id) {
     const [videoRows] = await pool.query(
-      'SELECT id, bunny_video_id, status_processamento, duracao_segundos FROM videos WHERE id = ? LIMIT 1',
+      'SELECT id, bunny_video_id, status_processamento, duracao_segundos, thumbnail_url FROM videos WHERE id = ? LIMIT 1',
       [w.video_id],
     );
     if (videoRows.length > 0 && videoRows[0].bunny_video_id) {
@@ -186,6 +187,7 @@ router.get('/webinars/:slug/room', requireLeadAuth, async (req, res) => {
 
       video = {
         url: bunny.playbackUrl(videoRows[0].bunny_video_id),
+        thumbnailUrl: videoRows[0].thumbnail_url || null,
         status: statusAtual,
         duracaoSegundos: duracaoAtual,
         autoplay: !!w.video_autoplay,
@@ -221,6 +223,7 @@ router.get('/webinars/:slug/room', requireLeadAuth, async (req, res) => {
     usarSalaEspera: !!w.usar_sala_espera,
     chatTamanhoFonte: w.chat_tamanho_fonte || 'media',
     habilitarReacoes: w.habilitar_reacoes == null ? true : !!w.habilitar_reacoes,
+    temaSala: w.tema_sala || 'escuro',
     suporteCorDestaque: w.suporte_cor_destaque || '#FFCC00',
     suporteCorTransparencia: w.suporte_cor_transparencia ?? 0,
     branding,

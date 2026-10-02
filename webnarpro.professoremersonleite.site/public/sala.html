@@ -63,7 +63,7 @@
   @media (hover:none){
     .yt-vol-wrap .yt-volume{display:none;}
     /* sem mouse não tem hover de verdade — controles maiores e fáceis de acertar com o dedo */
-    .yt-wrap, .yt-controls, .yt-scrub, .yt-btn, .yt-live-btn, .yt-speed-btn{touch-action:manipulation;}
+    .yt-wrap, .yt-controls, .yt-scrub, .yt-btn, .yt-live-btn, .yt-speed-btn, .yt-quality-btn{touch-action:manipulation;}
     .yt-controls{padding:28px 14px 14px;}
     .yt-scrub{height:28px;margin-bottom:0;}
     .yt-scrub-thumb{width:18px;height:18px;box-shadow:0 0 0 4px rgba(255,255,255,.18);}
@@ -71,6 +71,8 @@
     .yt-btn svg{width:24px;height:24px;}
     .yt-live-btn{padding:9px 13px;font-size:12px;}
     .yt-speed-btn{padding:9px 13px;font-size:12.5px;}
+    .yt-quality-btn{padding:9px;}
+    .yt-quality-btn svg{width:22px;height:22px;}
   }
 
   .reopen-checkout-btn{display:none;width:calc(100% - 28px);margin:12px 14px 0;padding:10px;border:none;border-radius:8px;
@@ -110,6 +112,88 @@
     .offer-panel{flex:1 1 auto;width:100%;height:100%;}
     .offer-card{padding:36px 20px;}
   }
+
+  /* ===================== BADGES DE AO VIVO / REPLAY + ESPECTADORES ===================== */
+  .pub-main{position:relative;}
+  .pub-video-badges{position:absolute;top:14px;left:16px;z-index:6;display:none;align-items:center;gap:8px;}
+  .pub-video-badges.show{display:flex;}
+  .pub-live-pill{background:var(--red);color:#fff;font-size:11px;font-weight:800;letter-spacing:.3px;
+    padding:6px 11px 6px 9px;border-radius:999px;display:flex;align-items:center;gap:6px;box-shadow:0 2px 8px rgba(0,0,0,.35);}
+  .pub-live-pill svg{width:13px;height:13px;}
+  .pub-live-pill.is-replay{background:var(--red);}
+  .pub-viewer-pill{background:rgba(255,255,255,.95);color:#111;font-size:11px;font-weight:700;
+    padding:6px 11px;border-radius:999px;display:flex;align-items:center;gap:6px;box-shadow:0 2px 8px rgba(0,0,0,.25);}
+  .pub-viewer-pill svg{width:14px;height:14px;}
+
+  /* ===================== TELA DE CAPA (CLIQUE PARA ASSISTIR) ===================== */
+  .pub-cover{position:relative;width:100%;height:100%;overflow:hidden;cursor:pointer;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;color:#fff;text-align:center;}
+  .pub-cover-bg{position:absolute;inset:0;background-size:cover;background-position:center;
+    filter:blur(18px) brightness(.55);transform:scale(1.12);}
+  .pub-cover-bg.no-image{background:radial-gradient(circle at 50% 35%,#3c3c3a,#0a0a0a 75%);}
+  .pub-cover-bg video{width:100%;height:100%;object-fit:cover;}
+  .pub-cover-dim{position:absolute;inset:0;background:rgba(0,0,0,.35);}
+  .pub-cover-content{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;gap:22px;padding:20px;}
+  .pub-cover-kicker{font-family:var(--font-display);font-size:clamp(18px,3vw,26px);letter-spacing:.5px;
+    text-shadow:0 2px 14px rgba(0,0,0,.6);}
+  .pub-cover-playbtn{width:94px;height:94px;border-radius:50%;border:3px solid rgba(255,255,255,.9);
+    display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.25);
+    box-shadow:0 0 0 0 rgba(255,255,255,.35);animation:pubCoverPulse 2s ease-out infinite;}
+  .pub-cover-playbtn svg{width:36px;height:36px;fill:#fff;margin-left:4px;}
+  @keyframes pubCoverPulse{
+    0%{box-shadow:0 0 0 0 rgba(255,255,255,.35);}
+    70%{box-shadow:0 0 0 22px rgba(255,255,255,0);}
+    100%{box-shadow:0 0 0 0 rgba(255,255,255,0);}
+  }
+  .pub-cover-sub{font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#ddd;
+    text-shadow:0 2px 10px rgba(0,0,0,.6);}
+
+  /* ===================== CONTROLES PROFISSIONAIS (VOLUME + QUALIDADE) ===================== */
+  .yt-quality-wrap{position:relative;}
+  .yt-quality-btn{background:none;border:none;color:#fff;cursor:pointer;padding:4px;display:flex;align-items:center;}
+  .yt-quality-btn svg{width:19px;height:19px;}
+  .yt-quality-menu{position:absolute;bottom:32px;right:0;background:#181818;border:1px solid #333;border-radius:8px;
+    padding:6px;display:none;min-width:140px;box-shadow:0 10px 30px rgba(0,0,0,.5);}
+  .yt-quality-menu.open{display:block;}
+  .yt-quality-menu .yq-title{font-size:10.5px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;
+    color:#888;padding:6px 10px 4px;}
+  .yt-quality-menu button{display:flex;align-items:center;gap:8px;width:100%;background:none;border:none;color:#fff;
+    font-size:12.5px;padding:7px 10px;text-align:left;border-radius:5px;cursor:pointer;}
+  .yt-quality-menu button:hover{background:rgba(255,255,255,.1);}
+  .yt-quality-menu button .yq-dot{width:7px;height:7px;border-radius:50%;border:1.5px solid #777;flex-shrink:0;}
+  .yt-quality-menu button.sel .yq-dot{border-color:var(--red);background:var(--red);}
+  .yt-quality-menu button.sel{color:var(--red);}
+
+  /* ===================== TEMA CLARO DA SALA ===================== */
+  html[data-pub-theme="claro"] .public-page{background:#eef1f5;}
+  html[data-pub-theme="claro"] .pub-topbar{background:#fff;border-bottom:1px solid #e5e7eb;}
+  html[data-pub-theme="claro"] .pub-title{color:#111827;}
+  html[data-pub-theme="claro"] .pub-main{background:#eef1f5;}
+  html[data-pub-theme="claro"] .pub-video{background:#000;box-shadow:0 1px 0 #e5e7eb;}
+  html[data-pub-theme="claro"] .pub-side{background:#fff;border-left:1px solid #e5e7eb;}
+  html[data-pub-theme="claro"] .pub-tabs{background:#f3f4f6;border:1px solid #e9eaec;border-radius:999px;
+    padding:3px;margin:12px 14px 0;gap:3px;border-bottom:none;width:auto;}
+  html[data-pub-theme="claro"] .pub-tab{border-radius:999px;border-bottom:none;color:#6b7280;font-size:12.5px;}
+  html[data-pub-theme="claro"] .pub-tab.active{background:#fff;color:#111827;box-shadow:0 1px 3px rgba(0,0,0,.12);}
+  html[data-pub-theme="claro"] .pub-msgs{background:#fff;}
+  html[data-pub-theme="claro"] .pub-chat-msg{color:#1f2937;}
+  html[data-pub-theme="claro"] .pub-chat-msg .name{color:#6b7280;}
+  html[data-pub-theme="claro"] .pub-chat-msg.mine{color:#2563eb;}
+  html[data-pub-theme="claro"] .pub-input-row{background:#fff;border-top:1px solid #e5e7eb;}
+  html[data-pub-theme="claro"] .pub-input-row .input{background:#f3f4f6;border:1px solid #e5e7eb;color:#111827;
+    border-radius:999px;}
+  html[data-pub-theme="claro"] .pub-input-row .btn-primary{background:#111827;border-color:#111827;color:#fff;
+    border-radius:999px;}
+  html[data-pub-theme="claro"] .pub-replay-note{color:#9ca3af;}
+  html[data-pub-theme="claro"] .pub-badges{color:#9ca3af;}
+  html[data-pub-theme="claro"] .pub-badges svg,
+  html[data-pub-theme="claro"] .pub-badges{color:#9ca3af;}
+
+  .pub-replay-note{padding:14px;text-align:center;font-size:12px;color:var(--text-faint);border-top:1px solid var(--border-soft);}
+
+  @media (max-width:900px){
+    .pub-badges{display:none !important;}
+  }
 </style>
 </head>
 <body data-theme="dark">
@@ -141,8 +225,18 @@
     <div class="pub-main">
       <h1 class="pub-title" id="pubTitle">Aula ao vivo</h1>
       <div class="pub-video" id="pubVideo"></div>
+      <div class="pub-video-badges" id="pubVideoBadges">
+        <span class="pub-live-pill" id="pubLivePill">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M8.5 15.5a5 5 0 010-7M15.5 15.5a5 5 0 000-7M5.3 18.7a9 9 0 010-13.4M18.7 18.7a9 9 0 000-13.4"/><circle cx="12" cy="12" r="2" fill="currentColor" stroke="none"/></svg>
+          AO VIVO
+        </span>
+        <span class="pub-viewer-pill" id="audienceLiveBadge" style="display:none;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="2.7"/></svg>
+          <span id="audienceLiveCount">0</span>
+        </span>
+      </div>
       <div class="pub-badges">
-        <span id="audienceLiveBadge" style="display:none;"></span><span>🔒 Site seguro</span><span>🛡️ Privacidade protegida</span>
+        <span>🔒 Site seguro</span><span>🛡️ Privacidade protegida</span>
       </div>
     </div>
     <div class="pub-side" id="pubSide">
@@ -179,6 +273,7 @@
         </div>
         <button class="btn btn-primary btn-sm" onclick="Sala.send()">Enviar</button>
       </div>
+      <div class="pub-replay-note" id="pubReplayNote" style="display:none;">Comentários desativados...</div>
     </div>
   </div>
 </div>
@@ -191,6 +286,6 @@
   <button type="button" class="offer-close-btn" onclick="Sala.closeOfferOverlay(true)">×</button>
 </div>
 
-<script src="js/sala.js?v=11"></script>
+<script src="js/sala.js?v=12"></script>
 </body>
 </html>

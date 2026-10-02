@@ -498,6 +498,7 @@ const App = {
       document.getElementById('chatFontSize').value = full.chat_tamanho_fonte || 'media';
       document.getElementById('w_suporteCor').value = full.suporte_cor_destaque || '#FFCC00';
       document.getElementById('w_suporteCorTransparencia').value = full.suporte_cor_transparencia ?? 0;
+      document.getElementById('w_temaSala').value = full.tema_sala || 'escuro';
       this.renderSuporteColorPreview();
 
       // Login
@@ -711,6 +712,7 @@ const App = {
     document.getElementById('w_checkoutDuracao').value = 600;
     document.getElementById('w_suporteCor').value = '#FFCC00';
     document.getElementById('w_suporteCorTransparencia').value = 0;
+    document.getElementById('w_temaSala').value = 'escuro';
     this.renderSuporteColorPreview();
     this.setModoCheckout('link');
     document.getElementById('chkAutoplay').checked = false;
@@ -1057,6 +1059,7 @@ const App = {
         habilitar_reacoes: !!document.getElementById('chkHabilitarReacoes')?.checked,
         suporte_cor_destaque: document.getElementById('w_suporteCor')?.value || '#FFCC00',
         suporte_cor_transparencia: Number(document.getElementById('w_suporteCorTransparencia')?.value || 0),
+        tema_sala: document.getElementById('w_temaSala')?.value || 'escuro',
       })});
       await this.apiFetch(`/api/webinars/${this.wz.id}/reaction-keyframes`, {method:'PUT', body: JSON.stringify({
         keyframes: (this.reactionPoints || []).map(p=>({segundo: p.segundo, intensidade: p.intensidade})),

@@ -118,6 +118,7 @@ const updateSchema = z.object({
   habilitar_reacoes: z.boolean().optional(),
   suporte_cor_destaque: z.string().max(9).optional(),
   suporte_cor_transparencia: z.number().int().min(0).max(100).optional(),
+  tema_sala: z.enum(['escuro', 'claro']).optional(),
 });
 
 const COLUMN_MAP = {
@@ -140,6 +141,7 @@ const COLUMN_MAP = {
   habilitar_reacoes: 'habilitar_reacoes',
   suporte_cor_destaque: 'suporte_cor_destaque',
   suporte_cor_transparencia: 'suporte_cor_transparencia',
+  tema_sala: 'tema_sala',
 };
 
 router.put('/:id', async (req, res) => {
@@ -643,8 +645,8 @@ router.post('/:id/duplicate', async (req, res) => {
         usar_sala_espera, video_id, video_autoplay, video_fullscreen, ocultar_barra_progresso,
         bloquear_avanco_video, modo_youtube, modo_youtube_bloqueio_segundo, tipo_audiencia,
         audiencia_min_participantes, audiencia_max_participantes, mostrar_botao_ao_vivo,
-        habilitar_reacoes, suporte_cor_destaque, suporte_cor_transparencia, status, criado_por
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        habilitar_reacoes, suporte_cor_destaque, suporte_cor_transparencia, tema_sala, status, criado_por
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         req.accountId, newName, orig.titulo, newSlug, orig.idioma, orig.nome_apresentador,
         orig.avatar_apresentador_url, orig.tipo_agendamento, orig.repeticao_automatica,
@@ -653,7 +655,7 @@ router.post('/:id/duplicate', async (req, res) => {
         orig.bloquear_avanco_video, orig.modo_youtube, orig.modo_youtube_bloqueio_segundo,
         orig.tipo_audiencia, orig.audiencia_min_participantes, orig.audiencia_max_participantes,
         orig.mostrar_botao_ao_vivo, orig.habilitar_reacoes, orig.suporte_cor_destaque,
-        orig.suporte_cor_transparencia, 'rascunho', req.userId
+        orig.suporte_cor_transparencia, orig.tema_sala, 'rascunho', req.userId
       ]
     );
 

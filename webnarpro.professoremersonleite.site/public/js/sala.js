@@ -71,6 +71,7 @@ const Sala = {
     document.getElementById('pubTitle').textContent = this.info.titulo || 'Aula ao vivo';
     document.title = (this.info.titulo || 'WebnarPRO') + ' — Sala';
     this.applyTopbarBranding();
+    document.documentElement.setAttribute('data-pub-theme', this.info.temaSala || 'escuro');
 
     if(this.isPreview && !this.leadToken){
       await this.autoRegisterPreview();
@@ -174,6 +175,7 @@ const Sala = {
     }
 
     document.getElementById('publicPage').style.display = 'flex';
+    document.documentElement.setAttribute('data-pub-theme', this.room.temaSala || 'escuro');
     document.getElementById('pubMsgsSuporte').innerHTML = '<div class="empty-state">Envie uma mensagem privada para o suporte.</div>';
     this.startSupportPolling();
     this.setupReactions();
@@ -190,6 +192,10 @@ const Sala = {
     this.bindRoomViewportReset();
 
     if(this.isReplay){
+      const inputRow = document.querySelector('.pub-input-row');
+      const note = document.getElementById('pubReplayNote');
+      if(inputRow) inputRow.style.display = 'none';
+      if(note) note.style.display = 'block';
       this.showCover();
       return true;
     }
@@ -230,6 +236,23 @@ const Sala = {
   COUNTDOWN_SECONDS: 8,
   EDGE_TOLERANCE: 3,
 
+  updateLiveBadge(show){
+    const wrap = document.getElementById('pubVideoBadges');
+    const pill = document.getElementById('pubLivePill');
+    if(!wrap) return;
+    if(!show){
+      wrap.classList.remove('show');
+      return;
+    }
+    wrap.classList.add('show');
+    if(pill){
+      pill.classList.toggle('is-replay', !!this.isReplay);
+      const label = pill.querySelector('svg')?.outerHTML || '';
+      pill.innerHTML = label + (this.isReplay ? ' REPLAY' : ' AO VIVO');
+    }
+    this.renderAudienceBadge();
+  },
+
   setupAudienceBadge(){
     if(this._audienceTicker) clearInterval(this._audienceTicker);
     const render = ()=>this.renderAudienceBadge();
@@ -244,7 +267,8 @@ const Sala = {
   renderAudienceBadge(){
     const el = document.getElementById('audienceLiveBadge');
     const cfg = this.getAudienceConfig();
-    if(!el || !cfg || cfg.tipo === 'nenhuma' || !cfg.mostrarBotaoAoVivo){
+    // Replay não é "ao vivo" de verdade — não faz sentido mostrar espectadores simulados.
+    if(!el || this.isReplay || !cfg || cfg.tipo === 'nenhuma' || !cfg.mostrarBotaoAoVivo){
       if(el) el.style.display = 'none';
       return;
     }
@@ -260,8 +284,9 @@ const Sala = {
       else pct = Math.max(0, 1 - ((phase - 3600) / 3600));
       count = Math.round(min + ((max - min) * pct));
     }
-    el.textContent = `🔴 ${count.toLocaleString('pt-BR')} ao vivo`;
-    el.style.display = 'inline';
+    const countEl = document.getElementById('audienceLiveCount');
+    if(countEl) countEl.textContent = count.toLocaleString('pt-BR');
+    el.style.display = 'flex';
   },
 
   async requestWakeLock(){
@@ -388,10 +413,17 @@ const Sala = {
   },
 
   showCover(){
+    this.updateLiveBadge(false);
+    const thumb = this.room?.video?.thumbnailUrl;
     document.getElementById('pubVideo').innerHTML = `
       <div class="pub-cover" onclick="Sala.beginSession()">
-        <div class="pub-play-btn"><svg viewBox="0 0 24 24"><path d="M9 7l9 5-9 5V7z"/></svg></div>
-        <div class="pub-cover-text">SUA AULA JÁ COMEÇOU<span>CLIQUE PARA ASSISTIR</span></div>
+        <div class="pub-cover-bg ${thumb ? '' : 'no-image'}" ${thumb ? `style="background-image:url('${escapeHtml(thumb)}')"` : ''}></div>
+        <div class="pub-cover-dim"></div>
+        <div class="pub-cover-content">
+          <div class="pub-cover-kicker">SUA AULA JÁ COMEÇOU</div>
+          <div class="pub-cover-playbtn"><svg viewBox="0 0 24 24"><path d="M9 7l9 5-9 5V7z" fill="currentColor"/></svg></div>
+          <div class="pub-cover-sub">Clique para assistir</div>
+        </div>
       </div>`;
   },
 
@@ -400,6 +432,7 @@ const Sala = {
     if(this._ytTicker) clearInterval(this._ytTicker);
     if(this._liveFollowTicker) clearInterval(this._liveFollowTicker);
     this.followLiveEdge = false;
+    this.updateLiveBadge(false);
     const apresentador = this.info?.nomeApresentador;
     document.getElementById('pubVideo').innerHTML = `
       <div class="pub-live" style="flex-direction:column;gap:10px;">
@@ -457,6 +490,7 @@ const Sala = {
     this.bindWakeLockRestore();
     this.requestWakeLock();
     this.tryEnterFullscreen();
+    this.updateLiveBadge(false);
     let secs = initialSecs != null ? initialSecs : this.COUNTDOWN_SECONDS;
     const box = document.getElementById('pubVideo');
     const render = ()=>{
@@ -482,11 +516,13 @@ const Sala = {
     this.bindWakeLockRestore();
     this.requestWakeLock();
     if(!this.room.video){
+      this.updateLiveBadge(false);
       document.getElementById('pubVideo').innerHTML = `<div class="pub-live">${this.brandHtml()}Vídeo ainda não configurado para este webinar.</div>`;
       return;
     }
     const cfg = this.room.video;
     if(cfg.status !== 'pronto'){
+      this.updateLiveBadge(false);
       const msg = cfg.status === 'erro'
         ? 'Houve um erro ao processar este vídeo. Envie novamente na biblioteca de vídeos do painel.'
         : 'O vídeo ainda está sendo processado. Isso pode levar alguns minutos em arquivos longos — tente recarregar a página daqui a pouco.';
@@ -506,7 +542,6 @@ const Sala = {
     if(cfg.modoYoutube){
       document.getElementById('pubVideo').innerHTML = `
         <div class="yt-wrap">
-          <div class="pub-live-badge">AO VIVO</div>
           <video id="pubVideoEl" playsinline style="width:100%;height:100%;object-fit:contain;background:#000;"></video>
           <div class="yt-controls" id="ytControls">
             <div class="yt-scrub" id="ytScrub">
@@ -523,8 +558,12 @@ const Sala = {
                 <button class="yt-speed-btn" id="ytSpeedBtn" onclick="Sala.ytToggleSpeedMenu()">1x</button>
                 <div class="yt-speed-menu" id="ytSpeedMenu"></div>
               </div>
+              <div class="yt-quality-wrap">
+                <button class="yt-quality-btn" id="ytQualityBtn" onclick="Sala.ytToggleQualityMenu()" title="Qualidade">${this.ICON_GEAR}</button>
+                <div class="yt-quality-menu" id="ytQualityMenu"></div>
+              </div>
               <div class="yt-vol-wrap">
-                <button class="yt-btn" id="ytMuteBtn" onclick="Sala.ytToggleMute()">🔊</button>
+                <button class="yt-btn" id="ytMuteBtn" onclick="Sala.ytToggleMute()">${this.ICON_VOLUME_ON}</button>
                 <input type="range" class="yt-volume" id="ytVolume" min="0" max="1" step="0.05" value="1" oninput="Sala.ytSetVolume(this.value)">
               </div>
             </div>
@@ -533,14 +572,22 @@ const Sala = {
     } else {
       document.getElementById('pubVideo').innerHTML = `
         <div class="pub-live" style="padding:0;">
-          <div class="pub-live-badge">AO VIVO</div>
           <video id="pubVideoEl" playsinline style="width:100%;height:100%;object-fit:contain;background:#000;"></video>
-          <div class="yt-vol-wrap" style="position:absolute;bottom:8px;right:10px;background:rgba(0,0,0,.5);border-radius:6px;padding:4px 8px;">
-            <button class="yt-btn" id="ytMuteBtn" onclick="Sala.ytToggleMute()">🔊</button>
-            <input type="range" class="yt-volume" id="ytVolume" min="0" max="1" step="0.05" value="1" oninput="Sala.ytSetVolume(this.value)">
+          <div class="yt-controls" id="ytControls" style="opacity:1;pointer-events:auto;">
+            <div class="yt-controls-row" style="justify-content:flex-end;">
+              <div class="yt-quality-wrap">
+                <button class="yt-quality-btn" id="ytQualityBtn" onclick="Sala.ytToggleQualityMenu()" title="Qualidade">${this.ICON_GEAR}</button>
+                <div class="yt-quality-menu" id="ytQualityMenu"></div>
+              </div>
+              <div class="yt-vol-wrap">
+                <button class="yt-btn" id="ytMuteBtn" onclick="Sala.ytToggleMute()">${this.ICON_VOLUME_ON}</button>
+                <input type="range" class="yt-volume" id="ytVolume" min="0" max="1" step="0.05" value="1" oninput="Sala.ytSetVolume(this.value)">
+              </div>
+            </div>
           </div>
         </div>`;
     }
+    this.updateLiveBadge(true);
 
     const el = document.getElementById('pubVideoEl');
     this.video = el;
@@ -565,6 +612,8 @@ const Sala = {
       this.hls = new Hls();
       this.hls.loadSource(cfg.url);
       this.hls.attachMedia(el);
+      this.hls.on(Hls.Events.MANIFEST_PARSED, ()=>this.renderQualityMenu());
+      this.hls.on(Hls.Events.LEVEL_SWITCHED, ()=>this.renderQualityMenu());
     } else {
       el.src = cfg.url;
     }
@@ -710,7 +759,8 @@ const Sala = {
     if(!this.video) return;
     const muteBtn = document.getElementById('ytMuteBtn');
     const vol = document.getElementById('ytVolume');
-    if(muteBtn) muteBtn.textContent = (this.video.muted || this.video.volume === 0) ? '🔇' : '🔊';
+    const isMuted = this.video.muted || this.video.volume === 0;
+    if(muteBtn) muteBtn.innerHTML = isMuted ? this.ICON_VOLUME_MUTED : this.ICON_VOLUME_ON;
     if(vol) vol.value = this.video.muted ? 0 : this.video.volume;
   },
   ytToggleMute(){
@@ -837,6 +887,35 @@ const Sala = {
     document.getElementById('ytSpeedMenu').classList.toggle('open');
   },
 
+  // ---------- QUALIDADE DO VÍDEO (hls.js) ----------
+  renderQualityMenu(){
+    const menu = document.getElementById('ytQualityMenu');
+    if(!menu || !this.hls || !this.hls.levels || !this.hls.levels.length) return;
+    const current = this.hls.currentLevel; // -1 = automático
+    const playing = this.hls.currentLevel === -1 ? this.hls.loadLevel : this.hls.currentLevel;
+    const playingHeight = this.hls.levels[playing] ? this.hls.levels[playing].height : null;
+    const rows = this.hls.levels.map((lvl, i) => {
+      const sel = current === i;
+      return `<button class="${sel ? 'sel' : ''}" onclick="Sala.ytSetQuality(${i})"><span class="yq-dot"></span>${lvl.height}p</button>`;
+    }).reverse().join('');
+    menu.innerHTML = `
+      <div class="yq-title">Qualidade</div>
+      <button class="${current === -1 ? 'sel' : ''}" onclick="Sala.ytSetQuality(-1)">
+        <span class="yq-dot"></span>Auto${playingHeight ? ` (${playingHeight}p)` : ''}
+      </button>
+      ${rows}`;
+  },
+
+  ytToggleQualityMenu(){
+    document.getElementById('ytQualityMenu')?.classList.toggle('open');
+  },
+
+  ytSetQuality(levelIndex){
+    if(this.hls) this.hls.currentLevel = levelIndex;
+    document.getElementById('ytQualityMenu')?.classList.remove('open');
+    this.renderQualityMenu();
+  },
+
   checkScheduledContent(currentTime){
     const msgs = this.room.chatMessages || [];
     while(this.shownMsgIdx < msgs.length && msgs[this.shownMsgIdx].segundoExibicao <= currentTime){
@@ -872,6 +951,10 @@ const Sala = {
   },
 
   REACTION_EMOJIS: ['❤️','😄','🎉','😮','💯'],
+
+  ICON_GEAR: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>',
+  ICON_VOLUME_ON: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 5V4L8 9H4z" fill="currentColor" stroke="none"/><path d="M16.2 8.5a5 5 0 010 7"/><path d="M19 5.5a9 9 0 010 13"/></svg>',
+  ICON_VOLUME_MUTED: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 5V4L8 9H4z" fill="currentColor" stroke="none"/><path d="M16 9l5 6M21 9l-5 6"/></svg>',
 
   setupReactions(){
     this.reactionsEnabled = this.room.habilitarReacoes !== false;
