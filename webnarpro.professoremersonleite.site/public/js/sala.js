@@ -637,9 +637,11 @@ const Sala = {
       if(target > 0) el.currentTime = Math.min(target, el.duration || target);
     }, { once: true });
 
-    if(el.canPlayType('application/vnd.apple.mpegurl')){
-      el.src = cfg.url;
-    } else if(window.Hls && Hls.isSupported()){
+    // hls.js tem prioridade sempre que possivel (funciona ate no Safari via MSE) porque e ele
+    // quem alimenta o seletor de qualidade - no play nativo (fallback de HLS sem MSE, tipo iOS
+    // Safari antigo) nao existe API JS pra listar/trocar qualidade, entao o botao fica escondido.
+    const qualityBtn = document.getElementById('ytQualityBtn');
+    if(window.Hls && Hls.isSupported()){
       this.hls = new Hls();
       this.hls.loadSource(cfg.url);
       this.hls.attachMedia(el);
@@ -647,6 +649,7 @@ const Sala = {
       this.hls.on(Hls.Events.LEVEL_SWITCHED, ()=>this.renderQualityMenu());
     } else {
       el.src = cfg.url;
+      if(qualityBtn) qualityBtn.closest('.yt-quality-wrap').style.display = 'none';
     }
 
     this.userPaused = false;
