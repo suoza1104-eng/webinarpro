@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js"></script>
-<link rel="stylesheet" href="/css/styles.css?v=12">
+<link rel="stylesheet" href="/css/styles.css?v=13">
 <style>
   html,body{height:100%;overflow:hidden;background:var(--bg);}
   .sala-loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-size:13px;}
@@ -227,6 +227,7 @@
   <div class="pub-wrap">
     <div class="pub-main">
       <h1 class="pub-title" id="pubTitle">Aula ao vivo</h1>
+      <div class="pub-video-wrap">
       <div class="pub-video" id="pubVideo"></div>
       <div class="pub-video-badges" id="pubVideoBadges">
         <span class="pub-live-pill" id="pubLivePill">
@@ -237,6 +238,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="2.7"/></svg>
           <span id="audienceLiveCount">0</span>
         </span>
+      </div>
       </div>
     </div>
     <div class="pub-side" id="pubSide">
