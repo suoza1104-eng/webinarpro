@@ -564,7 +564,10 @@ const Sala = {
     }
     if(this._ytTicker) clearInterval(this._ytTicker);
     if(this._liveFollowTicker) clearInterval(this._liveFollowTicker);
-    this.followLiveEdge = this.shouldObeySchedule() || seekTo > 0;
+    // No replay nao existe "borda ao vivo" pra perseguir - isso e so pra transmissao real.
+    // Sem essa checagem, o seek automatico de carregamento usava getMaxSeekable() (o teto da
+    // trava da oferta) em vez da posicao de retomada, abrindo a oferta assim que o replay comecava.
+    this.followLiveEdge = this.isReplay ? false : (this.shouldObeySchedule() || seekTo > 0);
     const scheduledAutoplay = this.shouldObeySchedule();
 
     if(cfg.modoYoutube){
