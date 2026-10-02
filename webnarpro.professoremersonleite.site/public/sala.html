@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js"></script>
-<link rel="stylesheet" href="/css/styles.css?v=10">
+<link rel="stylesheet" href="/css/styles.css?v=11">
 <style>
   html,body{height:100%;overflow:hidden;background:var(--bg);}
   .sala-loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-size:13px;}
@@ -185,9 +185,7 @@
   html[data-pub-theme="claro"] .pub-input-row .btn-primary{background:#111827;border-color:#111827;color:#fff;
     border-radius:999px;}
   html[data-pub-theme="claro"] .pub-replay-note{color:#9ca3af;}
-  html[data-pub-theme="claro"] .pub-badges{color:#9ca3af;}
-  html[data-pub-theme="claro"] .pub-badges svg,
-  html[data-pub-theme="claro"] .pub-badges{color:#9ca3af;}
+  html[data-pub-theme="claro"] .pub-badges{color:#9ca3af;background:#fff;border-top:1px solid #e5e7eb;}
 
   .pub-replay-note{padding:14px;text-align:center;font-size:12px;color:var(--text-faint);border-top:1px solid var(--border-soft);}
 
@@ -235,9 +233,6 @@
           <span id="audienceLiveCount">0</span>
         </span>
       </div>
-      <div class="pub-badges">
-        <span>🔒 Site seguro</span><span>🛡️ Privacidade protegida</span>
-      </div>
     </div>
     <div class="pub-side" id="pubSide">
       <div class="pub-chat-head">
@@ -275,6 +270,9 @@
       </div>
       <div class="pub-replay-note" id="pubReplayNote" style="display:none;">Comentários desativados...</div>
     </div>
+  </div>
+  <div class="pub-badges">
+    <span>🔒 Site seguro</span><span>🛡️ Privacidade protegida</span>
   </div>
 </div>
 
