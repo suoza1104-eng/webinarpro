@@ -443,7 +443,9 @@ const Sala = {
         <div style="font-size:12.5px;color:var(--text-dim);text-align:center;padding:0 20px;">
           Obrigado por assistir${apresentador ? ' até aqui com ' + escapeHtml(apresentador) : ''}!
         </div>
-        ${this.isReplay ? '' : `<a class="btn btn-primary" style="margin-top:8px;" href="/${encodeURIComponent(this.slug)}/replay">Assistir novamente</a>`}
+        ${this.isReplay
+          ? '<button type="button" class="btn btn-primary" style="margin-top:8px;" onclick="Sala.startLive(0)">Assistir novamente</button>'
+          : `<a class="btn btn-primary" style="margin-top:8px;" href="/${encodeURIComponent(this.slug)}/replay">Assistir novamente</a>`}
       </div>`;
   },
 
