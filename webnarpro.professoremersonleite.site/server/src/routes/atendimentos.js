@@ -11,6 +11,7 @@ router.get('/', async (req, res) => {
   const status = ['aberto', 'em_atendimento', 'encerrado'].includes(req.query.status) ? req.query.status : 'aberto';
   const mine = req.query.mine === '1';
   const search = (req.query.search || '').trim();
+  const webinarId = req.query.webinar_id ? Number(req.query.webinar_id) : null;
 
   const params = [req.accountId, status];
   let sql = `
@@ -26,6 +27,10 @@ router.get('/', async (req, res) => {
     LEFT JOIN users u ON u.id = a.atendente_id
     WHERE w.account_id = ? AND a.status = ?
   `;
+  if (webinarId) {
+    sql += ' AND w.id = ?';
+    params.push(webinarId);
+  }
   if (mine) {
     sql += ' AND a.atendente_id = ?';
     params.push(req.userId);

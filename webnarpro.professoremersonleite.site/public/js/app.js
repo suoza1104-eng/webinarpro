@@ -169,7 +169,7 @@ const App = {
     this.renderDashboard();
     this.renderVideos();
     this.renderAbTests();
-    this.renderSalas();
+    this.renderSalasPicker();
     this.renderHistorico();
     this.renderUsers();
     this.renderConfigInteg();
@@ -417,6 +417,13 @@ const App = {
     document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active', n.dataset.view===id));
     document.getElementById('sidebar').classList.remove('mobile-open');
     window.scrollTo(0,0);
+    if(id === 'salas'){
+      document.getElementById('salasQueue').style.display = 'none';
+      document.getElementById('salasPicker').style.display = 'block';
+      this.salasWebinarId = null;
+      if(this._salasLiveCountTimer) clearInterval(this._salasLiveCountTimer);
+      this.renderSalasPicker();
+    }
   },
 
   toast(msg){
@@ -1816,6 +1823,63 @@ const App = {
 
   // ---------- SALAS DE ATENDIMENTO ----------
   salasTab: 'open',
+  salasWebinarId: null,
+  async renderSalasPicker(){
+    const grid = document.getElementById('salasPickerGrid');
+    const search = document.getElementById('salasPickerSearch')?.value.trim().toLowerCase() || '';
+    grid.innerHTML = '<div class="empty-state">Carregando…</div>';
+    try{
+      let rows = await this.apiFetch('/api/webinars/ongoing');
+      if(search) rows = rows.filter(w=>w.nome.toLowerCase().includes(search));
+      if(rows.length === 0){
+        grid.innerHTML = '<div class="empty-state">Nenhum webinar em andamento ou com atendimentos ainda.</div>';
+        return;
+      }
+      grid.innerHTML = rows.map(w=>`
+        <div class="card" style="margin:0;">
+          <div class="thumb thumb-wide" style="width:100%;height:110px;margin-bottom:12px;${w.thumbnailUrl ? `background-image:url('${escapeHtmlAdmin(w.thumbnailUrl)}');background-size:cover;background-position:center;` : ''}"></div>
+          <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;">
+            ${w.liveCount > 0 ? '<span class="badge badge-green">Em andamento</span>' : ''}
+            <span class="badge badge-grey">${w.tipoAgendamento==='just_in_time' ? 'Just-in-time' : (w.repeticaoAutomatica ? 'Recorrente' : 'Único')}</span>
+          </div>
+          <div style="font-weight:700;font-size:13.5px;margin-bottom:4px;">${escapeHtmlAdmin(w.nome)}</div>
+          <div style="font-size:10.5px;color:var(--text-faint);margin-bottom:12px;">${this.formatDateTime(w.dataInicio)}</div>
+          <div style="display:flex;gap:14px;font-size:11px;color:var(--text-faint);margin-bottom:14px;">
+            <span>👁 ${w.liveCount} ao vivo</span>
+            ${w.pendentes > 0 ? `<span style="color:var(--red);font-weight:700;">${w.pendentes} sem atendimento</span>` : ''}
+          </div>
+          <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="App.openSalaWebinar(${w.id})">Sala de Atendimento</button>
+        </div>`).join('');
+      this._salasOngoingCache = rows;
+    }catch(e){
+      grid.innerHTML = `<div class="empty-state">Erro ao carregar: ${e.message}</div>`;
+    }
+  },
+  openSalaWebinar(webinarId){
+    this.salasWebinarId = webinarId;
+    const w = (this._salasOngoingCache || []).find(x=>x.id===webinarId);
+    document.getElementById('salasPicker').style.display = 'none';
+    document.getElementById('salasQueue').style.display = 'block';
+    document.getElementById('salasQueueTitle').textContent = w?.nome || '';
+    document.getElementById('salasQueueViewers').textContent = '👁 ' + (w?.liveCount ?? 0);
+    this.setSalasTab('open');
+    if(this._salasLiveCountTimer) clearInterval(this._salasLiveCountTimer);
+    this._salasLiveCountTimer = setInterval(()=>this.refreshSalasLiveCount(), 20000);
+  },
+  backToSalasPicker(){
+    document.getElementById('salasQueue').style.display = 'none';
+    document.getElementById('salasPicker').style.display = 'block';
+    this.salasWebinarId = null;
+    if(this._salasLiveCountTimer) clearInterval(this._salasLiveCountTimer);
+    this.renderSalasPicker();
+  },
+  async refreshSalasLiveCount(){
+    if(!this.salasWebinarId) return;
+    try{
+      const data = await this.apiFetch(`/api/webinars/${this.salasWebinarId}/live-count`);
+      document.getElementById('salasQueueViewers').textContent = '👁 ' + data.count;
+    }catch(e){}
+  },
   setSalasTab(tab){
     this.salasTab = tab;
     document.getElementById('salasTabMine').classList.toggle('active', tab==='mine');
@@ -1834,6 +1898,7 @@ const App = {
     const params = new URLSearchParams({status: statusMap[this.salasTab]});
     if(this.salasTab === 'mine') params.set('mine', '1');
     if(search) params.set('search', search);
+    if(this.salasWebinarId) params.set('webinar_id', this.salasWebinarId);
     try{
       const rows = await this.apiFetch('/api/atendimentos?' + params.toString());
       if(rows.length === 0){

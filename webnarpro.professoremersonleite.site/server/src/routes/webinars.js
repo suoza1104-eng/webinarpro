@@ -82,6 +82,39 @@ router.post('/', async (req, res) => {
   res.status(201).json({ id: result.insertId, slug });
 });
 
+// Webinars pra tela de Salas de Atendimento: os que estao ao vivo agora, ou que ja
+// tiveram algum atendimento (pra nao perder o historico de um webinar que ja terminou).
+// Precisa vir ANTES de GET /:id, senao o Express casaria "ongoing" como um :id.
+router.get('/ongoing', async (req, res) => {
+  const [rows] = await pool.query(
+    `SELECT w.id, w.nome, w.slug, w.tipo_agendamento, w.repeticao_automatica, w.data_inicio,
+            v.thumbnail_url,
+            (SELECT COUNT(*) FROM view_sessions vs WHERE vs.webinar_id = w.id
+               AND vs.atualizado_em > DATE_SUB(NOW(), INTERVAL 70 SECOND)) AS live_count,
+            (SELECT COUNT(*) FROM atendimentos a WHERE a.webinar_id = w.id AND a.status = 'aberto') AS pendentes,
+            (SELECT COUNT(*) FROM atendimentos a WHERE a.webinar_id = w.id AND a.status = 'em_atendimento') AS em_atendimento,
+            (SELECT COUNT(*) FROM atendimentos a WHERE a.webinar_id = w.id) AS total_atendimentos
+     FROM webinars w
+     LEFT JOIN videos v ON v.id = w.video_id
+     WHERE w.account_id = ? AND w.status = 'ativo'
+     ORDER BY w.data_inicio DESC`,
+    [req.accountId],
+  );
+  const relevant = rows.filter((r) => r.live_count > 0 || r.total_atendimentos > 0);
+  res.json(relevant.map((r) => ({
+    id: r.id,
+    nome: r.nome,
+    slug: r.slug,
+    tipoAgendamento: r.tipo_agendamento,
+    repeticaoAutomatica: !!r.repeticao_automatica,
+    dataInicio: r.data_inicio,
+    thumbnailUrl: r.thumbnail_url,
+    liveCount: r.live_count,
+    pendentes: r.pendentes,
+    emAtendimento: r.em_atendimento,
+  })));
+});
+
 router.get('/:id', async (req, res) => {
   const [rows] = await pool.query(
     'SELECT * FROM webinars WHERE id = ? AND account_id = ? LIMIT 1',

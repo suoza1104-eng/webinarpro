@@ -878,16 +878,32 @@
             <p class="page-sub">Converse com quem está assistindo, em tempo real.</p>
           </div>
         </div>
-        <div class="tab-pair" style="margin-bottom:16px;">
-          <button id="salasTabMine" onclick="App.setSalasTab('mine')">Meus atendimentos</button>
-          <button id="salasTabDone" onclick="App.setSalasTab('done')">Atendidos</button>
-          <button class="active" id="salasTabOpen" onclick="App.setSalasTab('open')">Sem atendimento</button>
+
+        <div id="salasPicker">
+          <div class="toolbar">
+            <div class="input-search" style="flex:1;max-width:320px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="10" cy="10" r="6"/><line x1="15" y1="15" x2="20" y2="20"/></svg><input id="salasPickerSearch" placeholder="Buscar pelo nome do webinar" oninput="App.renderSalasPicker()"></div>
+            <button class="btn btn-sm" onclick="App.renderSalasPicker()">↻ Atualizar</button>
+          </div>
+          <div class="grid-3" id="salasPickerGrid"></div>
         </div>
-        <div class="toolbar">
-          <div class="input-search" style="flex:1;max-width:320px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="10" cy="10" r="6"/><line x1="15" y1="15" x2="20" y2="20"/></svg><input id="salasSearch" placeholder="Buscar pelo nome" oninput="App.renderSalas()"></div>
-          <button class="btn btn-sm" onclick="App.renderSalas()">↻ Atualizar</button>
+
+        <div id="salasQueue" style="display:none;">
+          <div class="toolbar" style="margin-bottom:14px;">
+            <button class="btn btn-sm" onclick="App.backToSalasPicker()">← Todos os webinars</button>
+            <b id="salasQueueTitle" style="flex:1;font-size:13.5px;"></b>
+            <span class="badge badge-grey" id="salasQueueViewers" title="Espectadores ao vivo agora">👁 0</span>
+          </div>
+          <div class="tab-pair" style="margin-bottom:16px;">
+            <button id="salasTabMine" onclick="App.setSalasTab('mine')">Meus atendimentos</button>
+            <button id="salasTabDone" onclick="App.setSalasTab('done')">Atendidos</button>
+            <button class="active" id="salasTabOpen" onclick="App.setSalasTab('open')">Sem atendimento</button>
+          </div>
+          <div class="toolbar">
+            <div class="input-search" style="flex:1;max-width:320px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="10" cy="10" r="6"/><line x1="15" y1="15" x2="20" y2="20"/></svg><input id="salasSearch" placeholder="Buscar pelo nome" oninput="App.renderSalas()"></div>
+            <button class="btn btn-sm" onclick="App.renderSalas()">↻ Atualizar</button>
+          </div>
+          <div class="grid-3" id="salasGrid"></div>
         </div>
-        <div class="grid-3" id="salasGrid"></div>
       </section>
 
       <!-- ============ HISTÓRICO ============ -->
@@ -1238,6 +1254,6 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="js/app.js?v=17"></script>
+<script src="js/app.js?v=18"></script>
 </body>
 </html>
