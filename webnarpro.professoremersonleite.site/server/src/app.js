@@ -15,6 +15,7 @@ const publicRouter = require('./routes/public');
 const abTestsRouter = require('./routes/ab-tests');
 const atendimentosRouter = require('./routes/atendimentos');
 const uploadsRouter = require('./routes/uploads');
+const integracaoRouter = require('./routes/integracao');
 const fs = require('fs');
 
 const app = express();
@@ -66,6 +67,7 @@ app.use('/api/public', publicRouter);
 app.use('/api/ab-tests', abTestsRouter);
 app.use('/api/atendimentos', atendimentosRouter);
 app.use('/api/uploads', uploadsRouter);
+app.use('/api/integracao', integracaoRouter);
 
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 app.use(express.static(path.join(__dirname, '..', '..', 'public')));

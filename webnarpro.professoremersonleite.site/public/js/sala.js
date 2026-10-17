@@ -199,14 +199,30 @@ const Sala = {
     document.getElementById('regScreen').classList.add('open');
   },
 
+  maskWhatsInput(el){
+    let v = el.value.replace(/\D/g, '');
+    if(v.length > 11) v = v.slice(0, 11);
+    if(v.length > 10) v = v.replace(/(\d{2})(\d{5})(\d{0,4})/, '($1) $2-$3');
+    else if(v.length > 6) v = v.replace(/(\d{2})(\d{4})(\d{0,4})/, '($1) $2-$3');
+    else if(v.length > 2) v = v.replace(/(\d{2})(\d{0,5})/, '($1) $2');
+    else if(v.length > 0) v = v.replace(/(\d{0,2})/, '($1');
+    el.value = v.replace(/-$/, '').trim();
+  },
+
   async register(){
     const nome = document.getElementById('regNome').value.trim();
     const email = document.getElementById('regEmail').value.trim();
+    const whatsField = document.getElementById('regWhatsField');
     const whatsapp = document.getElementById('regWhats').value.trim();
     const empresa = document.getElementById('regEmpresa').value.trim();
     const errEl = document.getElementById('regError');
     errEl.style.display = 'none';
     if(!nome || !email){ errEl.textContent = 'Preencha nome e e-mail.'; errEl.style.display = 'block'; return; }
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ errEl.textContent = 'Digite um e-mail válido.'; errEl.style.display = 'block'; return; }
+    if(whatsField && whatsField.style.display !== 'none'){
+      const whatsDigits = whatsapp.replace(/\D/g, '');
+      if(whatsDigits.length > 0 && whatsDigits.length < 10){ errEl.textContent = 'Digite um WhatsApp válido, com DDD.'; errEl.style.display = 'block'; return; }
+    }
 
     const btn = document.getElementById('regSubmitBtn');
     btn.disabled = true;

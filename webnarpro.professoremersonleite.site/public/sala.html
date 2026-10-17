@@ -213,7 +213,7 @@
     <div class="reg-sub" id="regSub">Preencha seus dados para entrar na sala</div>
     <div class="reg-field"><label>Nome</label><input class="input" id="regNome" style="width:100%;"></div>
     <div class="reg-field"><label>E-mail</label><input class="input" id="regEmail" type="email" style="width:100%;"></div>
-    <div class="reg-field" id="regWhatsField" style="display:none;"><label>WhatsApp</label><input class="input" id="regWhats" style="width:100%;"></div>
+    <div class="reg-field" id="regWhatsField" style="display:none;"><label>WhatsApp</label><input class="input" id="regWhats" type="tel" inputmode="numeric" placeholder="(11) 98765-4321" style="width:100%;" oninput="Sala.maskWhatsInput(this)"></div>
     <div class="reg-field" id="regEmpresaField" style="display:none;"><label>Empresa</label><input class="input" id="regEmpresa" style="width:100%;"></div>
     <div id="regError" style="color:var(--red);font-size:12px;margin-bottom:10px;display:none;"></div>
     <button type="button" class="btn btn-primary" id="regSubmitBtn" style="width:100%;justify-content:center;" onclick="Sala.register()">Entrar na Aula</button>
@@ -300,6 +300,6 @@
   <button type="button" class="offer-close-btn" onclick="Sala.closeOfferOverlay(true)">×</button>
 </div>
 
-<script src="/js/sala.js?v=21"></script>
+<script src="/js/sala.js?v=22"></script>
 </body>
 </html>
