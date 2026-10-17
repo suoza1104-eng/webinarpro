@@ -550,6 +550,9 @@ const App = {
         document.getElementById('chkBarraProgresso').checked = !!login.exibir_barra_progresso;
         document.getElementById('w_progInicio').value = login.progresso_inicial ?? 0;
         document.getElementById('w_logoUrl').value = login.logo_url || '';
+        document.getElementById('logoImgDropzoneText').innerHTML = login.logo_url
+          ? `<img src="${login.logo_url}" style="max-height:60px;border-radius:6px;display:block;margin:0 auto 6px;">Imagem enviada — clique pra trocar`
+          : 'Clique ou arraste uma imagem (PNG, JPG, WEBP até 5MB)';
         document.getElementById('chkOcultarMarca').checked = !!login.ocultar_marca;
         document.getElementById('chkWhats').checked = !!login.pedir_whatsapp;
         document.getElementById('chkEmpresa').checked = !!login.pedir_empresa;
@@ -868,6 +871,7 @@ const App = {
     document.getElementById('chkBarraProgresso').checked = true;
     document.getElementById('w_progInicio').value = 0;
     document.getElementById('w_logoUrl').value = '';
+    document.getElementById('logoImgDropzoneText').textContent = 'Clique ou arraste uma imagem (PNG, JPG, WEBP até 5MB)';
     document.getElementById('chkOcultarMarca').checked = false;
     document.getElementById('chkWhats').checked = true;
     document.getElementById('chkEmpresa').checked = false;
@@ -1132,6 +1136,29 @@ const App = {
     event.currentTarget.classList.remove('drag');
     const file = event.dataTransfer?.files?.[0];
     if(file) this.uploadOfertaImagem(file);
+  },
+  async uploadLogoImagem(file){
+    if(!file) return;
+    const textEl = document.getElementById('logoImgDropzoneText');
+    const original = textEl.innerHTML;
+    textEl.textContent = 'Enviando...';
+    try{
+      const formData = new FormData();
+      formData.append('imagem', file);
+      const data = await this.apiFetch('/api/uploads/image', { method: 'POST', body: formData });
+      document.getElementById('w_logoUrl').value = data.url;
+      textEl.innerHTML = `<img src="${data.url}" style="max-height:60px;border-radius:6px;display:block;margin:0 auto 6px;">Imagem enviada — clique pra trocar`;
+      this.renderLoginPreview();
+    }catch(e){
+      textEl.innerHTML = original;
+      this.toast('Erro ao enviar imagem: ' + e.message);
+    }
+  },
+  handleLogoImgDrop(event){
+    event.preventDefault();
+    event.currentTarget.classList.remove('drag');
+    const file = event.dataTransfer?.files?.[0];
+    if(file) this.uploadLogoImagem(file);
   },
   hexToRgba(hex, transparenciaPct){
     hex = (hex || '#FFCC00').replace('#', '');

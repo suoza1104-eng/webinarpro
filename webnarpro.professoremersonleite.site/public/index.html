@@ -297,8 +297,16 @@
           <div class="wizard-panel" data-step="2">
             <div style="display:grid;grid-template-columns:1fr 300px;gap:26px;">
               <div>
-                <label style="display:block;font-size:12.5px;font-weight:600;color:var(--text-dim);margin-bottom:10px;">Logo própria (URL da imagem)</label>
-                <div class="field" style="margin-bottom:14px;"><input class="input" id="w_logoUrl" placeholder="https://.../sua-logo.png" style="width:100%;" oninput="App.renderLoginPreview()"></div>
+                <label style="display:block;font-size:12.5px;font-weight:600;color:var(--text-dim);margin-bottom:10px;">Logo própria</label>
+                <div class="field" style="margin-bottom:14px;">
+                  <div class="dropzone" id="logoImgDropzone" onclick="document.getElementById('logoImgInput').click()"
+                    ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')"
+                    ondrop="App.handleLogoImgDrop(event)">
+                    <span id="logoImgDropzoneText">Clique ou arraste uma imagem (PNG, JPG, WEBP até 5MB)</span>
+                  </div>
+                  <input type="file" id="logoImgInput" accept="image/png,image/jpeg,image/webp,image/gif" style="display:none;" onchange="App.uploadLogoImagem(event.target.files[0])">
+                  <input type="hidden" id="w_logoUrl" oninput="App.renderLoginPreview()">
+                </div>
                 <div class="toggle-row" style="margin-bottom:22px;">
                   <div><div class="t-title">Ocultar marca WebnarPRO</div><div class="t-desc">Some com o "⚡ WebnarPRO" da sala pública. Se você configurar uma logo própria acima, ela aparece no lugar.</div></div>
                   <label class="toggle"><input type="checkbox" id="chkOcultarMarca" onchange="App.renderLoginPreview()"><span class="track"><span class="thumb"></span></span></label>
@@ -1254,6 +1262,6 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="js/app.js?v=18"></script>
+<script src="js/app.js?v=19"></script>
 </body>
 </html>
