@@ -422,6 +422,7 @@ const App = {
       document.getElementById('salasPicker').style.display = 'block';
       this.salasWebinarId = null;
       if(this._salasLiveCountTimer) clearInterval(this._salasLiveCountTimer);
+      if(this._salasQueueTimer) clearInterval(this._salasQueueTimer);
       this.renderSalasPicker();
     }
   },
@@ -1892,12 +1893,15 @@ const App = {
     this.setSalasTab('open');
     if(this._salasLiveCountTimer) clearInterval(this._salasLiveCountTimer);
     this._salasLiveCountTimer = setInterval(()=>this.refreshSalasLiveCount(), 20000);
+    if(this._salasQueueTimer) clearInterval(this._salasQueueTimer);
+    this._salasQueueTimer = setInterval(()=>this.renderSalas(), 7000);
   },
   backToSalasPicker(){
     document.getElementById('salasQueue').style.display = 'none';
     document.getElementById('salasPicker').style.display = 'block';
     this.salasWebinarId = null;
     if(this._salasLiveCountTimer) clearInterval(this._salasLiveCountTimer);
+    if(this._salasQueueTimer) clearInterval(this._salasQueueTimer);
     this.renderSalasPicker();
   },
   async refreshSalasLiveCount(){
