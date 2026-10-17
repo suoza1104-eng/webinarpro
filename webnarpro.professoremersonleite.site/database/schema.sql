@@ -266,11 +266,17 @@ CREATE TABLE view_sessions (
   lead_id           BIGINT UNSIGNED NOT NULL,
   entrou_em         DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   ultimo_marco_pct  TINYINT UNSIGNED NOT NULL DEFAULT 0,     -- 0,25,50,75,100 — grava só nesses marcos
+  max_segundos      INT UNSIGNED NOT NULL DEFAULT 0,         -- maior segundo do video ja assistido (ping leve a cada 30s)
+  chegou_pitch_em   DATETIME NULL,                           -- 1a vez que currentTime passou de inicio_pitch_segundos
+  chegou_oferta_em  DATETIME NULL,                           -- 1a vez que currentTime passou de inicio_oferta_segundos
+  clicou_compra_em  DATETIME NULL,                           -- 1a vez que clicou no botao de comprar
+  cliques_compra    INT UNSIGNED NOT NULL DEFAULT 0,         -- total de cliques no botao de comprar (nao so o 1o)
   atualizado_em     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT fk_view_webinar FOREIGN KEY (webinar_id) REFERENCES webinars(id) ON DELETE CASCADE,
   CONSTRAINT fk_view_lead    FOREIGN KEY (lead_id)    REFERENCES leads(id)    ON DELETE CASCADE,
   UNIQUE KEY uq_view_webinar_lead (webinar_id, lead_id),
-  INDEX idx_view_webinar (webinar_id)
+  INDEX idx_view_webinar (webinar_id),
+  INDEX idx_view_atualizado (atualizado_em)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ---------------------------------------------------------------------

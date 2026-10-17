@@ -91,6 +91,18 @@ router.get('/:id', async (req, res) => {
   res.json(rows[0]);
 });
 
+// Quantos estao com a sala aberta agora (presenca nos ultimos 45s - o front avisa a cada ~20s)
+router.get('/:id/live-count', async (req, res) => {
+  const webinarId = await getOwnedWebinarId(req.params.id, req.accountId);
+  if (!webinarId) return res.status(404).json({ error: 'Webinar não encontrado' });
+  const [[row]] = await pool.query(
+    `SELECT COUNT(*) AS count FROM view_sessions
+     WHERE webinar_id = ? AND atualizado_em > DATE_SUB(NOW(), INTERVAL 70 SECOND)`,
+    [webinarId],
+  );
+  res.json({ count: row.count });
+});
+
 router.get('/', async (req, res) => {
   const [rows] = await pool.query(
     'SELECT id, nome, titulo, slug, status, criado_em FROM webinars WHERE account_id = ? ORDER BY criado_em DESC',

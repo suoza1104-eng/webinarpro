@@ -429,8 +429,10 @@
                   </div>
                 </div>
                 <div class="field-row">
+                  <div class="field"><label>Início da pitch (hh:mm:ss)</label><input class="input" id="w_pitchInicio" placeholder="00:00:00" style="width:100%;" oninput="App.maskTimeInput(this)"></div>
                   <div class="field"><label>A aba "Oferta" abre no vídeo em (hh:mm:ss)</label><input class="input" id="w_ofertaInicio" placeholder="00:00:00" style="width:100%;" oninput="App.maskTimeInput(this)"></div>
                 </div>
+                <div style="font-size:11px;color:var(--text-faint);margin:-10px 0 16px;">O início da pitch marca quando o discurso de venda começa (usado pra contar quem chegou até lá); a oferta é quando o botão de compra aparece de verdade.</div>
                 <label style="display:block;font-size:12.5px;font-weight:600;color:var(--text-dim);margin:0 0 10px;">O que acontece quando a pessoa clica em comprar</label>
                 <div class="grid-2" style="margin-bottom:18px;">
                   <div class="type-card sel" id="modoCheckoutLinkCard" onclick="App.setModoCheckout('link')">
@@ -1202,6 +1204,6 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="js/app.js?v=15"></script>
+<script src="js/app.js?v=16"></script>
 </body>
 </html>

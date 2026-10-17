@@ -126,7 +126,7 @@ router.get('/webinars/:slug/room', requireLeadAuth, async (req, res) => {
 
   const [offerRows] = await pool.query(
     `SELECT nome_oferta, titulo_oferta, preco_original_centavos, preco_oferta_centavos, texto_botao, cor_botao,
-            imagem_desktop_url, imagem_mobile_url, inicio_oferta_segundos, fim_oferta_segundos,
+            imagem_desktop_url, imagem_mobile_url, inicio_pitch_segundos, inicio_oferta_segundos, fim_oferta_segundos,
             link_checkout, repassar_utms, oferta_desabilitada, modo_checkout, checkout_duracao_segundos, reopen_cor, checkout_pip_tamanho
      FROM webinar_offer_config WHERE webinar_id = ? LIMIT 1`,
     [w.id],
@@ -140,6 +140,7 @@ router.get('/webinars/:slug/room', requireLeadAuth, async (req, res) => {
     corBotao: offerRows[0].cor_botao,
     imagemDesktopUrl: offerRows[0].imagem_desktop_url,
     imagemMobileUrl: offerRows[0].imagem_mobile_url,
+    inicioPitchSegundos: offerRows[0].inicio_pitch_segundos,
     inicioOfertaSegundos: offerRows[0].inicio_oferta_segundos,
     fimOfertaSegundos: offerRows[0].fim_oferta_segundos,
     linkCheckout: offerRows[0].link_checkout,
@@ -272,6 +273,49 @@ router.post('/webinars/:slug/heartbeat', heartbeatLimiter, requireLeadAuth, asyn
      VALUES (?, ?, ?)
      ON DUPLICATE KEY UPDATE ultimo_marco_pct = GREATEST(ultimo_marco_pct, VALUES(ultimo_marco_pct))`,
     [req.webinarId, req.leadId, marco],
+  );
+
+  res.json({ ok: true });
+});
+
+// 7e-bis — presença (ping leve e frequente, pra contagem de "quantos estão assistindo agora"
+// e pra saber até que segundo cada um assistiu, independente dos marcos de 25% do heartbeat acima)
+const presenceLimiter = rateLimit({ windowMs: 60 * 1000, limit: 12 });
+
+router.post('/webinars/:slug/presence', presenceLimiter, requireLeadAuth, async (req, res) => {
+  const segundos = Math.max(0, Math.floor(Number(req.body?.segundos) || 0));
+
+  await pool.query(
+    `INSERT INTO view_sessions (webinar_id, lead_id, max_segundos)
+     VALUES (?, ?, ?)
+     ON DUPLICATE KEY UPDATE max_segundos = GREATEST(max_segundos, VALUES(max_segundos)), atualizado_em = CURRENT_TIMESTAMP`,
+    [req.webinarId, req.leadId, segundos],
+  );
+
+  res.json({ ok: true });
+});
+
+// 7e-ter — marcos de funil: chegou no pitch, chegou na oferta, clicou em comprar.
+// So grava a primeira vez (COALESCE) pra cada marco de "chegou", exceto cliques em comprar,
+// que conta todas as vezes (cliques_compra) alem de guardar a primeira (clicou_compra_em).
+const trackEventLimiter = rateLimit({ windowMs: 60 * 1000, limit: 20 });
+const TRACK_EVENT_COLUMNS = {
+  pitch: 'chegou_pitch_em',
+  oferta: 'chegou_oferta_em',
+  compra: 'clicou_compra_em',
+};
+
+router.post('/webinars/:slug/track-event', trackEventLimiter, requireLeadAuth, async (req, res) => {
+  const evento = String(req.body?.evento || '');
+  const column = TRACK_EVENT_COLUMNS[evento];
+  if (!column) return res.status(400).json({ error: 'Evento inválido' });
+
+  const extraSet = evento === 'compra' ? ', cliques_compra = cliques_compra + 1' : '';
+  await pool.query(
+    `INSERT INTO view_sessions (webinar_id, lead_id, ${column}${evento === 'compra' ? ', cliques_compra' : ''})
+     VALUES (?, ?, CURRENT_TIMESTAMP${evento === 'compra' ? ', 1' : ''})
+     ON DUPLICATE KEY UPDATE ${column} = COALESCE(${column}, CURRENT_TIMESTAMP)${extraSet}`,
+    [req.webinarId, req.leadId],
   );
 
   res.json({ ok: true });

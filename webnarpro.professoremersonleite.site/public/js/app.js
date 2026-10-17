@@ -577,6 +577,7 @@ const App = {
           ? `<img src="${offer.imagem_desktop_url}" style="max-height:60px;border-radius:6px;display:block;margin:0 auto 6px;">Imagem enviada — clique pra trocar`
           : 'Clique ou arraste uma imagem (PNG, JPG, WEBP até 5MB)';
         document.getElementById('w_ofertaInicio').value = offer.inicio_oferta_segundos != null ? this.secondsToTime(offer.inicio_oferta_segundos) : '';
+        document.getElementById('w_pitchInicio').value = offer.inicio_pitch_segundos != null ? this.secondsToTime(offer.inicio_pitch_segundos) : '';
         document.getElementById('w_linkCheckout').value = offer.link_checkout || '';
         document.getElementById('chkOfertaDesabilitada').checked = !!offer.oferta_desabilitada;
         document.getElementById('w_checkoutDuracao').value = offer.checkout_duracao_segundos ?? 600;
@@ -764,6 +765,7 @@ const App = {
     document.getElementById('w_ofertaImagemUrl').value = '';
     document.getElementById('ofertaImgDropzoneText').textContent = 'Clique ou arraste uma imagem (PNG, JPG, WEBP até 5MB)';
     document.getElementById('w_ofertaInicio').value = '';
+    document.getElementById('w_pitchInicio').value = '';
     document.getElementById('w_linkCheckout').value = '';
     document.getElementById('chkOfertaDesabilitada').checked = false;
     document.getElementById('w_checkoutDuracao').value = 600;
@@ -1097,6 +1099,7 @@ const App = {
         cor_botao: document.getElementById('w_ofertaBotaoCor')?.value || '#D93B3B',
         imagem_desktop_url: document.getElementById('w_ofertaImagemUrl')?.value.trim() || null,
         inicio_oferta_segundos: document.getElementById('w_ofertaInicio')?.value.trim() ? this.parseTimeToSeconds(document.getElementById('w_ofertaInicio').value) : null,
+        inicio_pitch_segundos: document.getElementById('w_pitchInicio')?.value.trim() ? this.parseTimeToSeconds(document.getElementById('w_pitchInicio').value) : null,
         link_checkout: document.getElementById('w_linkCheckout')?.value.trim() || '',
         oferta_desabilitada: !!document.getElementById('chkOfertaDesabilitada')?.checked,
         modo_checkout: this.wz.modoCheckout || 'link',

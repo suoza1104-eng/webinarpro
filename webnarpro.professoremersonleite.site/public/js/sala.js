@@ -250,6 +250,7 @@ const Sala = {
     document.documentElement.setAttribute('data-pub-theme', this.room.temaSala || 'escuro');
     document.getElementById('pubMsgsSuporte').innerHTML = '<div class="empty-state">Envie uma mensagem privada para o suporte.</div>';
     this.startSupportPolling();
+    this.startPresencePing();
     this.setupReactions();
     const reopenBtn = document.getElementById('reopenCheckoutBtn');
     if(reopenBtn && this.room.offerConfig?.reopenCor) reopenBtn.style.background = this.room.offerConfig.reopenCor;
@@ -1051,9 +1052,42 @@ const Sala = {
       this.shownSaleIdx++;
     }
     const offer = this.room.offerConfig;
-    if(offer && !this.offerShown && offer.inicioOfertaSegundos != null && currentTime >= offer.inicioOfertaSegundos){
-      this.showOfferTab();
+    if(offer && offer.inicioPitchSegundos != null && currentTime >= offer.inicioPitchSegundos){
+      this.trackEvent('pitch');
     }
+    if(offer && offer.inicioOfertaSegundos != null && currentTime >= offer.inicioOfertaSegundos){
+      this.trackEvent('oferta');
+      if(!this.offerShown) this.showOfferTab();
+    }
+  },
+
+  // Marcos de funil (chegou no pitch / chegou na oferta / clicou em comprar), pro dashboard
+  // de retencao e pra alimentar integracoes (E4Pay, sino) mais pra frente. So dispara uma vez
+  // por marco "chegou" nesta sessao de video pra nao floodar o servidor.
+  _trackedEvents: {},
+  trackEvent(evento){
+    if(this._trackedEvents[evento]) return;
+    this._trackedEvents[evento] = true;
+    if(!this.leadToken) return;
+    fetch('/api/public/webinars/' + encodeURIComponent(this.slug) + '/track-event', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + this.leadToken },
+      body: JSON.stringify({ evento }),
+    }).catch(()=>{});
+  },
+
+  startPresencePing(){
+    if(this._presenceTicker) clearInterval(this._presenceTicker);
+    const ping = ()=>{
+      if(!this.leadToken) return;
+      fetch('/api/public/webinars/' + encodeURIComponent(this.slug) + '/presence', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + this.leadToken },
+        body: JSON.stringify({ segundos: Math.floor(this.video?.currentTime || 0) }),
+      }).catch(()=>{});
+    };
+    ping();
+    this._presenceTicker = setInterval(ping, 30000);
   },
 
   checkHeartbeat(currentTime, duration){
@@ -1195,6 +1229,13 @@ const Sala = {
   onBuyClick(){
     const cfg = this.room.offerConfig;
     if(!cfg || !cfg.linkCheckout) return;
+    if(this.leadToken){
+      fetch('/api/public/webinars/' + encodeURIComponent(this.slug) + '/track-event', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + this.leadToken },
+        body: JSON.stringify({ evento: 'compra' }),
+      }).catch(()=>{});
+    }
     if(cfg.modoCheckout === 'embutido'){
       this.switchOfferPanel(`<iframe src="${escapeHtml(this.buildCheckoutUrl())}" allow="payment"></iframe>`);
       this.startCheckoutAutoCloseTimer();
