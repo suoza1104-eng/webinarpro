@@ -14,7 +14,10 @@ router.get('/', async (req, res) => {
      FROM videos WHERE account_id = ? ORDER BY criado_em DESC`,
     [req.accountId],
   );
-  res.json(rows);
+  res.json(rows.map((v) => ({
+    ...v,
+    playback_url: v.bunny_video_id ? bunny.playbackUrl(v.bunny_video_id) : null,
+  })));
 });
 
 const uploadInitSchema = z.object({

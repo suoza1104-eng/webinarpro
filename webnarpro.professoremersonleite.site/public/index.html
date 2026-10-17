@@ -10,7 +10,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tus-js-client@4.1.0/dist/tus.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<link rel="stylesheet" href="css/styles.css?v=14">
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js"></script>
+<link rel="stylesheet" href="css/styles.css?v=15">
 </head>
 <body data-theme="dark">
 <div class="hazard-strip"></div>
@@ -273,7 +274,7 @@
               <div class="field"><label>Fuso horário <span class="req">*</span></label><select class="select" id="w_fusoHorario" style="width:100%;"><option value="America/Sao_Paulo">(GMT-03:00) Horário de Brasília</option></select></div>
             </div>
             <div class="field-row">
-              <div class="field"><label>Duração estimada (min)</label><input class="input" type="number" value="150" oninput="App.wz.duracao=this.value" style="width:100%;"></div>
+              <div class="field"><label>Duração estimada (min)</label><input class="input" type="number" id="w_duracao" value="150" oninput="App.wz.duracao=this.value" style="width:100%;"></div>
             </div>
             <div style="border-top:1px solid var(--border-soft);padding-top:16px;">
               <label style="display:block;font-size:12.5px;font-weight:600;color:var(--text-dim);margin-bottom:10px;">Comportamento de início</label>
@@ -1122,6 +1123,46 @@
   </div>
 </div>
 
+<!-- Modal: Links do webinar -->
+<div class="modal-backdrop" id="linksModal">
+  <div class="modal-box" style="max-width:560px;">
+    <div class="modal-head">
+      <h3>Links do webinar</h3>
+      <button class="icon-btn" onclick="App.closeLinksModal()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>
+    </div>
+    <div class="modal-body" style="flex-direction:column;padding:20px;gap:16px;">
+      <div class="field">
+        <label>Sala Principal</label>
+        <div style="display:flex;gap:8px;"><input class="input" id="linksModalPrincipal" readonly style="width:100%;"><button class="btn btn-sm" onclick="App.copyLink('linksModalPrincipal')">Copiar</button></div>
+        <div style="font-size:11px;color:var(--text-faint);margin-top:4px;">Link usado pelos participantes pra entrar na sala.</div>
+      </div>
+      <div class="field">
+        <label>Sala com Magic Link</label>
+        <div style="display:flex;gap:8px;"><input class="input" id="linksModalMagic" readonly style="width:100%;"><button class="btn btn-sm" onclick="App.copyLink('linksModalMagic')">Copiar</button></div>
+        <div style="font-size:11px;color:var(--text-faint);margin-top:4px;">Adicione &amp;nome=&amp;email=&amp;whatsapp= com os dados do lead (ex: via e-mail marketing) pra cadastro automático, sem formulário.</div>
+      </div>
+      <div class="field">
+        <label>Sala com Replay</label>
+        <div style="display:flex;gap:8px;"><input class="input" id="linksModalReplay" readonly style="width:100%;"><button class="btn btn-sm" onclick="App.copyLink('linksModalReplay')">Copiar</button></div>
+        <div style="font-size:11px;color:var(--text-faint);margin-top:4px;">Após o evento, este link permite assistir à gravação.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Prévia de vídeo -->
+<div class="modal-backdrop" id="videoPreviewModal">
+  <div class="modal-box" style="max-width:720px;">
+    <div class="modal-head">
+      <h3 id="videoPreviewTitle">Prévia do vídeo</h3>
+      <button class="icon-btn" onclick="App.closeVideoPreview()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>
+    </div>
+    <div class="modal-body" style="padding:16px;">
+      <video id="videoPreviewEl" controls playsinline style="width:100%;max-height:70vh;background:#000;border-radius:8px;display:block;"></video>
+    </div>
+  </div>
+</div>
+
 <!-- Modal: Novo/Editar Teste A/B -->
 <div class="modal-backdrop" id="abModal">
   <div class="modal-box" style="max-width:560px;">
@@ -1157,6 +1198,6 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="js/app.js?v=13"></script>
+<script src="js/app.js?v=14"></script>
 </body>
 </html>

@@ -318,7 +318,43 @@ const App = {
       data: v.criado_em ? new Date(v.criado_em).toLocaleString('pt-BR') : '—',
       tamanho: v.tamanho_bytes ? (v.tamanho_bytes / 1e9).toFixed(2) + ' GB' : '—',
       status: v.status_processamento,
+      thumbnailUrl: v.thumbnail_url || null,
+      duracaoSegundos: v.duracao_segundos || null,
+      playbackUrl: v.playback_url || null,
     }));
+  },
+  formatVideoDuration(segundos){
+    if(!segundos) return null;
+    const h = Math.floor(segundos / 3600), m = Math.floor((segundos % 3600) / 60), s = Math.floor(segundos % 60);
+    const mm = String(m).padStart(h ? 2 : 1, '0'), ss = String(s).padStart(2, '0');
+    return h ? `${h}:${String(m).padStart(2,'0')}:${ss}` : `${mm}:${ss}`;
+  },
+  openVideoPreview(videoId){
+    const v = this.videos.find(x=>x.id===Number(videoId));
+    if(!v || !v.playbackUrl) { this.toast('Vídeo ainda não está pronto para prévia.'); return; }
+    document.getElementById('videoPreviewTitle').textContent = v.nome;
+    document.getElementById('videoPreviewModal').classList.add('open');
+    const el = document.getElementById('videoPreviewEl');
+    el.poster = v.thumbnailUrl || '';
+    if(this._previewHls){ this._previewHls.destroy(); this._previewHls = null; }
+    if(el.canPlayType('application/vnd.apple.mpegurl')){
+      el.src = v.playbackUrl;
+    } else if(window.Hls && Hls.isSupported()){
+      this._previewHls = new Hls();
+      this._previewHls.loadSource(v.playbackUrl);
+      this._previewHls.attachMedia(el);
+    } else {
+      el.src = v.playbackUrl;
+    }
+    el.play().catch(()=>{});
+  },
+  closeVideoPreview(){
+    document.getElementById('videoPreviewModal').classList.remove('open');
+    const el = document.getElementById('videoPreviewEl');
+    el.pause();
+    el.removeAttribute('src');
+    el.load();
+    if(this._previewHls){ this._previewHls.destroy(); this._previewHls = null; }
   },
 
   wireGlobalUI(){
@@ -439,7 +475,7 @@ const App = {
         <td>${this.statusBadge(w.status)}</td>
         <td>${this.tipoBadge(w.tipo)}</td>
         <td><div class="iconbar" style="justify-content:flex-end;">
-          <button title="Copiar link" onclick="App.copyWebinarLink('${w.slug}')">${ICONS.link}</button>
+          <button title="Links do webinar" onclick="App.openLinksModal('${w.slug}')">${ICONS.link}</button>
           <button title="Editar" onclick="App.editWebinar(${this.webinars.indexOf(w)})">${ICONS.edit}</button>
           <button title="Métricas" onclick="App.toast('Métricas em construção nesta prévia')">${ICONS.chart}</button>
           <button title="Ver como aluno" onclick="App.openPublic(${this.webinars.indexOf(w)})">${ICONS.globe}</button>
@@ -578,6 +614,20 @@ const App = {
   copyWebinarLink(slug){
     const url = `${window.location.origin}/${slug}`;
     this.writeToClipboard(url, 'Link do webinar copiado!');
+  },
+  webinarLinks(slug){
+    const base = `${window.location.origin}/${slug}`;
+    return { principal: base, magic: `${base}?magic=1`, replay: `${base}/replay` };
+  },
+  openLinksModal(slug){
+    const links = this.webinarLinks(slug);
+    document.getElementById('linksModalPrincipal').value = links.principal;
+    document.getElementById('linksModalMagic').value = links.magic;
+    document.getElementById('linksModalReplay').value = links.replay;
+    document.getElementById('linksModal').classList.add('open');
+  },
+  closeLinksModal(){
+    document.getElementById('linksModal').classList.remove('open');
   },
   writeToClipboard(text, successMsg){
     if(navigator.clipboard && navigator.clipboard.writeText){
@@ -1297,17 +1347,34 @@ const App = {
   },
   buildVideoPickGrid(){
     const el = document.getElementById('videoPickGrid');
-    el.innerHTML = this.videos.map((v,i)=>`
+    el.innerHTML = this.videos.map((v,i)=>{
+      const dur = this.formatVideoDuration(v.duracaoSegundos);
+      return `
       <div class="video-pick ${v.id===this.wz.videoId?'sel':''}" onclick="App.pickVideo(this,${v.id})">
-        <div class="vp-thumb">${ICONS.play}</div>
-        <div class="vp-name">${v.nome}</div>
-      </div>`).join('');
+        <div class="vp-thumb" ${v.thumbnailUrl ? `style="background-image:url('${escapeHtmlAdmin(v.thumbnailUrl)}');background-size:cover;background-position:center;"` : ''}>
+          ${!v.thumbnailUrl ? ICONS.play : ''}
+          ${v.playbackUrl ? `<button type="button" class="vp-preview-btn" onclick="event.stopPropagation();App.openVideoPreview(${v.id})" title="Pré-visualizar">${ICONS.play}</button>` : ''}
+          ${dur ? `<span class="thumb-duration">${dur}</span>` : ''}
+        </div>
+        <div class="vp-name">${escapeHtmlAdmin(v.nome)}</div>
+      </div>`;
+    }).join('');
     if(!this.wz.videoId && this.videos[0]) this.wz.videoId = Number(this.videos[0].id);
+    this.applyVideoDurationToWizard();
   },
   pickVideo(el, videoId){
     document.querySelectorAll('.video-pick').forEach(v=>v.classList.remove('sel'));
     el.classList.add('sel');
     this.wz.videoId = Number(videoId);
+    this.applyVideoDurationToWizard();
+  },
+  applyVideoDurationToWizard(){
+    const v = this.videos.find(x=>x.id===this.wz.videoId);
+    const durField = document.getElementById('w_duracao');
+    if(v && v.duracaoSegundos && durField){
+      durField.value = Math.round(v.duracaoSegundos / 60);
+      this.wz.duracao = Math.round(v.duracaoSegundos / 60);
+    }
   },
   triggerUpload(context){
     this._uploadContext = context;
@@ -1548,10 +1615,17 @@ const App = {
     ];
     document.getElementById('summaryList').innerHTML = items.map(([k,v])=>`
       <div class="summary-item"><div class="s-k">${k}</div><div class="s-v">${v}</div></div>`).join('');
-    const placeholder = 'Clique em "Publicar Webinar" para gerar o link';
-    document.getElementById('linkPrincipal').value = placeholder;
-    document.getElementById('linkMagic').value = placeholder;
-    document.getElementById('linkReplay').value = placeholder;
+    if(this.wz.slug){
+      const links = this.webinarLinks(this.wz.slug);
+      document.getElementById('linkPrincipal').value = links.principal;
+      document.getElementById('linkMagic').value = links.magic;
+      document.getElementById('linkReplay').value = links.replay;
+    }else{
+      const placeholder = 'Clique em "Publicar Webinar" para gerar o link';
+      document.getElementById('linkPrincipal').value = placeholder;
+      document.getElementById('linkMagic').value = placeholder;
+      document.getElementById('linkReplay').value = placeholder;
+    }
   },
   copyLink(id){
     const el = document.getElementById(id);
@@ -1585,9 +1659,20 @@ const App = {
 
   // ---------- VÍDEOS ----------
   renderVideos(){
-    document.getElementById('videosTbody').innerHTML = this.videos.map(v=>`
+    document.getElementById('videosTbody').innerHTML = this.videos.map(v=>{
+      const dur = this.formatVideoDuration(v.duracaoSegundos);
+      const clickable = v.status === 'pronto' && v.playbackUrl;
+      return `
       <tr>
-        <td><div class="row-thumb"><div class="thumb thumb-wide">${ICONS.play}</div><div class="row-title">${v.nome}</div></div></td>
+        <td>
+          <div class="row-thumb" ${clickable ? `onclick="App.openVideoPreview(${v.id})" style="cursor:pointer;"` : ''} title="${clickable ? 'Clique para assistir' : ''}">
+            <div class="thumb thumb-wide" ${v.thumbnailUrl ? `style="background-image:url('${escapeHtmlAdmin(v.thumbnailUrl)}');background-size:cover;background-position:center;"` : ''}>
+              ${!v.thumbnailUrl ? ICONS.play : `<span class="thumb-play-overlay">${ICONS.play}</span>`}
+              ${dur ? `<span class="thumb-duration">${dur}</span>` : ''}
+            </div>
+            <div class="row-title">${escapeHtmlAdmin(v.nome)}</div>
+          </div>
+        </td>
         <td>${v.data}</td><td>${v.tamanho}</td>
         <td style="text-align:right;">
           ${v.status === 'pronto' ? `<span class="badge badge-green">Pronto</span>`
@@ -1595,7 +1680,8 @@ const App = {
             : `<span class="badge badge-yellow">Processando…</span>`}
           <button class="icon-btn" style="margin-left:8px;">${ICONS.more}</button>
         </td>
-      </tr>`).join('');
+      </tr>`;
+    }).join('');
   },
 
   // ---------- SALAS DE ATENDIMENTO ----------
