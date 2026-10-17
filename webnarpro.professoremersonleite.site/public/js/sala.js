@@ -115,7 +115,35 @@ const Sala = {
     this.showRegister();
   },
 
+  // Antes de cadastrar direto, mostra rapidamente quem o magic link diz que é a pessoa,
+  // com uma saida visivel - se o link veio com dado errado (ou nem veio com dado nenhum
+  // de verdade, tipo o template com NOME_USUARIO/EMAIL_USUARIO sem substituir), a pessoa
+  // consegue corrigir antes de entrar na sala com identidade errada.
+  showMagicConfirm(){
+    const { nome, email, whatsapp } = this.magicData;
+    const details = document.getElementById('magicConfirmDetails');
+    if(details){
+      details.innerHTML = `${escapeHtml(nome)}<br>${escapeHtml(email)}${whatsapp ? '<br>' + escapeHtml(whatsapp) : ''}`;
+    }
+    document.getElementById('magicConfirmScreen')?.classList.add('open');
+    clearTimeout(this._magicConfirmTimer);
+    this._magicConfirmTimer = setTimeout(()=>this.confirmMagicRegister(), 1800);
+  },
+
+  cancelMagicRegister(){
+    clearTimeout(this._magicConfirmTimer);
+    document.getElementById('magicConfirmScreen')?.classList.remove('open');
+    this.isMagic = false;
+    this.showRegister();
+  },
+
   async autoRegisterMagic(){
+    this.showMagicConfirm();
+  },
+
+  async confirmMagicRegister(){
+    clearTimeout(this._magicConfirmTimer);
+    document.getElementById('magicConfirmScreen')?.classList.remove('open');
     try{
       const res = await fetch('/api/public/webinars/' + encodeURIComponent(this.slug) + '/register', {
         method: 'POST',
@@ -136,7 +164,8 @@ const Sala = {
         return;
       }
     }catch(e){}
-    // Dados do magic link invalidos/rejeitados - cai pro formulario normal, ja preenchido.
+    // Dados do magic link invalidos/rejeitados (ex: e-mail mal formatado) - cai pro
+    // formulario normal, ja preenchido com o que veio na URL pra pessoa so corrigir.
     this.showRegister();
   },
 
