@@ -5,6 +5,7 @@ const { z } = require('zod');
 const pool = require('../db');
 const { requireLeadAuth } = require('../middlewares/auth');
 const bunny = require('../services/bunny');
+const sino = require('../services/sino');
 
 const router = express.Router();
 
@@ -111,7 +112,7 @@ router.post('/webinars/:slug/register', registerLimiter, async (req, res) => {
 // 7c — dados da sala (vídeo + chat/vendas simulados)
 router.get('/webinars/:slug/room', requireLeadAuth, async (req, res) => {
   const [rows] = await pool.query(
-    `SELECT w.id, w.status, w.video_id, w.video_autoplay, w.video_fullscreen,
+    `SELECT w.id, w.nome, w.status, w.video_id, w.video_autoplay, w.video_fullscreen,
             w.ocultar_barra_progresso, w.bloquear_avanco_video,
             w.modo_youtube, w.modo_youtube_bloqueio_segundo,
             w.data_inicio, w.data_fim, w.fuso_horario, w.usar_sala_espera,
@@ -166,6 +167,13 @@ router.get('/webinars/:slug/room', requireLeadAuth, async (req, res) => {
     [req.leadId],
   );
   const lead = leadRows[0] || null;
+
+  if (lead) {
+    sino.sendEvent('entrou', {
+      webinarId: req.params.slug, webinarNome: w.nome, dataInicio: w.data_inicio,
+      leadId: req.leadId, nome: lead.nome, email: lead.email, whatsapp: lead.whatsapp,
+    }); // fire-and-forget - nunca espera a sala pela resposta do sino
+  }
 
   let video = null;
   if (w.video_id) {
@@ -294,6 +302,17 @@ router.post('/webinars/:slug/heartbeat', heartbeatLimiter, requireLeadAuth, asyn
 // e pra saber até que segundo cada um assistiu, independente dos marcos de 25% do heartbeat acima)
 const presenceLimiter = rateLimit({ windowMs: 60 * 1000, limit: 12 });
 
+// Lead + webinar pro payload do sino - uma query leve, usada só quando vamos
+// mandar um evento pra la (nao em todo heartbeat).
+async function leadAndWebinarForSino(leadId, webinarId) {
+  const [rows] = await pool.query(
+    `SELECT l.nome, l.email, l.whatsapp, w.slug, w.nome AS webinar_nome, w.data_inicio
+     FROM leads l JOIN webinars w ON w.id = ? WHERE l.id = ? LIMIT 1`,
+    [webinarId, leadId],
+  );
+  return rows[0] || null;
+}
+
 router.post('/webinars/:slug/presence', presenceLimiter, requireLeadAuth, async (req, res) => {
   const segundos = Math.max(0, Math.floor(Number(req.body?.segundos) || 0));
   const isReplay = req.body?.isReplay ? 1 : 0;
@@ -304,6 +323,20 @@ router.post('/webinars/:slug/presence', presenceLimiter, requireLeadAuth, async 
      ON DUPLICATE KEY UPDATE max_segundos = GREATEST(max_segundos, VALUES(max_segundos)), atualizado_em = CURRENT_TIMESTAMP`,
     [req.webinarId, req.leadId, isReplay, segundos],
   );
+
+  // "progresso" pro sino a cada ~5min (so na live, nunca no replay) - sem guardar estado
+  // novo: so dispara quando o segundo cai dentro da janela dos ~30s apos cruzar um
+  // multiplo de 300s, o que acontece em 1 a cada ~10 pings de presenca.
+  if (!isReplay && segundos > 0 && segundos % 300 < 30) {
+    leadAndWebinarForSino(req.leadId, req.webinarId).then((info) => {
+      if (!info) return;
+      sino.sendEvent('progresso', {
+        webinarId: info.slug, webinarNome: info.webinar_nome, dataInicio: info.data_inicio,
+        leadId: req.leadId, nome: info.nome, email: info.email, whatsapp: info.whatsapp,
+        segundosAssistidos: segundos,
+      });
+    }).catch(() => {});
+  }
 
   res.json({ ok: true });
 });
@@ -319,6 +352,8 @@ const TRACK_EVENT_COLUMNS = {
   chat: 'interagiu_chat_em',
 };
 
+const SINO_EVENT_MAP = { oferta: 'oferta', compra: 'clicou_botao' };
+
 router.post('/webinars/:slug/track-event', trackEventLimiter, requireLeadAuth, async (req, res) => {
   const evento = String(req.body?.evento || '');
   const column = TRACK_EVENT_COLUMNS[evento];
@@ -332,6 +367,17 @@ router.post('/webinars/:slug/track-event', trackEventLimiter, requireLeadAuth, a
      ON DUPLICATE KEY UPDATE ${column} = COALESCE(${column}, CURRENT_TIMESTAMP)${extraSet}`,
     [req.webinarId, req.leadId, isReplay],
   );
+
+  const sinoEvento = SINO_EVENT_MAP[evento];
+  if (sinoEvento && !isReplay) {
+    leadAndWebinarForSino(req.leadId, req.webinarId).then((info) => {
+      if (!info) return;
+      sino.sendEvent(sinoEvento, {
+        webinarId: info.slug, webinarNome: info.webinar_nome, dataInicio: info.data_inicio,
+        leadId: req.leadId, nome: info.nome, email: info.email, whatsapp: info.whatsapp,
+      });
+    }).catch(() => {});
+  }
 
   res.json({ ok: true });
 });
