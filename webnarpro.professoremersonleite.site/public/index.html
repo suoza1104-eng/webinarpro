@@ -11,7 +11,7 @@
 <script src="https://cdn.jsdelivr.net/npm/tus-js-client@4.1.0/dist/tus.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js"></script>
-<link rel="stylesheet" href="css/styles.css?v=16">
+<link rel="stylesheet" href="css/styles.css?v=17">
 </head>
 <body data-theme="dark">
 <div class="hazard-strip"></div>
@@ -836,6 +836,40 @@
         </div>
       </section>
 
+      <!-- ============ MÉTRICAS DE UM WEBINAR ============ -->
+      <section class="view" id="view-metrics">
+        <div class="page-head">
+          <div>
+            <button class="btn btn-sm" onclick="App.showView('webinars')" style="margin-bottom:10px;">← Voltar</button>
+            <h1 class="page-title" id="metricsTitle">Métricas</h1>
+            <p class="page-sub">Tráfego, retenção e conversão deste webinar.</p>
+          </div>
+        </div>
+
+        <div class="grid-3" style="margin-bottom:22px;">
+          <div class="card" style="margin:0;"><div class="s-k">Visitantes</div><div class="metric-big" id="mVisitantes">—</div></div>
+          <div class="card" style="margin:0;"><div class="s-k">Participantes (cadastrados)</div><div class="metric-big" id="mParticipantes">—</div></div>
+          <div class="card" style="margin:0;"><div class="s-k">Taxa de inscrição</div><div class="metric-big" id="mTaxaInscricao">—</div></div>
+        </div>
+
+        <div class="card" style="margin-bottom:22px;">
+          <b style="font-size:13px;display:block;margin-bottom:16px;">Funil de conversão</b>
+          <div class="metrics-funnel" id="metricsFunnel"></div>
+        </div>
+
+        <div class="card" style="margin-bottom:22px;">
+          <b style="font-size:13px;display:block;margin-bottom:6px;">Retenção ao vivo</b>
+          <p class="page-sub" style="margin:0 0 14px;">Quantos ainda estavam assistindo em cada momento do vídeo.</p>
+          <div id="metricsRetencaoEmpty" class="empty-state" style="display:none;">Ninguém assistiu ao vivo ainda — sem dado pra mostrar.</div>
+          <div style="height:260px;"><canvas id="metricsRetencaoChart"></canvas></div>
+        </div>
+
+        <div class="card" style="margin:0;">
+          <b style="font-size:13px;display:block;margin-bottom:16px;">Engajamento e intenção de compra</b>
+          <div class="grid-3" id="metricsCards"></div>
+        </div>
+      </section>
+
       <!-- ============ SALAS DE ATENDIMENTO ============ -->
       <section class="view" id="view-salas">
         <div class="page-head">
@@ -1204,6 +1238,6 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="js/app.js?v=16"></script>
+<script src="js/app.js?v=17"></script>
 </body>
 </html>

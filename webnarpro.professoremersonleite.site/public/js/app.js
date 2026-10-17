@@ -477,7 +477,7 @@ const App = {
         <td><div class="iconbar" style="justify-content:flex-end;">
           <button title="Links do webinar" onclick="App.openLinksModal('${w.slug}')">${ICONS.link}</button>
           <button title="Editar" onclick="App.editWebinar(${this.webinars.indexOf(w)})">${ICONS.edit}</button>
-          <button title="Métricas" onclick="App.toast('Métricas em construção nesta prévia')">${ICONS.chart}</button>
+          <button title="Métricas" onclick="App.openMetrics(${w.id})">${ICONS.chart}</button>
           <button title="Ver como aluno" onclick="App.openPublic(${this.webinars.indexOf(w)})">${ICONS.globe}</button>
           <button title="Duplicar" onclick="App.dupWebinar(${this.webinars.indexOf(w)})">${ICONS.copy}</button>
           <button title="Excluir" onclick="App.delWebinar(${this.webinars.indexOf(w)})">${ICONS.trash}</button>
@@ -684,6 +684,117 @@ const App = {
       this.renderDashboard();
     }catch(e){
       this.toast('Erro ao excluir: ' + e.message);
+    }
+  },
+
+  // ---------- MÉTRICAS ----------
+  async openMetrics(webinarId){
+    const w = this.webinars.find(x=>x.id===webinarId);
+    document.getElementById('metricsTitle').textContent = 'Métricas — ' + (w?.nome || '');
+    this.showView('metrics');
+    document.getElementById('metricsFunnel').innerHTML = '<div class="empty-state">Carregando…</div>';
+    try{
+      const data = await this.apiFetch(`/api/webinars/${webinarId}/metrics`);
+      this.renderMetrics(data);
+    }catch(e){
+      document.getElementById('metricsFunnel').innerHTML = `<div class="empty-state">Erro ao carregar métricas: ${e.message}</div>`;
+    }
+  },
+  metricFunnelArrow(){
+    return `<div class="mf-arrow">
+      <svg viewBox="0 0 28 14" fill="none" stroke="currentColor" stroke-width="2"><line x1="0" y1="7" x2="22" y2="7"/><path d="M17 2l6 5-6 5"/></svg>
+    </div>`;
+  },
+  metricFunnelStep(icon, num, label){
+    return `<div class="mf-step">
+      <div class="mf-icon">${icon}</div>
+      <div class="mf-num">${(num ?? 0).toLocaleString('pt-BR')}</div>
+      <div class="mf-label">${label}</div>
+    </div>`;
+  },
+  renderMetrics(data){
+    const ICO = {
+      eye: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="2.7"/></svg>',
+      check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>',
+      play: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>',
+      replay: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12a9 9 0 1 1 3 6.7"/><path d="M3 18v-5h5"/></svg>',
+      cart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2 3h3l2.6 12.4a2 2 0 002 1.6h8.4a2 2 0 002-1.6L22 7H6"/></svg>',
+      money: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.5 9.5c0-1.4 1.1-2.5 2.5-2.5s2.5.8 2.5 2c0 2.5-5 1.5-5 4 0 1.2 1.1 2 2.5 2s2.5-1.1 2.5-2.5"/></svg>',
+      chat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 11.5a8.4 8.4 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.4 8.4 0 01-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.4 8.4 0 013.8-.9h.5a8.5 8.5 0 018 8v.5z"/></svg>',
+      clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>',
+      mic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3"/></svg>',
+      gift: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="8" width="18" height="13" rx="1"/><path d="M3 8h18M12 8v13M12 8c-1.5-4-5-5-6-3.5S7 8 12 8zM12 8c1.5-4 5-5 6-3.5S17 8 12 8z"/></svg>',
+    };
+
+    document.getElementById('mVisitantes').textContent = (data.visitantes || 0).toLocaleString('pt-BR');
+    document.getElementById('mParticipantes').textContent = (data.participantes || 0).toLocaleString('pt-BR');
+    const taxa = data.visitantes > 0 ? ((data.participantes / data.visitantes) * 100).toFixed(1) + '%' : '—';
+    document.getElementById('mTaxaInscricao').textContent = taxa;
+
+    const clicouPct = data.estavaNaOferta > 0 ? ((data.clicouBotaoOferta / data.estavaNaOferta) * 100).toFixed(1) + '%' : '0%';
+    document.getElementById('metricsFunnel').innerHTML = `
+      ${this.metricFunnelStep(ICO.eye, data.visitantes, 'Visitantes')}
+      ${this.metricFunnelArrow()}
+      ${this.metricFunnelStep(ICO.check, data.participantes, 'Participantes')}
+      ${this.metricFunnelArrow()}
+      <div class="mf-branch">
+        ${this.metricFunnelStep(ICO.play, data.assistiuAoVivo, 'Assistiu ao vivo')}
+        ${this.metricFunnelStep(ICO.replay, data.assistiuReplay, 'Assistiu replay')}
+      </div>
+      ${this.metricFunnelArrow()}
+      ${this.metricFunnelStep(ICO.cart, data.clicouBotaoOferta, 'Clicou no botão (' + clicouPct + ')')}
+      ${this.metricFunnelArrow()}
+      ${this.metricFunnelStep(ICO.money, data.comprou, 'Comprou')}
+    `;
+
+    document.getElementById('metricsCards').innerHTML = [
+      [ICO.clock, data.assistiu15min, 'Assistiu 15min'],
+      [ICO.clock, data.assistiu30min, 'Assistiu 30min'],
+      [ICO.clock, data.assistiu45min, 'Assistiu 45min'],
+      [ICO.clock, data.assistiu60min, 'Assistiu 60min'],
+      [ICO.mic, data.estavaNoPitch, 'Estava no pitch'],
+      [ICO.gift, data.estavaNaOferta, 'Estava na oferta'],
+      [ICO.cart, data.clicouBotaoOferta, 'Clicou no botão de oferta'],
+      [ICO.cart, data.totalCliquesCompra, 'Total de cliques em comprar'],
+      [ICO.chat, data.interagiuChat, 'Interagiu no chat'],
+    ].map(([icon, num, label])=>`
+      <div class="metric-card">
+        <div class="mc-icon">${icon}</div>
+        <div><div class="mc-num">${(num||0).toLocaleString('pt-BR')}</div><div class="mc-label">${label}</div></div>
+      </div>`).join('');
+
+    const emptyEl = document.getElementById('metricsRetencaoEmpty');
+    const canvasEl = document.getElementById('metricsRetencaoChart');
+    const retencao = data.retencao || [];
+    if(this._metricsChart){ this._metricsChart.destroy(); this._metricsChart = null; }
+    if(retencao.length === 0){
+      emptyEl.style.display = 'block';
+      canvasEl.style.display = 'none';
+    }else{
+      emptyEl.style.display = 'none';
+      canvasEl.style.display = 'block';
+      if(window.Chart){
+        this._metricsChart = new Chart(canvasEl, {
+          type: 'line',
+          data: {
+            labels: retencao.map(p=>this.secondsToTime(p.segundo)),
+            datasets: [{
+              label: 'Assistindo',
+              data: retencao.map(p=>p.assistindo),
+              borderColor: '#2E7D4F', backgroundColor: 'rgba(46,125,79,.18)',
+              tension: .3, fill: true, pointRadius: 0, borderWidth: 2,
+            }],
+          },
+          options: {
+            plugins: { legend: { display: false } },
+            scales: {
+              x: { grid: { color: '#232320' }, ticks: { color: '#a6a59a', maxTicksLimit: 10 } },
+              y: { grid: { color: '#232320' }, ticks: { color: '#a6a59a' }, beginAtZero: true },
+            },
+            maintainAspectRatio: false,
+          },
+        });
+      }
     }
   },
 

@@ -264,6 +264,7 @@ CREATE TABLE view_sessions (
   id                BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   webinar_id        BIGINT UNSIGNED NOT NULL,
   lead_id           BIGINT UNSIGNED NOT NULL,
+  is_replay         TINYINT(1) NOT NULL DEFAULT 0,           -- sessao de /replay ou da live original (linhas separadas)
   entrou_em         DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   ultimo_marco_pct  TINYINT UNSIGNED NOT NULL DEFAULT 0,     -- 0,25,50,75,100 — grava só nesses marcos
   max_segundos      INT UNSIGNED NOT NULL DEFAULT 0,         -- maior segundo do video ja assistido (ping leve a cada 30s)
@@ -271,12 +272,24 @@ CREATE TABLE view_sessions (
   chegou_oferta_em  DATETIME NULL,                           -- 1a vez que currentTime passou de inicio_oferta_segundos
   clicou_compra_em  DATETIME NULL,                           -- 1a vez que clicou no botao de comprar
   cliques_compra    INT UNSIGNED NOT NULL DEFAULT 0,         -- total de cliques no botao de comprar (nao so o 1o)
+  interagiu_chat_em DATETIME NULL,                           -- 1a vez que mandou mensagem no chat normal
   atualizado_em     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT fk_view_webinar FOREIGN KEY (webinar_id) REFERENCES webinars(id) ON DELETE CASCADE,
   CONSTRAINT fk_view_lead    FOREIGN KEY (lead_id)    REFERENCES leads(id)    ON DELETE CASCADE,
-  UNIQUE KEY uq_view_webinar_lead (webinar_id, lead_id),
+  UNIQUE KEY uq_view_webinar_lead_replay (webinar_id, lead_id, is_replay),
   INDEX idx_view_webinar (webinar_id),
   INDEX idx_view_atualizado (atualizado_em)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ---------------------------------------------------------------------
+-- 13b. VISITAS (topo do funil — tela de cadastro carregada, sem dado pessoal)
+-- ---------------------------------------------------------------------
+CREATE TABLE webinar_visits (
+  id          BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  webinar_id  BIGINT UNSIGNED NOT NULL,
+  criado_em   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_visit_webinar FOREIGN KEY (webinar_id) REFERENCES webinars(id) ON DELETE CASCADE,
+  INDEX idx_visit_webinar (webinar_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ---------------------------------------------------------------------

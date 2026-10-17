@@ -170,6 +170,10 @@ const Sala = {
   },
 
   showRegister(){
+    if(!this._visitTracked && !this.isReplay && !this.isPreview){
+      this._visitTracked = true;
+      fetch('/api/public/webinars/' + encodeURIComponent(this.slug) + '/visit', { method: 'POST' }).catch(()=>{});
+    }
     const cfg = this.info.loginConfig || {};
     document.getElementById('regTitle').textContent = this.info.titulo || 'Aula ao vivo';
     if(this.info.nomeApresentador){
@@ -1072,7 +1076,7 @@ const Sala = {
     fetch('/api/public/webinars/' + encodeURIComponent(this.slug) + '/track-event', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + this.leadToken },
-      body: JSON.stringify({ evento }),
+      body: JSON.stringify({ evento, isReplay: !!this.isReplay }),
     }).catch(()=>{});
   },
 
@@ -1083,7 +1087,7 @@ const Sala = {
       fetch('/api/public/webinars/' + encodeURIComponent(this.slug) + '/presence', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + this.leadToken },
-        body: JSON.stringify({ segundos: Math.floor(this.video?.currentTime || 0) }),
+        body: JSON.stringify({ segundos: Math.floor(this.video?.currentTime || 0), isReplay: !!this.isReplay }),
       }).catch(()=>{});
     };
     ping();
@@ -1099,7 +1103,7 @@ const Sala = {
         fetch('/api/public/webinars/' + encodeURIComponent(this.slug) + '/heartbeat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + this.leadToken },
-          body: JSON.stringify({ marco }),
+          body: JSON.stringify({ marco, isReplay: !!this.isReplay }),
         }).catch(()=>{});
       }
     });
@@ -1233,7 +1237,7 @@ const Sala = {
       fetch('/api/public/webinars/' + encodeURIComponent(this.slug) + '/track-event', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + this.leadToken },
-        body: JSON.stringify({ evento: 'compra' }),
+        body: JSON.stringify({ evento: 'compra', isReplay: !!this.isReplay }),
       }).catch(()=>{});
     }
     if(cfg.modoCheckout === 'embutido'){
@@ -1394,6 +1398,7 @@ const Sala = {
     }
 
     this.pushMsg('Você', val, true);
+    this.trackEvent('chat');
     try{
       const res = await fetch('/api/public/webinars/' + encodeURIComponent(this.slug) + '/chat-lookup', {
         method: 'POST',

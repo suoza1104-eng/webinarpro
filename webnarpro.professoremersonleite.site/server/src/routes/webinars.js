@@ -103,6 +103,69 @@ router.get('/:id/live-count', async (req, res) => {
   res.json({ count: row.count });
 });
 
+// Dashboard de metricas (funil + retencao) de um webinar especifico
+router.get('/:id/metrics', async (req, res) => {
+  const webinarId = await getOwnedWebinarId(req.params.id, req.accountId);
+  if (!webinarId) return res.status(404).json({ error: 'Webinar não encontrado' });
+
+  const [[visitRow]] = await pool.query('SELECT COUNT(*) AS count FROM webinar_visits WHERE webinar_id = ?', [webinarId]);
+  const [[leadRow]] = await pool.query('SELECT COUNT(*) AS count FROM leads WHERE webinar_id = ?', [webinarId]);
+
+  const [[live]] = await pool.query(
+    `SELECT
+       COUNT(DISTINCT CASE WHEN max_segundos > 0 THEN lead_id END) AS assistiu,
+       COUNT(DISTINCT CASE WHEN max_segundos >= 900 THEN lead_id END) AS assistiu15,
+       COUNT(DISTINCT CASE WHEN max_segundos >= 1800 THEN lead_id END) AS assistiu30,
+       COUNT(DISTINCT CASE WHEN max_segundos >= 2700 THEN lead_id END) AS assistiu45,
+       COUNT(DISTINCT CASE WHEN max_segundos >= 3600 THEN lead_id END) AS assistiu60,
+       COUNT(DISTINCT CASE WHEN chegou_pitch_em IS NOT NULL THEN lead_id END) AS estavaPitch,
+       COUNT(DISTINCT CASE WHEN chegou_oferta_em IS NOT NULL THEN lead_id END) AS estavaOferta,
+       COUNT(DISTINCT CASE WHEN clicou_compra_em IS NOT NULL THEN lead_id END) AS clicouBotao,
+       COALESCE(SUM(cliques_compra), 0) AS totalCliques,
+       COUNT(DISTINCT CASE WHEN interagiu_chat_em IS NOT NULL THEN lead_id END) AS interagiuChat
+     FROM view_sessions WHERE webinar_id = ? AND is_replay = 0`,
+    [webinarId],
+  );
+  const [[replay]] = await pool.query(
+    `SELECT COUNT(DISTINCT CASE WHEN max_segundos > 0 THEN lead_id END) AS assistiu
+     FROM view_sessions WHERE webinar_id = ? AND is_replay = 1`,
+    [webinarId],
+  );
+
+  const [maxSegRows] = await pool.query(
+    `SELECT max_segundos FROM view_sessions WHERE webinar_id = ? AND is_replay = 0 AND max_segundos > 0`,
+    [webinarId],
+  );
+  const maxDuracao = maxSegRows.reduce((m, r) => Math.max(m, r.max_segundos), 0);
+  const BUCKETS = 40;
+  const retencao = [];
+  if (maxDuracao > 0 && maxSegRows.length > 0) {
+    for (let i = 0; i <= BUCKETS; i++) {
+      const segundo = Math.round((maxDuracao * i) / BUCKETS);
+      const assistindo = maxSegRows.filter((r) => r.max_segundos >= segundo).length;
+      retencao.push({ segundo, assistindo });
+    }
+  }
+
+  res.json({
+    visitantes: visitRow.count,
+    participantes: leadRow.count,
+    assistiuAoVivo: live.assistiu,
+    assistiuReplay: replay.assistiu,
+    assistiu15min: live.assistiu15,
+    assistiu30min: live.assistiu30,
+    assistiu45min: live.assistiu45,
+    assistiu60min: live.assistiu60,
+    estavaNoPitch: live.estavaPitch,
+    estavaNaOferta: live.estavaOferta,
+    clicouBotaoOferta: live.clicouBotao,
+    totalCliquesCompra: Number(live.totalCliques),
+    interagiuChat: live.interagiuChat,
+    comprou: 0,
+    retencao,
+  });
+});
+
 router.get('/', async (req, res) => {
   const [rows] = await pool.query(
     'SELECT id, nome, titulo, slug, status, criado_em FROM webinars WHERE account_id = ? ORDER BY criado_em DESC',

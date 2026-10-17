@@ -49,6 +49,17 @@ router.get('/webinars/:slug', async (req, res) => {
   });
 });
 
+// 7a-bis — conta uma visita (tela de cadastro carregada, antes de qualquer cadastro) - sem
+// dado pessoal nenhum, so pra ter o "Visitantes" do topo do funil de conversao.
+const visitLimiter = rateLimit({ windowMs: 60 * 1000, limit: 20 });
+
+router.post('/webinars/:slug/visit', visitLimiter, async (req, res) => {
+  const [webinarRows] = await pool.query('SELECT id FROM webinars WHERE slug = ? LIMIT 1', [req.params.slug]);
+  if (webinarRows.length === 0) return res.status(404).json({ error: 'Webinar não encontrado' });
+  await pool.query('INSERT INTO webinar_visits (webinar_id) VALUES (?)', [webinarRows[0].id]);
+  res.json({ ok: true });
+});
+
 // 7b — registro do lead
 const registerLimiter = rateLimit({ windowMs: 60 * 1000, limit: 5 });
 
@@ -267,12 +278,13 @@ const heartbeatLimiter = rateLimit({ windowMs: 60 * 1000, limit: 6 });
 router.post('/webinars/:slug/heartbeat', heartbeatLimiter, requireLeadAuth, async (req, res) => {
   const marco = Number(req.body?.marco);
   if (![0, 25, 50, 75, 100].includes(marco)) return res.status(400).json({ error: 'Marco inválido' });
+  const isReplay = req.body?.isReplay ? 1 : 0;
 
   await pool.query(
-    `INSERT INTO view_sessions (webinar_id, lead_id, ultimo_marco_pct)
-     VALUES (?, ?, ?)
+    `INSERT INTO view_sessions (webinar_id, lead_id, is_replay, ultimo_marco_pct)
+     VALUES (?, ?, ?, ?)
      ON DUPLICATE KEY UPDATE ultimo_marco_pct = GREATEST(ultimo_marco_pct, VALUES(ultimo_marco_pct))`,
-    [req.webinarId, req.leadId, marco],
+    [req.webinarId, req.leadId, isReplay, marco],
   );
 
   res.json({ ok: true });
@@ -284,38 +296,41 @@ const presenceLimiter = rateLimit({ windowMs: 60 * 1000, limit: 12 });
 
 router.post('/webinars/:slug/presence', presenceLimiter, requireLeadAuth, async (req, res) => {
   const segundos = Math.max(0, Math.floor(Number(req.body?.segundos) || 0));
+  const isReplay = req.body?.isReplay ? 1 : 0;
 
   await pool.query(
-    `INSERT INTO view_sessions (webinar_id, lead_id, max_segundos)
-     VALUES (?, ?, ?)
+    `INSERT INTO view_sessions (webinar_id, lead_id, is_replay, max_segundos)
+     VALUES (?, ?, ?, ?)
      ON DUPLICATE KEY UPDATE max_segundos = GREATEST(max_segundos, VALUES(max_segundos)), atualizado_em = CURRENT_TIMESTAMP`,
-    [req.webinarId, req.leadId, segundos],
+    [req.webinarId, req.leadId, isReplay, segundos],
   );
 
   res.json({ ok: true });
 });
 
-// 7e-ter — marcos de funil: chegou no pitch, chegou na oferta, clicou em comprar.
-// So grava a primeira vez (COALESCE) pra cada marco de "chegou", exceto cliques em comprar,
+// 7e-ter — marcos de funil: chegou no pitch, chegou na oferta, clicou em comprar, interagiu no
+// chat. So grava a primeira vez (COALESCE) pra cada marco de "chegou", exceto cliques em comprar,
 // que conta todas as vezes (cliques_compra) alem de guardar a primeira (clicou_compra_em).
 const trackEventLimiter = rateLimit({ windowMs: 60 * 1000, limit: 20 });
 const TRACK_EVENT_COLUMNS = {
   pitch: 'chegou_pitch_em',
   oferta: 'chegou_oferta_em',
   compra: 'clicou_compra_em',
+  chat: 'interagiu_chat_em',
 };
 
 router.post('/webinars/:slug/track-event', trackEventLimiter, requireLeadAuth, async (req, res) => {
   const evento = String(req.body?.evento || '');
   const column = TRACK_EVENT_COLUMNS[evento];
   if (!column) return res.status(400).json({ error: 'Evento inválido' });
+  const isReplay = req.body?.isReplay ? 1 : 0;
 
   const extraSet = evento === 'compra' ? ', cliques_compra = cliques_compra + 1' : '';
   await pool.query(
-    `INSERT INTO view_sessions (webinar_id, lead_id, ${column}${evento === 'compra' ? ', cliques_compra' : ''})
-     VALUES (?, ?, CURRENT_TIMESTAMP${evento === 'compra' ? ', 1' : ''})
+    `INSERT INTO view_sessions (webinar_id, lead_id, is_replay, ${column}${evento === 'compra' ? ', cliques_compra' : ''})
+     VALUES (?, ?, ?, CURRENT_TIMESTAMP${evento === 'compra' ? ', 1' : ''})
      ON DUPLICATE KEY UPDATE ${column} = COALESCE(${column}, CURRENT_TIMESTAMP)${extraSet}`,
-    [req.webinarId, req.leadId],
+    [req.webinarId, req.leadId, isReplay],
   );
 
   res.json({ ok: true });
