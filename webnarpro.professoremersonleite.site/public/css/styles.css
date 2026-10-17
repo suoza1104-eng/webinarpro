@@ -186,6 +186,10 @@ input,select,textarea{font-family:inherit;}
 .input-search{display:flex;align-items:center;gap:8px;background:var(--bg-elev-2);border:1px solid var(--border);
   border-radius:var(--radius-sm);padding:0 12px;min-width:220px;}
 .input-search svg{width:14px;height:14px;color:var(--text-faint);flex-shrink:0;}
+.url-prefix-group{display:flex;align-items:stretch;}
+.url-prefix{background:var(--bg-elev-3);border:1px solid var(--border);border-right:none;border-radius:var(--radius-sm) 0 0 var(--radius-sm);
+  padding:9px 0 9px 12px;font-size:12.5px;color:var(--text-faint);white-space:nowrap;display:flex;align-items:center;}
+.url-prefix-group .input{border-radius:0 var(--radius-sm) var(--radius-sm) 0;flex:1;min-width:0;}
 .input-search input{background:none;border:none;color:var(--text);padding:9px 0;font-size:13px;width:100%;}
 .input-search input::placeholder{color:var(--text-faint);}
 

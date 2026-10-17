@@ -506,6 +506,7 @@ const App = {
     this.wz.slug = w.slug;
     this.wz.nome = w.nome;
     document.getElementById('w_nome').value = w.nome;
+    document.getElementById('w_slug').value = w.slug;
     this.showView('wizard');
     this.toast('Carregando "'+w.nome+'"...');
 
@@ -617,7 +618,11 @@ const App = {
   },
   webinarLinks(slug){
     const base = `${window.location.origin}/${slug}`;
-    return { principal: base, magic: `${base}?magic=1`, replay: `${base}/replay` };
+    return {
+      principal: base,
+      magic: `${base}?magic=1&nome=NOME_USUARIO&email=EMAIL_USUARIO&telefone=TELEFONE_USUARIO`,
+      replay: `${base}/replay`,
+    };
   },
   openLinksModal(slug){
     const links = this.webinarLinks(slug);
@@ -720,7 +725,9 @@ const App = {
     this.wz = {step:0, id:null, slug:null, videoId:null, nome:'', titulo:'', url:'', apresentador:'', tipo:'Único', duracao:150, espectadores:500, produto:'Comunidade FERA', preco:'R$ 997,00', video:null, startMode:'immediate', audienceType:'dinamica'};
     document.getElementById('w_nome').value='';
     document.getElementById('w_titulo').value='';
-    document.getElementById('w_url').value='';
+    document.getElementById('w_slug').value='';
+    const slugPrefixEl = document.getElementById('w_slugPrefix');
+    if(slugPrefixEl) slugPrefixEl.textContent = window.location.origin + '/';
     const apresentadorEl = document.getElementById('w_apresentador');
     if(apresentadorEl) apresentadorEl.value = '';
     const dataInicio = document.getElementById('w_dataInicio');
@@ -839,11 +846,17 @@ const App = {
   async saveBasicConfig(){
     if(!this.wz.id) return this.createWebinarDraft();
     try{
-      await this.apiFetch(`/api/webinars/${this.wz.id}`, {method:'PUT', body: JSON.stringify({
+      const data = await this.apiFetch(`/api/webinars/${this.wz.id}`, {method:'PUT', body: JSON.stringify({
         nome: this.wz.nome,
         titulo: this.wz.titulo || undefined,
         nome_apresentador: this.wz.apresentador || undefined,
+        slug: this.wz.slug || undefined,
       })});
+      if(data && data.slug){
+        this.wz.slug = data.slug;
+        const slugEl = document.getElementById('w_slug');
+        if(slugEl) slugEl.value = data.slug;
+      }
       return true;
     }catch(e){
       this.toast('Erro ao salvar início: ' + e.message);
@@ -857,9 +870,12 @@ const App = {
         nome: this.wz.nome,
         titulo: this.wz.titulo || undefined,
         nome_apresentador: this.wz.apresentador || undefined,
+        slug: this.wz.slug || undefined,
       })});
       this.wz.id = data.id;
       this.wz.slug = data.slug;
+      const slugEl = document.getElementById('w_slug');
+      if(slugEl) slugEl.value = data.slug;
       return true;
     }catch(e){
       this.toast('Erro ao criar webinar: ' + e.message);

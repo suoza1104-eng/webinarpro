@@ -11,7 +11,7 @@
 <script src="https://cdn.jsdelivr.net/npm/tus-js-client@4.1.0/dist/tus.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js"></script>
-<link rel="stylesheet" href="css/styles.css?v=15">
+<link rel="stylesheet" href="css/styles.css?v=16">
 </head>
 <body data-theme="dark">
 <div class="hazard-strip"></div>
@@ -227,7 +227,11 @@
             </div>
             <div class="field">
               <label>URL amigável <span class="req">*</span></label>
-              <input class="input" id="w_url" placeholder="https://suaempresa.webnarpro.com.br/meu-evento-aqui" oninput="App.wz.url=this.value">
+              <div class="url-prefix-group">
+                <span class="url-prefix" id="w_slugPrefix"></span>
+                <input class="input" id="w_slug" placeholder="meu-evento-aqui" oninput="App.wz.slug=this.value">
+              </div>
+              <div style="font-size:11px;color:var(--text-faint);margin-top:4px;">Deixe em branco para gerar automaticamente a partir do nome do webinar.</div>
             </div>
             <div class="field-row">
               <div class="field">
@@ -761,7 +765,7 @@
             <div class="field">
               <label>Sala com Magic Link</label>
               <div class="copy-row"><input class="input" id="linkMagic" readonly><button class="btn btn-sm" onclick="App.copyLink('linkMagic')"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 00-2-2H6a2 2 0 00-2 2v8a2 2 0 002 2h2"/></svg></button></div>
-              <div class="hint">Inclui nome, e-mail e telefone na URL para pré-preencher o formulário.</div>
+              <div class="hint">Troque NOME_USUARIO, EMAIL_USUARIO e TELEFONE_USUARIO pelas variáveis da sua ferramenta de e-mail/automação antes de disparar — o aluno entra direto, sem preencher formulário.</div>
             </div>
             <div class="field">
               <label>Sala com Replay</label>
@@ -1139,7 +1143,7 @@
       <div class="field">
         <label>Sala com Magic Link</label>
         <div style="display:flex;gap:8px;"><input class="input" id="linksModalMagic" readonly style="width:100%;"><button class="btn btn-sm" onclick="App.copyLink('linksModalMagic')">Copiar</button></div>
-        <div style="font-size:11px;color:var(--text-faint);margin-top:4px;">Adicione &amp;nome=&amp;email=&amp;whatsapp= com os dados do lead (ex: via e-mail marketing) pra cadastro automático, sem formulário.</div>
+        <div style="font-size:11px;color:var(--text-faint);margin-top:4px;">Troque NOME_USUARIO, EMAIL_USUARIO e TELEFONE_USUARIO pelas variáveis da sua ferramenta de e-mail/automação antes de disparar — o aluno entra direto, sem preencher formulário.</div>
       </div>
       <div class="field">
         <label>Sala com Replay</label>
@@ -1198,6 +1202,6 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="js/app.js?v=14"></script>
+<script src="js/app.js?v=15"></script>
 </body>
 </html>

@@ -17,13 +17,15 @@ function slugify(text) {
     .replace(/(^-|-$)/g, '');
 }
 
-async function uniqueSlug(accountId, base) {
+async function uniqueSlug(accountId, base, excludeId = null) {
   let slug = base;
   let n = 1;
   while (true) {
     const [rows] = await pool.query(
-      'SELECT id FROM webinars WHERE account_id = ? AND slug = ? LIMIT 1',
-      [accountId, slug],
+      excludeId
+        ? 'SELECT id FROM webinars WHERE account_id = ? AND slug = ? AND id != ? LIMIT 1'
+        : 'SELECT id FROM webinars WHERE account_id = ? AND slug = ? LIMIT 1',
+      excludeId ? [accountId, slug, excludeId] : [accountId, slug],
     );
     if (rows.length === 0) return slug;
     n += 1;
@@ -100,6 +102,7 @@ router.get('/', async (req, res) => {
 // ETAPA 2 (agendamento) + ETAPA 8 (audiência) — mesmo registro principal
 const updateSchema = z.object({
   nome: z.string().min(1).max(150).optional(),
+  slug: z.string().min(1).max(150).optional(),
   titulo: z.string().max(255).optional(),
   idioma: z.string().max(10).optional(),
   nome_apresentador: z.string().max(120).optional(),
@@ -149,11 +152,19 @@ router.put('/:id', async (req, res) => {
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   const data = parsed.data;
 
-  const fields = Object.keys(data).filter((k) => COLUMN_MAP[k]);
-  if (fields.length === 0) return res.status(400).json({ error: 'Nenhum campo para atualizar' });
+  const fields = Object.keys(data).filter((k) => COLUMN_MAP[k] && k !== 'slug');
+  let newSlug = null;
+  if (data.slug) {
+    const baseSlug = slugify(data.slug);
+    if (!baseSlug) return res.status(400).json({ error: 'URL amigável inválida' });
+    newSlug = await uniqueSlug(req.accountId, baseSlug, req.params.id);
+  }
+  if (fields.length === 0 && !newSlug) return res.status(400).json({ error: 'Nenhum campo para atualizar' });
 
-  const setClause = fields.map((f) => `${COLUMN_MAP[f]} = ?`).join(', ');
-  const values = fields.map((f) => {
+  const setFields = [...fields, ...(newSlug ? ['slug'] : [])];
+  const setClause = setFields.map((f) => `${COLUMN_MAP[f] || 'slug'} = ?`).join(', ');
+  const values = setFields.map((f) => {
+    if (f === 'slug') return newSlug;
     if (typeof data[f] === 'boolean') return data[f] ? 1 : 0;
     if ((f === 'data_inicio' || f === 'data_fim') && data[f]) return new Date(data[f]);
     return data[f];
@@ -165,7 +176,7 @@ router.put('/:id', async (req, res) => {
   );
   if (result.affectedRows === 0) return res.status(404).json({ error: 'Webinar não encontrado' });
 
-  res.json({ ok: true });
+  res.json({ ok: true, slug: newSlug || undefined });
 });
 
 // ETAPA 12 — publicação
@@ -188,7 +199,7 @@ router.post('/:id/publish', async (req, res) => {
 
   res.json({
     salaPrincipal: baseUrl,
-    magicLink: `${baseUrl}?magic=1`,
+    magicLink: `${baseUrl}?magic=1&nome=NOME_USUARIO&email=EMAIL_USUARIO&telefone=TELEFONE_USUARIO`,
     replay: `${baseUrl}/replay`,
   });
 });
