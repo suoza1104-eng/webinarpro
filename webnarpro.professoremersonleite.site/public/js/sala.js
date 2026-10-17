@@ -23,6 +23,13 @@ const Sala = {
     this.isReplay = parts[1] === 'replay';
     const params = new URLSearchParams(window.location.search);
     this.isPreview = params.has('preview');
+    this.isMagic = params.has('magic');
+    this.magicData = {
+      nome: (params.get('nome') || '').trim(),
+      email: (params.get('email') || '').trim(),
+      whatsapp: (params.get('whatsapp') || params.get('telefone') || '').trim(),
+      empresa: (params.get('empresa') || '').trim(),
+    };
     this.abAssignmentId = params.get('ab_assignment') ? Number(params.get('ab_assignment')) : null;
     if(!this.slug){ this.showError('Link inválido.'); return; }
     this.leadToken = localStorage.getItem('wp_lead_' + this.slug) || null;
@@ -78,6 +85,11 @@ const Sala = {
       return;
     }
 
+    if(this.isMagic && this.magicData.nome && this.magicData.email && !this.leadToken){
+      await this.autoRegisterMagic();
+      return;
+    }
+
     if(this.leadToken){
       const ok = await this.loadRoom();
       if(ok) return;
@@ -103,6 +115,31 @@ const Sala = {
     this.showRegister();
   },
 
+  async autoRegisterMagic(){
+    try{
+      const res = await fetch('/api/public/webinars/' + encodeURIComponent(this.slug) + '/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nome: this.magicData.nome,
+          email: this.magicData.email,
+          whatsapp: this.magicData.whatsapp || undefined,
+          empresa: this.magicData.empresa || undefined,
+          ab_assignment_id: this.abAssignmentId || undefined,
+        }),
+      });
+      const data = await res.json();
+      if(res.ok && data.token){
+        this.leadToken = data.token;
+        localStorage.setItem('wp_lead_' + this.slug, this.leadToken);
+        await this.loadRoom();
+        return;
+      }
+    }catch(e){}
+    // Dados do magic link invalidos/rejeitados - cai pro formulario normal, ja preenchido.
+    this.showRegister();
+  },
+
   showRegister(){
     const cfg = this.info.loginConfig || {};
     document.getElementById('regTitle').textContent = this.info.titulo || 'Aula ao vivo';
@@ -116,6 +153,12 @@ const Sala = {
     }
     document.getElementById('regWhatsField').style.display = cfg.pedir_whatsapp ? 'block' : 'none';
     document.getElementById('regEmpresaField').style.display = cfg.pedir_empresa ? 'block' : 'none';
+    if(this.magicData){
+      if(this.magicData.nome) document.getElementById('regNome').value = this.magicData.nome;
+      if(this.magicData.email) document.getElementById('regEmail').value = this.magicData.email;
+      if(this.magicData.whatsapp) document.getElementById('regWhats').value = this.magicData.whatsapp;
+      if(this.magicData.empresa) document.getElementById('regEmpresa').value = this.magicData.empresa;
+    }
     const btn = document.getElementById('regSubmitBtn');
     if(cfg.titulo_botao) btn.textContent = cfg.titulo_botao;
     if(cfg.cor_botao){ btn.style.background = cfg.cor_botao; btn.style.borderColor = cfg.cor_botao; }
