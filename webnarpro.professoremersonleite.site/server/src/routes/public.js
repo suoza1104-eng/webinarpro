@@ -352,7 +352,7 @@ const TRACK_EVENT_COLUMNS = {
   chat: 'interagiu_chat_em',
 };
 
-const SINO_EVENT_MAP = { oferta: 'oferta', compra: 'clicou_botao' };
+const SINO_EVENT_MAP = { oferta: 'oferta', compra: 'clicou_botao', pitch: 'pitch', chat: 'chat' };
 
 router.post('/webinars/:slug/track-event', trackEventLimiter, requireLeadAuth, async (req, res) => {
   const evento = String(req.body?.evento || '');
