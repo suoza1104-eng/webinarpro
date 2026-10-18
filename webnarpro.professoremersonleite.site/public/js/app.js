@@ -1991,7 +1991,7 @@ const App = {
       const box = document.getElementById('attendMsgs');
       const wasNearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 60;
       box.innerHTML = data.mensagens.map(m=>`
-        <div class="ai-bubble ${m.remetente==='suporte' ? 'mine' : ''}"><div class="b-txt">${escapeHtmlAdmin(m.mensagem)}</div></div>
+        <div class="ai-bubble ${m.remetente==='suporte' ? 'mine' : ''}"><div class="b-col"><div class="b-txt">${escapeHtmlAdmin(m.mensagem)}</div><div class="b-time">${new Date(m.criado_em).toLocaleString('pt-BR', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'})}</div></div></div>
       `).join('') || '<div class="empty-state">Nenhuma mensagem ainda.</div>';
       if(!silent || wasNearBottom) box.scrollTop = box.scrollHeight;
     }catch(e){

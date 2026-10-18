@@ -380,8 +380,11 @@ tbody tr:hover{background:var(--bg-elev-2);}
 .ai-bubble .b-ico{width:28px;height:28px;border-radius:50%;background:var(--yellow-soft);color:var(--yellow);flex-shrink:0;
   display:flex;align-items:center;justify-content:center;}
 .ai-bubble .b-ico svg{width:14px;height:14px;}
-.ai-bubble .b-txt{background:var(--bg-elev-2);border:1px solid var(--border-soft);border-radius:var(--radius-sm);padding:9px 13px;font-size:12.5px;max-width:78%;}
+.ai-bubble .b-col{display:flex;flex-direction:column;max-width:78%;}
+.ai-bubble .b-txt{background:var(--bg-elev-2);border:1px solid var(--border-soft);border-radius:var(--radius-sm);padding:9px 13px;font-size:12.5px;}
+.ai-bubble .b-time{font-size:10px;color:var(--text-faint);margin-top:3px;padding:0 2px;}
 .ai-bubble.mine{flex-direction:row-reverse;}
+.ai-bubble.mine .b-col{align-items:flex-end;}
 .ai-bubble.mine .b-txt{background:var(--yellow-soft);color:var(--yellow);}
 
 /* ===================== SIMULADOR ===================== */

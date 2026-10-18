@@ -293,6 +293,24 @@ CREATE TABLE webinar_visits (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ---------------------------------------------------------------------
+-- 13b. FILA DE REENVIO DO WEBHOOK DO SINO
+-- Eventos que falharam ao enviar pro sino (timeout/erro) ficam aqui pra
+-- reenvio em segundo plano com backoff crescente, ate confirmar entrega.
+-- ---------------------------------------------------------------------
+CREATE TABLE sino_webhook_outbox (
+  id                    BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  evento                VARCHAR(30) NOT NULL,
+  payload               JSON NOT NULL,
+  tentativas            INT UNSIGNED NOT NULL DEFAULT 0,
+  status                ENUM('pendente', 'enviado', 'falhou_definitivo') NOT NULL DEFAULT 'pendente',
+  proxima_tentativa_em  DATETIME NOT NULL,
+  criado_em             DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  enviado_em            DATETIME NULL,
+  ultimo_erro           VARCHAR(255) NULL,
+  INDEX idx_outbox_pendente (status, proxima_tentativa_em)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ---------------------------------------------------------------------
 -- 14. HISTÓRICO DE AÇÕES (auditoria do painel)
 -- ---------------------------------------------------------------------
 CREATE TABLE historico_acoes (

@@ -1415,6 +1415,11 @@ const Sala = {
 
     this.pushMsg('Você', val, true);
     this.trackEvent('chat');
+    fetch('/api/public/webinars/' + encodeURIComponent(this.slug) + '/support-message', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + this.leadToken },
+      body: JSON.stringify({ mensagem: val }),
+    }).catch(()=>{});
     try{
       const res = await fetch('/api/public/webinars/' + encodeURIComponent(this.slug) + '/chat-lookup', {
         method: 'POST',
