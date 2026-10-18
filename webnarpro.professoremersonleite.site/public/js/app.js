@@ -599,7 +599,7 @@ const App = {
       }
 
       // Chat / Vendas / Chatbot
-      this.chatMsgs = (chat || []).map(c=>({t:this.secondsToTime(c.segundo_exibicao), n:c.nome_exibido, m:c.mensagem, s:!!c.eh_suporte}));
+      this.chatMsgs = (chat || []).map(c=>({t:this.secondsToTime(Math.abs(c.segundo_exibicao)), n:c.nome_exibido, m:c.mensagem, s:!!c.eh_suporte, pre:c.segundo_exibicao<0}));
       this.sales = (sales || []).map(s=>({t:this.secondsToTime(s.segundo_exibicao), n:s.nome_exibido}));
       this.keywords = (keywords || []).map(k=>({rem:k.remetente_exibido, kw:k.palavra_chave, resp:k.resposta_automatica, delay:(k.delay_segundos ?? 5)+'s'}));
       this.renderChatList();
@@ -1263,7 +1263,7 @@ const App = {
     try{
       await this.apiFetch(`/api/webinars/${this.wz.id}/chat-messages`, {method:'PUT', body: JSON.stringify({
         messages: this.chatMsgs.map(c=>({
-          segundo_exibicao: this.parseTimeToSeconds(c.t),
+          segundo_exibicao: (c.pre ? -1 : 1) * this.parseTimeToSeconds(c.t),
           nome_exibido: c.n,
           mensagem: c.m,
           eh_suporte: !!c.s,
@@ -1616,22 +1616,33 @@ const App = {
     const n = document.getElementById('chatName').value.trim() || 'Espectador';
     const m = document.getElementById('chatMsg').value.trim();
     const s = document.getElementById('chatIsSuporte').checked;
+    const pre = document.getElementById('chatIsPreLive').checked;
     if(!m) return this.toast('Escreva uma mensagem primeiro');
-    this.chatMsgs.push({t,n,m,s});
+    this.chatMsgs.push({t,n,m,s,pre});
     this.sortChatMsgs();
     document.getElementById('chatTime').value='';
     document.getElementById('chatName').value='';
     document.getElementById('chatMsg').value='';
     document.getElementById('chatIsSuporte').checked = false;
+    document.getElementById('chatIsPreLive').checked = false;
+    this.togglePreLiveLabel();
     this.renderChatList();
   },
+  togglePreLiveLabel(){
+    const pre = document.getElementById('chatIsPreLive')?.checked;
+    const label = document.getElementById('chatTimeLabel');
+    if(label) label.textContent = pre ? 'Minutos antes de começar (mm:ss)' : 'Tempo (hh:mm:ss)';
+  },
+  // Pré-live (pre:true) é tratado como "negativo" (antes do início) e sempre vem antes
+  // do zero; entre mensagens do mesmo tipo, ordena pelo tempo normalmente.
   sortChatMsgs(){
-    this.chatMsgs.sort((a,b)=>this.parseTimeToSeconds(a.t)-this.parseTimeToSeconds(b.t));
+    const eff = (c)=>(c.pre ? -1 : 1) * this.parseTimeToSeconds(c.t);
+    this.chatMsgs.sort((a,b)=>eff(a)-eff(b));
   },
   renderChatList(){
     document.getElementById('chatList').innerHTML = this.chatMsgs.map((c,i)=>`
-      <div class="chat-row ${c.s?'suporte':''}"><span class="c-time">${c.t}</span>
-      <span class="c-body"><b>${c.n}:</b> ${c.m}${c.s?'<span class="c-badge">SUPORTE</span>':''}</span>
+      <div class="chat-row ${c.s?'suporte':''}"><span class="c-time">${c.pre ? '-'+c.t : c.t}</span>
+      <span class="c-body"><b>${c.n}:</b> ${c.m}${c.s?'<span class="c-badge">SUPORTE</span>':''}${c.pre?'<span class="c-badge" style="background:var(--yellow-soft);color:var(--yellow);">PRÉ-LIVE</span>':''}</span>
       <button class="c-del" onclick="App.delChatMsg(${i})">${ICONS.trash}</button></div>
     `).join('') || `<div class="empty-state">Nenhuma mensagem ainda — adicione manualmente ou envie uma planilha.</div>`;
   },

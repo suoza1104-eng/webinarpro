@@ -568,10 +568,11 @@
 
               <div id="chatCreateIndividual">
                 <div class="chat-msg-form">
-                  <div class="field time"><label>Tempo (hh:mm:ss)</label><input class="input" id="chatTime" placeholder="00:00:00" style="width:100%;" oninput="App.maskTimeInput(this)"></div>
+                  <div class="field time"><label id="chatTimeLabel">Tempo (hh:mm:ss)</label><input class="input" id="chatTime" placeholder="00:00:00" style="width:100%;" oninput="App.maskTimeInput(this)"></div>
                   <div class="field"><label>Nome</label><input class="input" id="chatName" placeholder="Maria" style="width:100%;"></div>
                   <div class="field" style="flex:2;"><label>Mensagem</label><input class="input" id="chatMsg" placeholder="Consegui chegar a tempo! 🙌" style="width:100%;"></div>
                   <label style="display:flex;align-items:center;gap:6px;font-size:12px;white-space:nowrap;padding-bottom:9px;"><input type="checkbox" id="chatIsSuporte" style="width:auto;"> É do suporte?</label>
+                  <label style="display:flex;align-items:center;gap:6px;font-size:12px;white-space:nowrap;padding-bottom:9px;"><input type="checkbox" id="chatIsPreLive" style="width:auto;" onchange="App.togglePreLiveLabel()"> Antes da live começar?</label>
                   <button class="btn btn-primary" style="height:37px;" onclick="App.addChatMsg()">Adicionar</button>
                 </div>
               </div>
@@ -1262,6 +1263,6 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="js/app.js?v=21"></script>
+<script src="js/app.js?v=22"></script>
 </body>
 </html>

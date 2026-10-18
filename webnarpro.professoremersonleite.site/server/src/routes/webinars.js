@@ -542,8 +542,10 @@ router.put('/:id/offer-config', async (req, res) => {
 });
 
 const chatMessagesSchema = z.object({
+  // segundo_exibicao negativo = mensagem de pré-live, exibida X segundos ANTES do horário
+  // agendado de início (ex: -1800 = 30min antes), disparada por relógio, não pela posição do vídeo.
   messages: z.array(z.object({
-    segundo_exibicao: z.number().int().nonnegative(),
+    segundo_exibicao: z.number().int().min(-86400),
     nome_exibido: z.string().min(1).max(80),
     mensagem: z.string().min(1).max(500),
     eh_suporte: z.boolean().optional(),

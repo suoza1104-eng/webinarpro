@@ -175,7 +175,7 @@ CREATE TABLE webinar_offer_config (
 CREATE TABLE webinar_chat_messages (
   id                BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   webinar_id        BIGINT UNSIGNED NOT NULL,
-  segundo_exibicao  INT UNSIGNED NOT NULL,                  -- segundos desde o início do vídeo
+  segundo_exibicao  INT NOT NULL,                           -- segundos desde o início do vídeo (negativo = antes da live começar, disparado por relógio)
   nome_exibido      VARCHAR(80) NOT NULL,
   mensagem          VARCHAR(500) NOT NULL,
   eh_suporte        TINYINT(1) NOT NULL DEFAULT 0,           -- true = mensagem destacada "Suporte - ..."

@@ -463,6 +463,11 @@ const Sala = {
       const now = Date.now();
       if(now < startMs){
         this.renderScheduledWait(startMs);
+        // Mensagens de pré-live (segundoExibicao negativo) disparam por relógio, não por
+        // posição de vídeo — reaproveita checkScheduledContent com um "tempo" negativo
+        // (segundos até o início). Quando a live comeca, o indice ja esta avancado e o
+        // chat simulado normal continua dali, sem repetir nada.
+        this.checkScheduledContent((now - startMs) / 1000);
         return;
       }
 
