@@ -500,6 +500,12 @@ const App = {
     const ss = String(secs%60).padStart(2,'0');
     return `${hh}:${mm}:${ss}`;
   },
+  // Igual secondsToTime, mas preserva o sinal — usado no eixo do gráfico de retenção,
+  // onde segundos negativos representam o trecho antes da live começar.
+  formatRetencaoLabel(secs){
+    secs = Math.round(Number(secs) || 0);
+    return (secs < 0 ? '-' : '') + this.secondsToTime(Math.abs(secs));
+  },
   isoToLocalDateTimeInput(iso){
     if(!iso) return '';
     const d = new Date(iso);
@@ -789,19 +795,38 @@ const App = {
       emptyEl.style.display = 'none';
       canvasEl.style.display = 'block';
       if(window.Chart){
+        const zeroIdx = retencao.findIndex(p=>p.segundo >= 0);
         this._metricsChart = new Chart(canvasEl, {
           type: 'line',
           data: {
-            labels: retencao.map(p=>this.secondsToTime(p.segundo)),
+            labels: retencao.map(p=>this.formatRetencaoLabel(p.segundo)),
             datasets: [{
               label: 'Assistindo',
               data: retencao.map(p=>p.assistindo),
               borderColor: '#2E7D4F', backgroundColor: 'rgba(46,125,79,.18)',
-              tension: .3, fill: true, pointRadius: 0, borderWidth: 2,
+              tension: .3, fill: true, pointRadius: 0, pointHoverRadius: 5,
+              pointHoverBackgroundColor: '#2E7D4F', pointHoverBorderColor: '#fff', pointHoverBorderWidth: 2,
+              borderWidth: 2,
+              // Trecho pre-live (antes do segundo 0) em estilo tracejado pra diferenciar da retencao ao vivo.
+              segment: zeroIdx > 0 ? { borderDash: (ctx)=> ctx.p1DataIndex < zeroIdx ? [5,4] : undefined } : undefined,
             }],
           },
           options: {
-            plugins: { legend: { display: false } },
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                backgroundColor: '#1a1a18', titleColor: '#fff', bodyColor: '#e6e5dd',
+                borderColor: '#3a3a35', borderWidth: 1, padding: 10, displayColors: false,
+                callbacks: {
+                  title: (items)=> {
+                    const p = retencao[items[0].dataIndex];
+                    return p.segundo < 0 ? `${Math.round(-p.segundo/60)} min antes do início` : this.formatRetencaoLabel(p.segundo);
+                  },
+                  label: (item)=> `${item.parsed.y.toLocaleString('pt-BR')} assistindo`,
+                },
+              },
+            },
+            interaction: { mode: 'index', intersect: false },
             scales: {
               x: { grid: { color: '#232320' }, ticks: { color: '#a6a59a', maxTicksLimit: 10 } },
               y: { grid: { color: '#232320' }, ticks: { color: '#a6a59a' }, beginAtZero: true },

@@ -141,6 +141,8 @@ router.get('/:id/metrics', async (req, res) => {
   const webinarId = await getOwnedWebinarId(req.params.id, req.accountId);
   if (!webinarId) return res.status(404).json({ error: 'Webinar não encontrado' });
 
+  const [[webinarRow]] = await pool.query('SELECT data_inicio FROM webinars WHERE id = ?', [webinarId]);
+
   const [[visitRow]] = await pool.query('SELECT COUNT(*) AS count FROM webinar_visits WHERE webinar_id = ?', [webinarId]);
   const [[leadRow]] = await pool.query('SELECT COUNT(*) AS count FROM leads WHERE webinar_id = ?', [webinarId]);
 
@@ -172,6 +174,26 @@ router.get('/:id/metrics', async (req, res) => {
   const maxDuracao = maxSegRows.reduce((m, r) => Math.max(m, r.max_segundos), 0);
   const BUCKETS = 40;
   const retencao = [];
+
+  // Trecho pre-live: quantos ja tinham entrado na sala (entrou_em, preenchido automaticamente
+  // assim que a 1a sessao e criada, mesmo antes do video comecar) nos minutos antes do inicio
+  // agendado - mostra a "formacao de plateia" chegando, nao so a retencao depois que comeca.
+  const PRE_WINDOW_MIN = 60;
+  const PRE_BUCKETS = 12;
+  if (webinarRow?.data_inicio) {
+    const [entrouRows] = await pool.query(
+      `SELECT entrou_em FROM view_sessions WHERE webinar_id = ? AND is_replay = 0`,
+      [webinarId],
+    );
+    const inicioMs = new Date(webinarRow.data_inicio).getTime();
+    for (let i = 0; i < PRE_BUCKETS; i++) {
+      const minutosAntes = PRE_WINDOW_MIN - (PRE_WINDOW_MIN * i) / PRE_BUCKETS;
+      const checkpointMs = inicioMs - minutosAntes * 60000;
+      const presentes = entrouRows.filter((r) => new Date(r.entrou_em).getTime() <= checkpointMs).length;
+      retencao.push({ segundo: -Math.round(minutosAntes * 60), assistindo: presentes });
+    }
+  }
+
   if (maxDuracao > 0 && maxSegRows.length > 0) {
     for (let i = 0; i <= BUCKETS; i++) {
       const segundo = Math.round((maxDuracao * i) / BUCKETS);
