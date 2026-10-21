@@ -321,6 +321,7 @@ const videoConfigSchema = z.object({
   bloquear_avanco_video: z.boolean().optional(),
   modo_youtube: z.boolean().optional(),
   modo_youtube_bloqueio_segundo: z.number().int().nonnegative().nullable().optional(),
+  modo_youtube_bloqueio_tipo: z.enum(['pitch', 'oferta', 'especifico']).nullable().optional(),
 });
 
 router.put('/:id/video', async (req, res) => {
@@ -344,6 +345,7 @@ router.put('/:id/video', async (req, res) => {
     bloquear_avanco_video: 'bloquear_avanco_video',
     modo_youtube: 'modo_youtube',
     modo_youtube_bloqueio_segundo: 'modo_youtube_bloqueio_segundo',
+    modo_youtube_bloqueio_tipo: 'modo_youtube_bloqueio_tipo',
   };
   const fields = Object.keys(data).filter((k) => fieldMap[k]);
   if (fields.length === 0) return res.status(400).json({ error: 'Nenhum campo para atualizar' });
@@ -764,16 +766,16 @@ router.post('/:id/duplicate', async (req, res) => {
         account_id, nome, titulo, slug, idioma, nome_apresentador, avatar_apresentador_url,
         tipo_agendamento, repeticao_automatica, data_inicio, data_fim, fuso_horario,
         usar_sala_espera, video_id, video_autoplay, video_fullscreen, ocultar_barra_progresso,
-        bloquear_avanco_video, modo_youtube, modo_youtube_bloqueio_segundo, tipo_audiencia,
+        bloquear_avanco_video, modo_youtube, modo_youtube_bloqueio_segundo, modo_youtube_bloqueio_tipo, tipo_audiencia,
         audiencia_min_participantes, audiencia_max_participantes, mostrar_botao_ao_vivo,
         habilitar_reacoes, suporte_cor_destaque, suporte_cor_transparencia, tema_sala, status, criado_por
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         req.accountId, newName, orig.titulo, newSlug, orig.idioma, orig.nome_apresentador,
         orig.avatar_apresentador_url, orig.tipo_agendamento, orig.repeticao_automatica,
         orig.data_inicio, orig.data_fim, orig.fuso_horario, orig.usar_sala_espera,
         orig.video_id, orig.video_autoplay, orig.video_fullscreen, orig.ocultar_barra_progresso,
-        orig.bloquear_avanco_video, orig.modo_youtube, orig.modo_youtube_bloqueio_segundo,
+        orig.bloquear_avanco_video, orig.modo_youtube, orig.modo_youtube_bloqueio_segundo, orig.modo_youtube_bloqueio_tipo,
         orig.tipo_audiencia, orig.audiencia_min_participantes, orig.audiencia_max_participantes,
         orig.mostrar_botao_ao_vivo, orig.habilitar_reacoes, orig.suporte_cor_destaque,
         orig.suporte_cor_transparencia, orig.tema_sala, 'rascunho', req.userId

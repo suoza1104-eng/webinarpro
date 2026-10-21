@@ -372,8 +372,17 @@
                     <label class="toggle"><input type="checkbox" id="chkModoYoutube" onchange="document.getElementById('bloqueioSegundoField').style.display=this.checked?'block':'none'"><span class="track"><span class="thumb"></span></span></label>
                   </div>
                   <div class="field" id="bloqueioSegundoField" style="display:none;margin-bottom:0;">
-                    <label>Travar avanço a partir de (segundos no vídeo)</label>
-                    <input class="input" type="number" min="0" id="inputBloqueioSegundo" placeholder="Ex: 1800 (30 min) — deixe em branco pra não travar" style="width:100%;">
+                    <label>Travar avanço a partir de</label>
+                    <select class="input" id="selectBloqueioTipo" style="width:100%;" onchange="App.toggleBloqueioEspecifico()">
+                      <option value="">Não travar</option>
+                      <option value="pitch">Momento do pitch (já configurado na Oferta)</option>
+                      <option value="oferta">Momento da oferta (já configurado na Oferta)</option>
+                      <option value="especifico">Momento específico</option>
+                    </select>
+                    <div id="bloqueioEspecificoField" style="display:none;margin-top:10px;">
+                      <label>Quantos minutos de vídeo</label>
+                      <input class="input" type="number" min="0" step="0.5" id="inputBloqueioMinutos" placeholder="Ex: 30" style="width:100%;">
+                    </div>
                     <div class="hint">Antes desse ponto, vale a lógica de rever/acelerar. Depois dele, só avança em tempo real — útil pra proteger o pitch de oferta.</div>
                   </div>
                 </div>
@@ -1263,6 +1272,6 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="js/app.js?v=22"></script>
+<script src="js/app.js?v=23"></script>
 </body>
 </html>

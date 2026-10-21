@@ -114,7 +114,7 @@ router.get('/webinars/:slug/room', requireLeadAuth, async (req, res) => {
   const [rows] = await pool.query(
     `SELECT w.id, w.nome, w.status, w.video_id, w.video_autoplay, w.video_fullscreen,
             w.ocultar_barra_progresso, w.bloquear_avanco_video,
-            w.modo_youtube, w.modo_youtube_bloqueio_segundo,
+            w.modo_youtube, w.modo_youtube_bloqueio_segundo, w.modo_youtube_bloqueio_tipo,
             w.data_inicio, w.data_fim, w.fuso_horario, w.usar_sala_espera,
             w.tipo_audiencia, w.audiencia_min_participantes, w.audiencia_max_participantes,
             w.mostrar_botao_ao_vivo, w.chat_tamanho_fonte, w.habilitar_reacoes,
@@ -216,6 +216,7 @@ router.get('/webinars/:slug/room', requireLeadAuth, async (req, res) => {
         bloquearAvancoVideo: !!w.bloquear_avanco_video,
         modoYoutube: !!w.modo_youtube,
         bloqueioSegundo: w.modo_youtube_bloqueio_segundo,
+        bloqueioTipo: w.modo_youtube_bloqueio_tipo,
       };
     }
   }

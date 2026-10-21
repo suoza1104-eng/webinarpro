@@ -599,13 +599,24 @@ const Sala = {
     return duration ? Math.min(elapsed, duration) : elapsed;
   },
 
+  // O ponto de trava (X) pode vir de 3 lugares: um segundo especifico digitado, ou
+  // acompanhar dinamicamente o inicio do pitch/oferta ja configurados na etapa de Oferta
+  // (se o admin mudar o horario do pitch/oferta depois, a trava acompanha sozinha).
+  getBloqueioSegundo(){
+    const cfg = this.room.video;
+    const offer = this.room.offerConfig;
+    if(cfg.bloqueioTipo === 'pitch') return offer?.inicioPitchSegundos ?? null;
+    if(cfg.bloqueioTipo === 'oferta') return offer?.inicioOfertaSegundos ?? null;
+    return cfg.bloqueioSegundo;
+  },
+
   // Até onde o espectador tem permissão de ir (arrastando ou acelerando). Antes do ponto de
   // bloqueio, é igual ao "agora" de verdade. Depois que o "agora" passa do ponto de bloqueio,
   // trava em X até a pessoa realmente assistir até lá — sem acelerar, sem adiantar.
   getMaxSeekable(currentTimeOverride){
     const cfg = this.room.video;
     const liveEdge = this.getLiveEdge();
-    const X = this.isReplay ? this.getReplayLockSecond() : cfg.bloqueioSegundo;
+    const X = this.isReplay ? this.getReplayLockSecond() : this.getBloqueioSegundo();
     if(X == null || liveEdge <= X) return liveEdge;
     const currentTime = currentTimeOverride != null ? currentTimeOverride : (this.video ? this.video.currentTime : 0);
     // No replay o teto nunca recua: é o maior ponto já assistido (persistido), não a posição atual —

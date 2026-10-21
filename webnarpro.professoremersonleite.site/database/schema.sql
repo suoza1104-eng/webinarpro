@@ -102,7 +102,8 @@ CREATE TABLE webinars (
   ocultar_barra_progresso TINYINT(1) NOT NULL DEFAULT 1,
   bloquear_avanco_video   TINYINT(1) NOT NULL DEFAULT 1,
   modo_youtube      TINYINT(1) NOT NULL DEFAULT 0,          -- barra estilo YouTube: rever o já assistido, sem avançar
-  modo_youtube_bloqueio_segundo INT UNSIGNED NULL,          -- a partir deste segundo, trava avanço mesmo revendo (protege o pitch)
+  modo_youtube_bloqueio_segundo INT UNSIGNED NULL,          -- usado quando bloqueio_tipo = 'especifico' (segundo exato no vídeo)
+  modo_youtube_bloqueio_tipo ENUM('pitch', 'oferta', 'especifico') NULL,  -- de onde vem o ponto de trava: segue o início do pitch/oferta já configurados, ou um segundo específico
   chat_tamanho_fonte ENUM('pequena','media','grande') NOT NULL DEFAULT 'media',
   suporte_cor_destaque VARCHAR(9) NOT NULL DEFAULT '#FFCC00',       -- cor de fundo das mensagens do suporte no chat
   suporte_cor_transparencia INT UNSIGNED NOT NULL DEFAULT 0,        -- 0 = opaco, 100 = totalmente transparente

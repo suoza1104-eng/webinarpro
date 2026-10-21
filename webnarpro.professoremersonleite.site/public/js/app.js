@@ -567,8 +567,12 @@ const App = {
       document.getElementById('chkOcultarBarra').checked = !!full.ocultar_barra_progresso;
       document.getElementById('chkBloquearAvanco').checked = !!full.bloquear_avanco_video;
       document.getElementById('chkModoYoutube').checked = !!full.modo_youtube;
-      document.getElementById('inputBloqueioSegundo').value = full.modo_youtube_bloqueio_segundo ?? '';
+      // Dado antigo pode ter so o segundo salvo, sem tipo — trata como "especifico" por compatibilidade.
+      const bloqueioTipo = full.modo_youtube_bloqueio_tipo || (full.modo_youtube_bloqueio_segundo != null ? 'especifico' : '');
+      document.getElementById('selectBloqueioTipo').value = bloqueioTipo;
+      document.getElementById('inputBloqueioMinutos').value = full.modo_youtube_bloqueio_segundo != null ? (full.modo_youtube_bloqueio_segundo / 60) : '';
       document.getElementById('bloqueioSegundoField').style.display = full.modo_youtube ? 'block' : 'none';
+      this.toggleBloqueioEspecifico();
       this.buildVideoPickGrid();
 
       // Oferta
@@ -902,8 +906,10 @@ const App = {
     document.getElementById('chkOcultarBarra').checked = true;
     document.getElementById('chkBloquearAvanco').checked = true;
     document.getElementById('chkModoYoutube').checked = false;
-    document.getElementById('inputBloqueioSegundo').value = '';
+    document.getElementById('selectBloqueioTipo').value = '';
+    document.getElementById('inputBloqueioMinutos').value = '';
     document.getElementById('bloqueioSegundoField').style.display = 'none';
+    document.getElementById('bloqueioEspecificoField').style.display = 'none';
     this.setAudienceType('dinamica');
     document.getElementById('audMin').value = 50;
     document.getElementById('audMax').value = 65;
@@ -1007,8 +1013,14 @@ const App = {
       return false;
     }
   },
+  toggleBloqueioEspecifico(){
+    const tipo = document.getElementById('selectBloqueioTipo').value;
+    document.getElementById('bloqueioEspecificoField').style.display = tipo === 'especifico' ? 'block' : 'none';
+  },
   async saveVideoConfig(){
     if(!this.wz.videoId) return true;
+    const bloqueioTipo = document.getElementById('selectBloqueioTipo').value || null;
+    const bloqueioMinutos = document.getElementById('inputBloqueioMinutos').value;
     try{
       await this.apiFetch(`/api/webinars/${this.wz.id}/video`, {method:'PUT', body: JSON.stringify({
         video_id: this.wz.videoId,
@@ -1017,8 +1029,9 @@ const App = {
         ocultar_barra_progresso: document.getElementById('chkOcultarBarra').checked,
         bloquear_avanco_video: document.getElementById('chkBloquearAvanco').checked,
         modo_youtube: document.getElementById('chkModoYoutube').checked,
-        modo_youtube_bloqueio_segundo: document.getElementById('inputBloqueioSegundo').value
-          ? Number(document.getElementById('inputBloqueioSegundo').value) : null,
+        modo_youtube_bloqueio_tipo: bloqueioTipo,
+        modo_youtube_bloqueio_segundo: (bloqueioTipo === 'especifico' && bloqueioMinutos)
+          ? Math.round(Number(bloqueioMinutos) * 60) : null,
       })});
       return true;
     }catch(e){
