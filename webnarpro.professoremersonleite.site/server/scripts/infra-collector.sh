@@ -7,6 +7,8 @@
 # Uso: infra-collector.sh <arquivo-de-saida.json>
 # Cron: * * * * * /usr/local/bin/webnarpro-infra-collector.sh /home/professoremerson/webnarpro.professoremersonleite.site/server/runtime/infra-metrics.json
 set -u
+# o cron roda com PATH minimo (sem /usr/sbin) - sem isso apachectl, ss e nstat nao sao encontrados
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 OUT="${1:?informe o arquivo de saida}"
 TMP="${OUT}.tmp"
 HEALTH_URL="${HEALTH_URL:-https://webnarpro.professoremersonleite.site/api/health}"
@@ -18,7 +20,8 @@ FULL="$(apachectl fullstatus 2>/dev/null)"
 BUSY=$(echo "$FULL" | grep -oE '[0-9]+ requests currently being processed' | head -1 | awk '{print $1}')
 IDLE=$(echo "$FULL" | grep -oE '[0-9]+ idle' | head -1 | awk '{print $1}')
 # Tabela de processos do mpm_event: coluna "accepting" = yes/no
-read -r PROCS NOT_ACCEPTING < <(echo "$FULL" | grep -E "^│[0-9]" | awk -F"│" '{n++; if ($6 ~ /no/) na++} END {print n+0, na+0}')
+# (com locale UTF-8 a tabela usa "│"; no cron, sem locale, usa "|")
+read -r PROCS NOT_ACCEPTING < <(echo "$FULL" | grep -E "^(│|\|)[0-9]" | sed 's/│/|/g' | awk -F"|" '{n++; if ($6 ~ /no/) na++} END {print n+0, na+0}')
 MAXW=$(apachectl -t -D DUMP_RUN_CFG 2>/dev/null | sed -n 's/.*MaxRequestWorkers: *\([0-9]*\).*/\1/p' | head -1)
 [ -z "$MAXW" ] && MAXW=$(grep -hE "^\s*MaxRequestWorkers" /etc/apache2/conf/httpd.conf /etc/apache2/conf.d/includes/*.conf 2>/dev/null | tail -1 | awk '{print $2}')
 

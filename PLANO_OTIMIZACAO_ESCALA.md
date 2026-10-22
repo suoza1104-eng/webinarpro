@@ -8,9 +8,9 @@ Criado em 21/10/2026, depois do travamento na live "Aula 06 – MCQDC 211026".
 |---|---|
 | 0 | ✅ Aplicada em 21/10 (Apache 400 workers / Timeout 60 / KeepAlive 3) |
 | 1 | ✅ Implementada e testada em homologação (polling só com conversa, pausa com aba escondida, cache, rate limit por aluno) |
-| 2 | ⏳ Ver registro de deploy abaixo |
+| 2 | ✅ Em produção desde 22/10 01:40: HTTP/2 no Apache, buffer do MySQL em 1 GB (sem reiniciar), cache das imagens do E4Pay, WebnarPRO ↔ Sino pela rede interna. A 2.4 ficou como está: o include do cPanel já é o lugar oficial e sobrevive às atualizações |
 | 3 | ✅ Coletor root + motor de alertas + sininho (4 abas) + canais + "segurar chat" |
-| 4 | ⏳ Teste de carga: ver resultados abaixo |
+| 4 | 🟡 Node + MySQL medidos na homologação: com 1.000 alunos, de 267 para 37 req/s (−86%), p95 de 12 ms. Com 3.000 alunos entrando ao mesmo tempo, o p95 chegou a 4 s. **Falta investigar o pico de entrada e medir o Apache com HTTP/2** |
 | 5 | ✅ Inbox estilo Sino (lista, conversa, ficha, filtros, não lidas, som, respostas rápidas, contador no menu) |
 | 6 | ✅ Lado WebnarPRO completo e testado contra um Sino simulado (`server/scripts/mock-sino.js`). **Falta o lado do Sino (seção 6.8)**. Até lá, a integração fica desligada em todos os webinars |
 
