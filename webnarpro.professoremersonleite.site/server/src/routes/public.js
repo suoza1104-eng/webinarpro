@@ -6,6 +6,9 @@ const pool = require('../db');
 const { requireLeadAuth } = require('../middlewares/auth');
 const bunny = require('../services/bunny');
 const sino = require('../services/sino');
+const sinoChannel = require('../services/sino-channel');
+const atendimentoSvc = require('../services/atendimento');
+const { leadRateKey } = require('../middlewares/rate-key');
 
 const router = express.Router();
 
@@ -248,6 +251,7 @@ router.get('/webinars/:slug/room', requireLeadAuth, async (req, res) => {
     `SELECT segundo, intensidade FROM webinar_reaction_keyframes WHERE webinar_id = ? ORDER BY segundo`,
     [w.id],
   );
+  const sinoCfg = await sinoChannel.getConfig(w.id);
 
   res.json({
     status: w.status,
@@ -273,6 +277,11 @@ router.get('/webinars/:slug/room', requireLeadAuth, async (req, res) => {
     chatMessages,
     salesNotifications,
     reactionKeyframes,
+    // so o que a sala precisa saber - o resto da integracao fica no servidor
+    sino: sinoCfg?.habilitado ? {
+      habilitado: true,
+      continuarNoWhatsapp: !!sinoCfg.followup_habilitado && !!lead?.whatsapp,
+    } : null,
   });
 });
 
@@ -295,7 +304,7 @@ router.post('/webinars/:slug/chat-lookup', requireLeadAuth, async (req, res) => 
 });
 
 // 7e — heartbeat de progresso (marcos 0/25/50/75/100)
-const heartbeatLimiter = rateLimit({ windowMs: 60 * 1000, limit: 6 });
+const heartbeatLimiter = rateLimit({ windowMs: 60 * 1000, limit: 6, keyGenerator: leadRateKey });
 
 router.post('/webinars/:slug/heartbeat', heartbeatLimiter, requireLeadAuth, async (req, res) => {
   const marco = Number(req.body?.marco);
@@ -314,7 +323,7 @@ router.post('/webinars/:slug/heartbeat', heartbeatLimiter, requireLeadAuth, asyn
 
 // 7e-bis — presença (ping leve e frequente, pra contagem de "quantos estão assistindo agora"
 // e pra saber até que segundo cada um assistiu, independente dos marcos de 25% do heartbeat acima)
-const presenceLimiter = rateLimit({ windowMs: 60 * 1000, limit: 12 });
+const presenceLimiter = rateLimit({ windowMs: 60 * 1000, limit: 12, keyGenerator: leadRateKey });
 
 // Lead + webinar pro payload do sino - uma query leve, usada só quando vamos
 // mandar um evento pra la (nao em todo heartbeat).
@@ -358,7 +367,7 @@ router.post('/webinars/:slug/presence', presenceLimiter, requireLeadAuth, async 
 // 7e-ter — marcos de funil: chegou no pitch, chegou na oferta, clicou em comprar, interagiu no
 // chat. So grava a primeira vez (COALESCE) pra cada marco de "chegou", exceto cliques em comprar,
 // que conta todas as vezes (cliques_compra) alem de guardar a primeira (clicou_compra_em).
-const trackEventLimiter = rateLimit({ windowMs: 60 * 1000, limit: 20 });
+const trackEventLimiter = rateLimit({ windowMs: 60 * 1000, limit: 20, keyGenerator: leadRateKey });
 const TRACK_EVENT_COLUMNS = {
   pitch: 'chegou_pitch_em',
   oferta: 'chegou_oferta_em',
@@ -396,33 +405,28 @@ router.post('/webinars/:slug/track-event', trackEventLimiter, requireLeadAuth, a
   res.json({ ok: true });
 });
 
-// Sala de atendimento — conversa real e privada entre o lead e a equipe de suporte
-const supportSendLimiter = rateLimit({ windowMs: 60 * 1000, limit: 15 });
-
-async function findOrCreateAtendimento(webinarId, leadId) {
-  const [existing] = await pool.query(
-    'SELECT id FROM atendimentos WHERE webinar_id = ? AND lead_id = ? LIMIT 1',
-    [webinarId, leadId],
-  );
-  if (existing.length > 0) return existing[0].id;
-  const [result] = await pool.query(
-    'INSERT INTO atendimentos (webinar_id, lead_id) VALUES (?, ?)',
-    [webinarId, leadId],
-  );
-  return result.insertId;
-}
+// Sala de atendimento — conversa real e privada entre o lead e a equipe de suporte. Com a
+// integracao do Sino ligada no webinar, a mensagem tambem vai pro canal "webnar" do Sino
+// (em segundo plano, por fila - a sala nunca espera o Sino).
+const supportSendLimiter = rateLimit({ windowMs: 60 * 1000, limit: 15, keyGenerator: leadRateKey });
 
 router.post('/webinars/:slug/support-message', supportSendLimiter, requireLeadAuth, async (req, res) => {
   const mensagem = (req.body?.mensagem || '').toString().trim().slice(0, 1000);
   if (!mensagem) return res.status(400).json({ error: 'Mensagem vazia' });
 
-  const atendimentoId = await findOrCreateAtendimento(req.webinarId, req.leadId);
-  await pool.query(
-    "INSERT INTO atendimento_mensagens (atendimento_id, remetente, mensagem) VALUES (?, 'lead', ?)",
-    [atendimentoId, mensagem],
-  );
-  await pool.query('UPDATE atendimentos SET ultima_mensagem_em = NOW() WHERE id = ?', [atendimentoId]);
-  res.status(201).json({ ok: true });
+  const atendimentoId = await atendimentoSvc.findOrCreateAtendimento(req.webinarId, req.leadId);
+  const mensagemId = await atendimentoSvc.addLeadMessage(atendimentoId, mensagem);
+
+  let autoResposta = null;
+  try {
+    const r = await sinoChannel.onLeadMessage({
+      webinarId: req.webinarId, leadId: req.leadId, atendimentoId, mensagemId, texto: mensagem, isReplay: !!req.body?.isReplay,
+    });
+    autoResposta = r.autoResposta || null;
+  } catch (err) {
+    req.log.error(err, 'falha ao encaminhar mensagem pro canal do Sino'); // nunca derruba o envio do aluno
+  }
+  res.status(201).json({ ok: true, autoResposta });
 });
 
 router.get('/webinars/:slug/support-messages', requireLeadAuth, async (req, res) => {
@@ -430,13 +434,13 @@ router.get('/webinars/:slug/support-messages', requireLeadAuth, async (req, res)
     'SELECT id, status FROM atendimentos WHERE webinar_id = ? AND lead_id = ? LIMIT 1',
     [req.webinarId, req.leadId],
   );
-  if (existing.length === 0) return res.json({ status: null, mensagens: [] });
+  if (existing.length === 0) return res.json({ status: null, temConversa: false, mensagens: [] });
 
   const [mensagens] = await pool.query(
-    'SELECT remetente, mensagem, criado_em FROM atendimento_mensagens WHERE atendimento_id = ? ORDER BY criado_em ASC',
+    'SELECT id, remetente, autor_nome, mensagem, criado_em FROM atendimento_mensagens WHERE atendimento_id = ? ORDER BY criado_em ASC, id ASC',
     [existing[0].id],
   );
-  res.json({ status: existing[0].status, mensagens });
+  res.json({ status: existing[0].status, temConversa: true, mensagens });
 });
 
 module.exports = router;

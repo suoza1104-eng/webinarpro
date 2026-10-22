@@ -16,6 +16,11 @@ const abTestsRouter = require('./routes/ab-tests');
 const atendimentosRouter = require('./routes/atendimentos');
 const uploadsRouter = require('./routes/uploads');
 const integracaoRouter = require('./routes/integracao');
+const sinoChannelRouter = require('./routes/sino-channel');
+const webinarSinoRouter = require('./routes/webinar-sino');
+const systemRouter = require('./routes/system');
+const metrics = require('./services/metrics');
+const { leadRateKey } = require('./middlewares/rate-key');
 const fs = require('fs');
 
 const app = express();
@@ -43,11 +48,25 @@ app.use(cors({
   origin: (process.env.CORS_ORIGIN || '').split(',').filter(Boolean),
   credentials: true,
 }));
-app.use(express.json());
+app.use(metrics.middleware);
+// rawBody guardado pra validar a assinatura HMAC das chamadas do Sino (routes/sino-channel.js)
+app.use(express.json({ verify: (req, res, buf) => { req.rawBody = buf; } }));
 app.use(cookieParser());
-app.use(pinoHttp({ logger }));
+// As consultas repetitivas da sala (presenca, suporte) e o health check nao vao pro log:
+// numa live sao dezenas por segundo e so encheriam o log/CPU sem informacao util.
+const QUIET_ROUTES = /^\/api\/(health$|public\/webinars\/[^/]+\/(presence|support-messages|heartbeat)$)/;
+app.use(pinoHttp({
+  logger,
+  autoLogging: { ignore: (req) => QUIET_ROUTES.test((req.originalUrl || req.url).split('?')[0]) },
+}));
 
-const globalLimiter = rateLimit({ windowMs: 60 * 1000, limit: 100 });
+const globalLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 100,
+  keyGenerator: leadRateKey,
+  // o Sino chama pela rede interna (sempre o mesmo IP) e tem autenticacao propria
+  skip: (req) => req.path.startsWith('/api/integracao/sino/'),
+});
 app.use(globalLimiter);
 
 app.get('/api/health', async (req, res) => {
@@ -67,10 +86,24 @@ app.use('/api/public', publicRouter);
 app.use('/api/ab-tests', abTestsRouter);
 app.use('/api/atendimentos', atendimentosRouter);
 app.use('/api/uploads', uploadsRouter);
+// antes do /api/integracao: o canal do Sino tem autenticacao propria (HMAC), nao a chave da API
+app.use('/api/integracao/sino', sinoChannelRouter);
 app.use('/api/integracao', integracaoRouter);
+app.use('/api/webinar-sino', webinarSinoRouter);
+app.use('/api/admin/system', systemRouter);
 
-app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
-app.use(express.static(path.join(__dirname, '..', '..', 'public')));
+// Cache: uploads tem nome unico (timestamp + hash) e js/css sao referenciados com ?v=N, entao
+// podem ficar 30 dias no navegador. O HTML nunca e cacheado - e ele que aponta a versao nova.
+const LONG_CACHE = 'public, max-age=2592000, immutable';
+app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads'), {
+  setHeaders: (res) => res.setHeader('Cache-Control', LONG_CACHE),
+}));
+app.use(express.static(path.join(__dirname, '..', '..', 'public'), {
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.html')) res.setHeader('Cache-Control', 'no-cache');
+    else if (res.req?.query?.v) res.setHeader('Cache-Control', LONG_CACHE);
+  },
+}));
 
 function pickVariant(variants) {
   const totalWeight = variants.reduce((sum, v) => sum + v.peso, 0) || 1;
@@ -120,7 +153,7 @@ app.get(['/:slug', '/:slug/replay'], async (req, res) => {
     }
   }
 
-  res.sendFile(path.join(__dirname, '..', '..', 'public', 'sala.html'));
+  res.sendFile(path.join(__dirname, '..', '..', 'public', 'sala.html'), { headers: { 'Cache-Control': 'no-cache' } });
 });
 
 app.use((err, req, res, next) => {

@@ -846,6 +846,11 @@ const Sala = {
         this.maxPlayedTime = Math.max(this.maxPlayedTime, this.room.video?.duracaoSegundos || el.duration || 0);
         this.saveReplayProgress(this.maxPlayedTime);
       }
+      // o chat da live some quando ela acaba - quem conversou continua pelo WhatsApp (follow-up do Sino)
+      if(!this.isReplay && this.room?.sino?.continuarNoWhatsapp && this.supportHasConversation && !this._whatsNoticeShown){
+        this._whatsNoticeShown = true;
+        this.pushSupport('Equipe', 'Vamos continuar essa conversa pelo seu WhatsApp 😉');
+      }
       this.showEnded();
     });
     el.addEventListener('volumechange', ()=>this.syncVolumeUI());
@@ -1230,6 +1235,12 @@ const Sala = {
     document.getElementById('tabSuporte').classList.toggle('active', t === 'suporte');
     document.getElementById('pubMsgsChat').style.display = t === 'chat' ? 'flex' : 'none';
     document.getElementById('pubMsgsSuporte').style.display = t === 'suporte' ? 'flex' : 'none';
+    if(t === 'suporte'){
+      document.getElementById('tabSuporte').classList.remove('has-unread');
+      if(this.supportHasConversation) this.loadSupportMessages({ quiet: true }).finally(()=>this.scheduleSupportPoll());
+    } else {
+      this.scheduleSupportPoll();
+    }
   },
 
   // ---------- OFERTA / CHECKOUT (overlay em tela cheia com o vídeo em PiP) ----------
@@ -1386,13 +1397,43 @@ const Sala = {
     box.scrollTop = box.scrollHeight;
   },
 
+  // Suporte: so consulta o servidor quando o aluno ja tem conversa aberta (a maioria nunca
+  // escreve - antes todo mundo consultava a cada 4s e isso derrubou o Apache na live de 21/10).
+  // Com a aba Suporte aberta: 5s. Em outra aba: 20s. Logo depois de enviar: 3s por 2 min.
+  // Aba do navegador escondida: pausa, e busca na hora quando o aluno volta.
+  supportHasConversation: false,
+  supportLastId: 0,
+  supportFastUntil: 0,
+
   startSupportPolling(){
-    if(this._supportTicker) clearInterval(this._supportTicker);
-    this.loadSupportMessages();
-    this._supportTicker = setInterval(()=>this.loadSupportMessages(), 20000);
+    clearTimeout(this._supportTimer);
+    this.supportLastId = 0;
+    this.loadSupportMessages({ quiet: true }).finally(()=>this.scheduleSupportPoll());
+    if(!this._supportVisibilityBound){
+      this._supportVisibilityBound = true;
+      document.addEventListener('visibilitychange', ()=>{
+        if(document.visibilityState === 'visible' && this.supportHasConversation){
+          this.loadSupportMessages().finally(()=>this.scheduleSupportPoll());
+        }
+      });
+    }
   },
 
-  async loadSupportMessages(){
+  scheduleSupportPoll(){
+    clearTimeout(this._supportTimer);
+    if(!this.supportHasConversation || document.hidden) return;
+    const interval = Date.now() < this.supportFastUntil ? 3000 : (this.activeTab === 'suporte' ? 5000 : 20000);
+    this._supportTimer = setTimeout(()=>{
+      this.loadSupportMessages().finally(()=>this.scheduleSupportPoll());
+    }, interval);
+  },
+
+  supportAuthor(m){
+    if(m.remetente === 'ia' || m.remetente === 'suporte') return m.autor_nome || 'Suporte';
+    return m.autor_nome || 'Equipe';
+  },
+
+  async loadSupportMessages({ quiet = false } = {}){
     if(!this.leadToken) return;
     try{
       const res = await fetch('/api/public/webinars/' + encodeURIComponent(this.slug) + '/support-messages', {
@@ -1400,19 +1441,42 @@ const Sala = {
       });
       if(!res.ok) return;
       const data = await res.json();
+      this.supportHasConversation = !!data.temConversa;
       const box = document.getElementById('pubMsgsSuporte');
       if(!box) return;
       if(!data.mensagens || data.mensagens.length === 0){
         box.innerHTML = '<div class="empty-state">Envie uma mensagem privada para o suporte.</div>';
         return;
       }
+      // respostas novas aparecem tambem no chat (com aviso na aba Suporte) pra quem nao esta nela
+      const novas = data.mensagens.filter(m => m.remetente !== 'lead' && m.id > this.supportLastId);
+      if(!quiet && this.supportLastId > 0 && novas.length && this.activeTab !== 'suporte'){
+        novas.forEach(m => this.pushSupport(this.supportAuthor(m), m.mensagem));
+        document.getElementById('tabSuporte')?.classList.add('has-unread');
+      }
+      this.supportLastId = Math.max(this.supportLastId, ...data.mensagens.map(m => m.id || 0));
+
       const wasNearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 60;
-      box.innerHTML = data.mensagens.map(m => m.remetente === 'suporte'
-        ? `<div class="pub-chat-support">Suporte<br>${escapeHtml(m.mensagem)}</div>`
-        : `<div class="pub-chat-msg mine"><span class="name">Você:</span>${escapeHtml(m.mensagem)}</div>`
-      ).join('');
+      box.innerHTML = data.mensagens.map(m => {
+        if(m.remetente === 'lead') return `<div class="pub-chat-msg mine"><span class="name">Você:</span>${escapeHtml(m.mensagem)}</div>`;
+        if(m.remetente === 'sistema') return `<div class="pub-chat-system">${escapeHtml(m.mensagem)}</div>`;
+        return `<div class="pub-chat-support">${escapeHtml(this.supportAuthor(m))}<br>${escapeHtml(m.mensagem)}</div>`;
+      }).join('');
       if(wasNearBottom) box.scrollTop = box.scrollHeight;
     }catch(e){}
+  },
+
+  // Envia pro suporte (as mensagens do chat tambem vao - a equipe/IA responde por la)
+  async postSupportMessage(val){
+    const res = await fetch('/api/public/webinars/' + encodeURIComponent(this.slug) + '/support-message', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + this.leadToken },
+      body: JSON.stringify({ mensagem: val, isReplay: !!this.isReplay }),
+    });
+    const data = await res.json().catch(()=>({}));
+    this.supportHasConversation = true;
+    this.supportFastUntil = Date.now() + 120000;
+    return data;
   },
 
   async send(){
@@ -1423,22 +1487,19 @@ const Sala = {
 
     if(this.activeTab === 'suporte'){
       try{
-        await fetch('/api/public/webinars/' + encodeURIComponent(this.slug) + '/support-message', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + this.leadToken },
-          body: JSON.stringify({ mensagem: val }),
-        });
-        await this.loadSupportMessages();
+        await this.postSupportMessage(val);
+        await this.loadSupportMessages({ quiet: true });
       }catch(e){}
+      this.scheduleSupportPoll();
       return;
     }
 
     this.pushMsg('Você', val, true);
     this.trackEvent('chat');
-    fetch('/api/public/webinars/' + encodeURIComponent(this.slug) + '/support-message', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + this.leadToken },
-      body: JSON.stringify({ mensagem: val }),
+    this.postSupportMessage(val).then(async (data)=>{
+      if(data && data.autoResposta) this.pushSupport('Equipe', data.autoResposta);
+      await this.loadSupportMessages({ quiet: true });
+      this.scheduleSupportPoll();
     }).catch(()=>{});
     try{
       const res = await fetch('/api/public/webinars/' + encodeURIComponent(this.slug) + '/chat-lookup', {

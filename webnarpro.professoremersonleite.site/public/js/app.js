@@ -61,7 +61,7 @@ const WIZ_STEPS = [
   {label:'Início', ico:'flag'}, {label:'Webinar', ico:'play'}, {label:'Login', ico:'login'},
   {label:'Vídeo', ico:'vid2'}, {label:'Oferta', ico:'offer'}, {label:'Chat', ico:'chat'},
   {label:'Vendas', ico:'cart'}, {label:'Audiência', ico:'audience'}, {label:'Integrações', ico:'integ'},
-  {label:'Chatbot', ico:'bot'}, {label:'Agente de IA', ico:'ai'}, {label:'Pronto', ico:'rocket'}
+  {label:'Chatbot', ico:'bot'}, {label:'Sino / IA', ico:'ai'}, {label:'Pronto', ico:'rocket'}
 ];
 
 function loadLS(key, fallback){
@@ -183,6 +183,8 @@ const App = {
     this.renderOfertaPreview();
     this.calcSim();
     this.showView('dashboard');
+    this.startPendentesBadge();
+    if(this.currentUser?.tipo === 'administrador') SysAlerts.start();
   },
 
   showLogin(){
@@ -386,7 +388,8 @@ const App = {
       if(n.locked){
         return `<li class="nav-item locked" data-view="${n.id}" title="Bloqueado nesta versão" onclick="App.toast('Bloqueado por enquanto — volta quando o WebnarPRO tiver planos por licença')">${ICONS[n.ico]}<span class="nav-label">${n.label}</span><span class="nav-lock">${ICONS.lock}</span></li>`;
       }
-      return `<li class="nav-item" data-view="${n.id}" onclick="App.showView('${n.id}')">${ICONS[n.ico]}<span class="nav-label">${n.label}</span></li>`;
+      const badge = n.id === 'salas' ? '<span class="nav-badge" id="navBadge-salas" style="display:none;"></span>' : '';
+      return `<li class="nav-item" data-view="${n.id}" onclick="App.showView('${n.id}')">${ICONS[n.ico]}<span class="nav-label">${n.label}</span>${badge}</li>`;
     }).join('');
   },
   initTheme(){
@@ -417,12 +420,12 @@ const App = {
     document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active', n.dataset.view===id));
     document.getElementById('sidebar').classList.remove('mobile-open');
     window.scrollTo(0,0);
+    this.stopSalasTimers();
     if(id === 'salas'){
       document.getElementById('salasQueue').style.display = 'none';
       document.getElementById('salasPicker').style.display = 'block';
       this.salasWebinarId = null;
-      if(this._salasLiveCountTimer) clearInterval(this._salasLiveCountTimer);
-      if(this._salasQueueTimer) clearInterval(this._salasQueueTimer);
+      this.salasSelectedId = null;
       this.renderSalasPicker();
     }
   },
@@ -940,7 +943,131 @@ const App = {
     document.getElementById('audMax').value = 65;
     document.getElementById('audLiveToggle').checked = true;
     document.getElementById('wizardBanner').innerHTML='';
+    this.fillSinoForm({});
+    this._sinoLoadedFor = null;
     this.wzGo(0);
+  },
+
+  // ---------- ETAPA "SINO / IA DO CHAT" ----------
+  fillSinoForm(c){
+    const set = (id, v)=>{ const el = document.getElementById(id); if(el) el.value = v; };
+    const chk = (id, v)=>{ const el = document.getElementById(id); if(el) el.checked = !!v; };
+    chk('sino_habilitado', c.habilitado);
+    chk('sino_segurar', c.segurarChat);
+    set('sino_atuacao', c.atuacao || 'ao_vivo');
+    set('sino_objetivo', c.objetivo || 'venda');
+    set('sino_limite', c.limiteRespostasIa ?? 20);
+    set('sino_prompt', c.prompt || '');
+    set('sino_agente', c.agenteId || '');
+    set('sino_setorVenda', c.setorVenda || '');
+    set('sino_setorSuporte', c.setorSuporte || '');
+    chk('sino_followup', c.followupHabilitado ?? true);
+    set('sino_followupDias', c.followupDias || '1,3');
+    set('sino_tpl1', c.followupTemplate1 || '');
+    set('sino_tpl2', c.followupTemplate2 || '');
+    set('sino_followupPublico', c.followupPublico || 'chat');
+    const st = document.getElementById('sino_ctxStatus');
+    if(st) st.textContent = c.contextoEnviadoEm ? 'Enviado ao Sino ' + this.formatDateTime(c.contextoEnviadoEm) : (c.habilitado ? 'Aguardando envio' : 'Integração desligada');
+  },
+  async loadSinoStep(){
+    if(!this.wz.id) return;
+    const webinarId = this.wz.id;
+    try{
+      const [cfg, prompts] = await Promise.all([
+        this.apiFetch(`/api/webinar-sino/${webinarId}/config`),
+        this.apiFetch('/api/webinar-sino/prompts'),
+      ]);
+      if(this.wz.id !== webinarId) return;
+      this.fillSinoForm(cfg);
+      this._sinoAgenteNome = cfg.agenteNome || '';
+      this._sinoPrompts = prompts;
+      document.getElementById('sino_promptLib').innerHTML = '<option value="">Biblioteca de prompts…</option>'
+        + prompts.map(p=>`<option value="${p.id}">${escapeHtmlAdmin(p.nome)}</option>`).join('');
+      this._sinoLoadedFor = webinarId;
+    }catch(e){
+      this.toast('Erro ao carregar a integração com o Sino: ' + e.message);
+      return;
+    }
+    this.loadSinoContext();
+    // a lista de agentes vem do Sino - se ele ainda nao expoe, os campos aceitam texto livre
+    this.apiFetch('/api/webinar-sino/agents').then(data=>{
+      const hint = document.getElementById('sino_agentsHint');
+      document.getElementById('sino_agentesList').innerHTML = (data.agentes||[]).map(a=>`<option value="${escapeHtmlAdmin(a.id)}">${escapeHtmlAdmin(a.nome)}</option>`).join('');
+      document.getElementById('sino_setoresList').innerHTML = (data.setores||[]).map(s=>`<option value="${escapeHtmlAdmin(s.id)}">${escapeHtmlAdmin(s.nome)}</option>`).join('');
+      this._sinoAgentes = data.agentes || [];
+      hint.textContent = data.erro
+        ? `Não consegui listar os agentes do Sino (${data.erro}) — digite o identificador do agente e dos setores.`
+        : `${data.agentes.length} agente(s) e ${data.setores.length} setor(es) disponíveis no Sino.`;
+    }).catch(()=>{});
+  },
+  async loadSinoContext(){
+    if(!this.wz.id) return;
+    const pre = document.getElementById('sino_ctxPreview');
+    try{
+      const ctx = await this.apiFetch(`/api/webinar-sino/${this.wz.id}/context`);
+      pre.textContent = JSON.stringify({ webinar: ctx.webinar, oferta: ctx.oferta }, null, 2);
+    }catch(e){ pre.textContent = 'Erro ao montar a prévia: ' + e.message; }
+  },
+  async saveSinoConfig(){
+    if(!this.wz.id || this._sinoLoadedFor !== this.wz.id) return true; // etapa nao chegou a carregar
+    const val = (id)=>document.getElementById(id).value;
+    const agenteId = val('sino_agente').trim();
+    const agente = (this._sinoAgentes||[]).find(a=>a.id===agenteId);
+    const body = {
+      habilitado: document.getElementById('sino_habilitado').checked,
+      segurarChat: document.getElementById('sino_segurar').checked,
+      atuacao: val('sino_atuacao'),
+      objetivo: val('sino_objetivo'),
+      limiteRespostasIa: Number(val('sino_limite')) || 20,
+      prompt: val('sino_prompt'),
+      agenteId,
+      agenteNome: agente ? agente.nome : agenteId,
+      setorVenda: val('sino_setorVenda').trim(),
+      setorSuporte: val('sino_setorSuporte').trim(),
+      followupHabilitado: document.getElementById('sino_followup').checked,
+      followupDias: val('sino_followupDias'),
+      followupTemplate1: val('sino_tpl1').trim(),
+      followupTemplate2: val('sino_tpl2').trim(),
+      followupPublico: val('sino_followupPublico'),
+    };
+    try{
+      await this.apiFetch(`/api/webinar-sino/${this.wz.id}/config`, {method:'PUT', body: JSON.stringify(body)});
+      return true;
+    }catch(e){
+      this.toast('Sino / IA: ' + e.message);
+      return false;
+    }
+  },
+  async sinoFillModelo(){
+    const el = document.getElementById('sino_prompt');
+    if(el.value.trim() && !confirm('Substituir o prompt atual pelo modelo?')) return;
+    try{
+      const data = await this.apiFetch('/api/webinar-sino/prompt-modelo');
+      el.value = data.conteudo;
+    }catch(e){ this.toast('Erro: ' + e.message); }
+  },
+  sinoApplyPromptFromLib(){
+    const sel = document.getElementById('sino_promptLib');
+    const p = (this._sinoPrompts||[]).find(x=>String(x.id)===sel.value);
+    sel.value = '';
+    if(!p) return;
+    const el = document.getElementById('sino_prompt');
+    if(el.value.trim() && !confirm(`Substituir o prompt atual por "${p.nome}"?`)) return;
+    el.value = p.conteudo;
+    document.getElementById('sino_objetivo').value = p.objetivo;
+  },
+  async sinoSavePromptToLib(){
+    const conteudo = document.getElementById('sino_prompt').value.trim();
+    if(!conteudo) return this.toast('Escreva o prompt antes de salvar como modelo');
+    const nome = prompt('Nome do modelo (ex.: "Live de venda – Comunidade FERA")');
+    if(!nome) return;
+    try{
+      await this.apiFetch('/api/webinar-sino/prompts', {method:'POST', body: JSON.stringify({nome, objetivo: document.getElementById('sino_objetivo').value, conteudo})});
+      this._sinoPrompts = await this.apiFetch('/api/webinar-sino/prompts');
+      document.getElementById('sino_promptLib').innerHTML = '<option value="">Biblioteca de prompts…</option>'
+        + this._sinoPrompts.map(p=>`<option value="${p.id}">${escapeHtmlAdmin(p.nome)}</option>`).join('');
+      this.toast('Modelo salvo na biblioteca');
+    }catch(e){ this.toast('Erro: ' + e.message); }
   },
   async wzGo(n){
     if(n<0) n=0;
@@ -970,6 +1097,7 @@ const App = {
     if(n===4) this.loadE4payCheckouts();
     if(n===5) this.renderReactionGraph();
     if(n===7) this.updateAudiencePreview();
+    if(n===10) this.loadSinoStep();
     document.querySelector('.wizard-card').scrollIntoView({behavior:'smooth', block:'start'});
   },
   async saveWizardStep(step){
@@ -993,6 +1121,7 @@ const App = {
       else if(step === 6) ok = await this.saveSalesConfig();
       else if(step === 7) ok = await this.saveAudienceConfig();
       else if(step === 9) ok = await this.saveChatbotConfig();
+      else if(step === 10) ok = await this.saveSinoConfig();
       return ok !== false;
     }finally{
       this._savingWizardStep = false;
@@ -1898,9 +2027,20 @@ const App = {
     }).join('');
   },
 
-  // ---------- SALAS DE ATENDIMENTO ----------
-  salasTab: 'open',
+  // ---------- SALAS DE ATENDIMENTO (inbox estilo Sino) ----------
   salasWebinarId: null,
+  salasFiltro: 'pendentes',
+  salasItems: new Map(),
+  salasCursor: null,
+  salasSelectedId: null,
+  salasContadores: {},
+  SALAS_FILTROS: [
+    {id:'pendentes', label:'Pendentes'},
+    {id:'ia', label:'IA respondendo'},
+    {id:'humano', label:'Com humano'},
+    {id:'minhas', label:'Minhas'},
+    {id:'encerradas', label:'Encerradas'},
+  ],
   async renderSalasPicker(){
     const grid = document.getElementById('salasPickerGrid');
     const search = document.getElementById('salasPickerSearch')?.value.trim().toLowerCase() || '';
@@ -1923,7 +2063,7 @@ const App = {
           <div style="font-size:10.5px;color:var(--text-faint);margin-bottom:12px;">${this.formatDateTime(w.dataInicio)}</div>
           <div style="display:flex;gap:14px;font-size:11px;color:var(--text-faint);margin-bottom:14px;">
             <span>👁 ${w.liveCount} ao vivo</span>
-            ${w.pendentes > 0 ? `<span style="color:var(--red);font-weight:700;">${w.pendentes} sem atendimento</span>` : ''}
+            ${w.pendentes > 0 ? `<span style="color:var(--red);font-weight:700;">${w.pendentes} esperando resposta</span>` : ''}
           </div>
           <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="App.openSalaWebinar(${w.id})">Sala de Atendimento</button>
         </div>`).join('');
@@ -1932,25 +2072,37 @@ const App = {
       grid.innerHTML = `<div class="empty-state">Erro ao carregar: ${e.message}</div>`;
     }
   },
+  stopSalasTimers(){
+    clearInterval(this._salasLiveCountTimer);
+    clearInterval(this._salasQueueTimer);
+    clearInterval(this._salasThreadTimer);
+  },
   openSalaWebinar(webinarId){
     this.salasWebinarId = webinarId;
+    this.salasSelectedId = null;
+    this.salasItems = new Map();
+    this.salasCursor = null;
     const w = (this._salasOngoingCache || []).find(x=>x.id===webinarId);
     document.getElementById('salasPicker').style.display = 'none';
     document.getElementById('salasQueue').style.display = 'block';
     document.getElementById('salasQueueTitle').textContent = w?.nome || '';
     document.getElementById('salasQueueViewers').textContent = '👁 ' + (w?.liveCount ?? 0);
-    this.setSalasTab('open');
-    if(this._salasLiveCountTimer) clearInterval(this._salasLiveCountTimer);
-    this._salasLiveCountTimer = setInterval(()=>this.refreshSalasLiveCount(), 20000);
-    if(this._salasQueueTimer) clearInterval(this._salasQueueTimer);
-    this._salasQueueTimer = setInterval(()=>this.renderSalas(), 7000);
+    document.getElementById('salasSom').checked = loadLS('wp_salas_som', false);
+    document.getElementById('salasThread').innerHTML = '<div class="empty-state">Escolha uma conversa à esquerda.</div>';
+    document.getElementById('salasCard').innerHTML = '';
+    this.loadSalasSegurar();
+    this.reloadSalas();
+    this.stopSalasTimers();
+    this._salasLiveCountTimer = setInterval(()=>{ if(!document.hidden) this.refreshSalasLiveCount(); }, 20000);
+    this._salasQueueTimer = setInterval(()=>{ if(!document.hidden) this.pollSalas(); }, 5000);
+    this._salasThreadTimer = setInterval(()=>{ if(!document.hidden && this.salasSelectedId) this.loadSalaThread(true); }, 4000);
   },
   backToSalasPicker(){
     document.getElementById('salasQueue').style.display = 'none';
     document.getElementById('salasPicker').style.display = 'block';
     this.salasWebinarId = null;
-    if(this._salasLiveCountTimer) clearInterval(this._salasLiveCountTimer);
-    if(this._salasQueueTimer) clearInterval(this._salasQueueTimer);
+    this.salasSelectedId = null;
+    this.stopSalasTimers();
     this.renderSalasPicker();
   },
   async refreshSalasLiveCount(){
@@ -1960,116 +2112,314 @@ const App = {
       document.getElementById('salasQueueViewers').textContent = '👁 ' + data.count;
     }catch(e){}
   },
-  setSalasTab(tab){
-    this.salasTab = tab;
-    document.getElementById('salasTabMine').classList.toggle('active', tab==='mine');
-    document.getElementById('salasTabDone').classList.toggle('active', tab==='done');
-    document.getElementById('salasTabOpen').classList.toggle('active', tab==='open');
-    this.renderSalas();
-  },
   formatDateTime(iso){
     if(!iso) return '';
     return new Date(iso).toLocaleString('pt-BR', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'});
   },
-  async renderSalas(){
-    const grid = document.getElementById('salasGrid');
-    const statusMap = {mine:'em_atendimento', done:'encerrado', open:'aberto'};
-    const search = document.getElementById('salasSearch')?.value.trim() || '';
-    const params = new URLSearchParams({status: statusMap[this.salasTab]});
-    if(this.salasTab === 'mine') params.set('mine', '1');
-    if(search) params.set('search', search);
-    if(this.salasWebinarId) params.set('webinar_id', this.salasWebinarId);
+  formatListTime(iso){
+    if(!iso) return '';
+    const d = new Date(iso);
+    const hoje = new Date();
+    return d.toDateString() === hoje.toDateString()
+      ? d.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})
+      : d.toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit'});
+  },
+  toggleSalasSom(){
+    saveLS('wp_salas_som', document.getElementById('salasSom').checked);
+  },
+  playSalasSom(){
     try{
-      const rows = await this.apiFetch('/api/atendimentos?' + params.toString());
-      if(rows.length === 0){
-        grid.innerHTML = `<div class="empty-state">Nenhuma conversa por aqui ainda.</div>`;
-        return;
+      const ctx = this._audioCtx || (this._audioCtx = new (window.AudioContext || window.webkitAudioContext)());
+      const o = ctx.createOscillator(); const g = ctx.createGain();
+      o.frequency.value = 880; g.gain.setValueAtTime(0.08, ctx.currentTime); g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.35);
+      o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime + 0.35);
+    }catch(e){}
+  },
+  salasMatchesFiltro(it, filtro){
+    const aberta = it.status !== 'encerrado';
+    if(filtro === 'pendentes') return aberta && it.ultima_mensagem_remetente === 'lead';
+    if(filtro === 'ia') return aberta && it.modo === 'ia';
+    if(filtro === 'humano') return aberta && it.modo === 'humano' && (!!it.atendente_id || it.status === 'em_atendimento');
+    if(filtro === 'minhas') return aberta && it.atendente_id === this.currentUser?.id;
+    if(filtro === 'encerradas') return !aberta;
+    return aberta;
+  },
+  salasQueryParams(extra){
+    const p = new URLSearchParams({filtro: this.salasFiltro, webinar_id: this.salasWebinarId, ordem: document.getElementById('salasOrdem').value});
+    const search = document.getElementById('salasSearch').value.trim();
+    if(search) p.set('search', search);
+    Object.entries(extra || {}).forEach(([k,v])=>p.set(k, v));
+    return p.toString();
+  },
+  onSalasSearch(){
+    clearTimeout(this._salasSearchT);
+    this._salasSearchT = setTimeout(()=>this.reloadSalas(), 300);
+  },
+  setSalasFiltro(f){
+    this.salasFiltro = f;
+    this.reloadSalas();
+  },
+  async reloadSalas(){
+    if(!this.salasWebinarId) return;
+    try{
+      const data = await this.apiFetch('/api/atendimentos?' + this.salasQueryParams());
+      this.salasItems = new Map(data.itens.map(i=>[i.id, i]));
+      this.salasCursor = data.agora;
+      this.salasContadores = data.contadores;
+      this.renderSalasList();
+    }catch(e){
+      document.getElementById('salasList').innerHTML = `<div class="empty-state">Erro ao carregar: ${e.message}</div>`;
+    }
+  },
+  async pollSalas(){
+    if(!this.salasWebinarId || !this.salasCursor) return;
+    try{
+      const data = await this.apiFetch('/api/atendimentos?' + this.salasQueryParams({desde: this.salasCursor}));
+      let novaMsgAluno = false;
+      for(const it of data.itens){
+        const antes = this.salasItems.get(it.id);
+        if(it.ultima_mensagem_remetente === 'lead' && (!antes || antes.ultima_mensagem_lead_em !== it.ultima_mensagem_lead_em)) novaMsgAluno = true;
+        this.salasItems.set(it.id, it);
+        if(it.id === this.salasSelectedId) this.loadSalaThread(true);
       }
-      grid.innerHTML = rows.map(r=>`
-        <div class="card" style="margin-top:0;">
-          <div style="display:flex;gap:6px;margin-bottom:10px;align-items:center;">
-            <span class="badge badge-grey">${escapeHtmlAdmin(r.webinar_nome)}</span>
-            ${r.atendente_nome ? `<span class="badge badge-green">${escapeHtmlAdmin(r.atendente_nome)}</span>` : ''}
+      this.salasCursor = data.agora;
+      this.salasContadores = data.contadores;
+      if(novaMsgAluno && document.getElementById('salasSom').checked) this.playSalasSom();
+      if(data.itens.length) this.renderSalasList();
+      else this.renderSalasFilters();
+      this.refreshPendentesBadge();
+    }catch(e){}
+  },
+  renderSalasFilters(){
+    const c = this.salasContadores || {};
+    document.getElementById('salasFilters').innerHTML = this.SALAS_FILTROS.map(f=>`
+      <button class="inbox-filter ${this.salasFiltro===f.id ? 'active' : ''}" onclick="App.setSalasFiltro('${f.id}')">
+        ${f.label}${c[f.id] ? `<span class="inbox-filter-count ${f.id==='pendentes' ? 'red' : ''}">${c[f.id]}</span>` : ''}
+      </button>`).join('');
+  },
+  salasWaitClass(it){
+    if(it.status === 'encerrado' || it.ultima_mensagem_remetente !== 'lead' || !it.ultima_mensagem_lead_em) return '';
+    const min = (Date.now() - new Date(it.ultima_mensagem_lead_em).getTime()) / 60000;
+    return min > 5 ? 'wait-red' : min > 2 ? 'wait-yellow' : '';
+  },
+  renderSalasList(){
+    this.renderSalasFilters();
+    const ordem = document.getElementById('salasOrdem').value;
+    // a conversa aberta continua na lista mesmo se mudou de filtro (ex.: IA -> Humano ao responder)
+    const items = [...this.salasItems.values()].filter(it=>it.id === this.salasSelectedId || this.salasMatchesFiltro(it, this.salasFiltro));
+    const t = (s)=>s ? new Date(s).getTime() : 0;
+    items.sort((a,b)=> ordem==='antigas' ? t(a.ultima_mensagem_lead_em) - t(b.ultima_mensagem_lead_em)
+      : ordem==='mais_mensagens' ? b.total_mensagens_lead - a.total_mensagens_lead
+      : t(b.ultima_mensagem_em) - t(a.ultima_mensagem_em));
+    const list = document.getElementById('salasList');
+    if(items.length === 0){
+      list.innerHTML = '<div class="empty-state">Nenhuma conversa neste filtro.</div>';
+      return;
+    }
+    const prefixo = {ia:'IA: ', suporte:'Equipe: ', sistema:''};
+    list.innerHTML = items.map(it=>{
+      const iniciais = (it.lead_nome||'?').split(/\s+/).slice(0,2).map(p=>p[0]||'').join('').toUpperCase();
+      const preview = (prefixo[it.ultima_mensagem_remetente] || '') + (it.ultima_mensagem || '(sem mensagens)');
+      return `<div class="inbox-item ${it.id===this.salasSelectedId ? 'active' : ''} ${this.salasWaitClass(it)}" onclick="App.openSalaConversa(${it.id})">
+        <div class="inbox-avatar">${escapeHtmlAdmin(iniciais)}</div>
+        <div class="inbox-item-main">
+          <div class="inbox-item-top"><b>${escapeHtmlAdmin(it.lead_nome)}</b><span class="inbox-time">${this.formatListTime(it.ultima_mensagem_em)}</span></div>
+          <div class="inbox-preview">${escapeHtmlAdmin(preview)}</div>
+          <div class="inbox-tags">
+            <span class="badge ${it.modo==='ia' ? 'badge-blue' : 'badge-grey'}">${it.modo==='ia' ? 'IA' : 'Humano'}</span>
+            ${it.atendente_nome ? `<span class="badge badge-green">${escapeHtmlAdmin(it.atendente_nome)}</span>` : ''}
+            ${it.status==='encerrado' ? '<span class="badge badge-grey">Encerrada</span>' : ''}
           </div>
-          <div style="font-weight:700;font-size:13.5px;margin-bottom:4px;">${escapeHtmlAdmin(r.lead_nome)}</div>
-          <div style="font-size:11.5px;color:var(--text-faint);margin-bottom:10px;">${escapeHtmlAdmin(r.ultima_mensagem || '(sem mensagens)')}</div>
-          <div style="font-size:10.5px;color:var(--text-faint);margin-bottom:14px;">${this.formatDateTime(r.ultima_mensagem_em)}</div>
-          <div style="display:flex;gap:8px;">
-            ${this.salasTab==='open' ? `<button class="btn btn-sm" onclick="App.dispensarSala(${r.id})">Dispensar</button>
-              <button class="btn btn-primary btn-sm" style="flex:1;justify-content:center;" onclick="App.atenderSala(${r.id})">Atender</button>`
-              : `<button class="btn btn-primary btn-sm" style="width:100%;justify-content:center;" onclick="App.openAttend(${r.id})">Abrir conversa</button>`}
-          </div>
-        </div>`).join('');
-    }catch(e){
-      grid.innerHTML = `<div class="empty-state">Erro ao carregar: ${e.message}</div>`;
+        </div>
+        ${it.nao_lidas > 0 ? `<span class="inbox-unread">${it.nao_lidas}</span>` : ''}
+      </div>`;
+    }).join('');
+  },
+  async openSalaConversa(id){
+    this.salasSelectedId = id;
+    this._salaThreadSig = null;
+    document.getElementById('salasThread').innerHTML = '<div class="empty-state">Carregando…</div>';
+    this.renderSalasList();
+    await this.loadSalaThread();
+    const it = this.salasItems.get(id);
+    if(it && it.nao_lidas > 0){
+      it.nao_lidas = 0;
+      this.renderSalasList();
+      this.apiFetch(`/api/atendimentos/${id}/lida`, {method:'POST'}).then(()=>this.refreshPendentesBadge()).catch(()=>{});
     }
   },
-  async atenderSala(id){
+  async loadSalaThread(silent){
+    const id = this.salasSelectedId;
+    if(!id) return;
     try{
-      await this.apiFetch(`/api/atendimentos/${id}/atender`, {method:'POST'});
-      this.openAttend(id);
-      this.renderSalas();
-    }catch(e){ this.toast('Erro: ' + e.message); }
-  },
-  async dispensarSala(id){
-    if(!confirm('Dispensar esta conversa sem responder?')) return;
-    try{
-      await this.apiFetch(`/api/atendimentos/${id}/dispensar`, {method:'POST'});
-      this.renderSalas();
-    }catch(e){ this.toast('Erro: ' + e.message); }
-  },
-  async openAttend(id){
-    this._attendId = id;
-    document.getElementById('attendModal').classList.add('open');
-    document.getElementById('attendMsgs').innerHTML = '<div class="empty-state">Carregando...</div>';
-    await this.loadAttendThread();
-    if(this._attendPoll) clearInterval(this._attendPoll);
-    this._attendPoll = setInterval(()=>this.loadAttendThread(true), 4000);
-  },
-  async loadAttendThread(silent){
-    if(!this._attendId) return;
-    try{
-      const data = await this.apiFetch(`/api/atendimentos/${this._attendId}/mensagens`);
-      const a = data.atendimento;
-      document.getElementById('attendTitle').textContent = 'Sala de Atendimento';
-      document.getElementById('attendInfoBar').innerHTML = `
-        <div class="a-meta"><b>${escapeHtmlAdmin(a.lead_nome || '')}</b><br>${escapeHtmlAdmin(a.lead_email || '')}${a.lead_whatsapp ? ' · ' + escapeHtmlAdmin(a.lead_whatsapp) : ''}</div>
-        <div class="a-actions">
-          ${a.status !== 'encerrado' ? `<button class="btn btn-sm" onclick="App.encerrarAttend()">Encerrar atendimento</button>` : `<span class="badge badge-grey">Encerrado</span>`}
-        </div>`;
-      const box = document.getElementById('attendMsgs');
-      const wasNearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 60;
-      box.innerHTML = data.mensagens.map(m=>`
-        <div class="ai-bubble ${m.remetente==='suporte' ? 'mine' : ''}"><div class="b-col"><div class="b-txt">${escapeHtmlAdmin(m.mensagem)}</div><div class="b-time">${new Date(m.criado_em).toLocaleString('pt-BR', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'})}</div></div></div>
-      `).join('') || '<div class="empty-state">Nenhuma mensagem ainda.</div>';
-      if(!silent || wasNearBottom) box.scrollTop = box.scrollHeight;
+      const data = await this.apiFetch(`/api/atendimentos/${id}/mensagens`);
+      if(id !== this.salasSelectedId) return;
+      const sig = data.mensagens.length + ':' + (data.mensagens.at(-1)?.id || 0) + ':' + data.atendimento.modo + ':' + data.atendimento.status;
+      if(silent && sig === this._salaThreadSig) return;
+      this._salaThreadSig = sig;
+      this.renderSalaThread(data);
+      this.renderSalaCard(data);
     }catch(e){
-      if(!silent) document.getElementById('attendMsgs').innerHTML = `<div class="empty-state">Erro: ${e.message}</div>`;
+      if(!silent) document.getElementById('salasThread').innerHTML = `<div class="empty-state">Erro: ${e.message}</div>`;
     }
   },
-  closeAttend(){
-    document.getElementById('attendModal').classList.remove('open');
-    if(this._attendPoll) clearInterval(this._attendPoll);
-    this._attendId = null;
+  renderSalaThread(data){
+    const a = data.atendimento;
+    const thread = document.getElementById('salasThread');
+    const prevBox = thread.querySelector('.inbox-msgs');
+    const wasNearBottom = !prevBox || prevBox.scrollHeight - prevBox.scrollTop - prevBox.clientHeight < 80;
+    const draft = thread.querySelector('#salaReplyInput')?.value || '';
+    const hora = (s)=>new Date(s).toLocaleString('pt-BR', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'});
+    const msgs = data.mensagens.map(m=>{
+      if(m.remetente === 'sistema') return `<div class="inbox-msg-system">⚙ ${escapeHtmlAdmin(m.mensagem)} · ${hora(m.criado_em)}</div>`;
+      const mine = m.remetente !== 'lead';
+      const autor = m.remetente === 'lead' ? a.lead_nome : (m.remetente === 'ia' ? `${m.autor_nome || 'IA'} · IA` : `${m.autor_nome || 'Equipe'} · Humano`);
+      return `<div class="inbox-msg ${mine ? 'mine' : ''} ${m.remetente === 'ia' ? 'ia' : ''}">
+        <div class="inbox-msg-autor">${escapeHtmlAdmin(autor)}</div>
+        <div class="inbox-msg-txt">${escapeHtmlAdmin(m.mensagem)}</div>
+        <div class="inbox-msg-time">${hora(m.criado_em)}</div>
+      </div>`;
+    }).join('') || '<div class="empty-state">Nenhuma mensagem ainda.</div>';
+    const quick = this.getQuickReplies();
+    const aberta = a.status !== 'encerrado';
+    thread.innerHTML = `
+      <div class="inbox-thread-head">
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:800;font-size:14px;">${escapeHtmlAdmin(a.lead_nome)}</div>
+          <div style="font-size:11.5px;color:var(--text-faint);">${escapeHtmlAdmin(a.lead_whatsapp || a.lead_email || '')}</div>
+        </div>
+        <span class="badge ${a.modo==='ia' ? 'badge-blue' : 'badge-grey'}">${a.modo==='ia' ? 'IA' : 'Humano'}</span>
+        ${a.atendente_nome ? `<span class="badge badge-green">${escapeHtmlAdmin(a.atendente_nome)}</span>` : ''}
+      </div>
+      <div class="inbox-actions">
+        ${a.atendente_id !== this.currentUser?.id || !aberta ? `<button class="btn btn-sm btn-primary" onclick="App.salaAcao('atender')">✋ Assumir</button>` : ''}
+        ${data.ficha.sinoHabilitado && aberta ? `<button class="btn btn-sm" onclick="App.salaAcao('devolver-ia')">🤖 Devolver para a IA</button>` : ''}
+        ${aberta ? `<button class="btn btn-sm" onclick="App.salaAcao('encerrar')">Encerrar</button>` : '<span class="badge badge-grey">Encerrada</span>'}
+      </div>
+      <div class="inbox-msgs">${msgs}</div>
+      <div class="inbox-quick">
+        ${quick.map((q,i)=>`<button class="inbox-quick-btn" title="${escapeHtmlAdmin(q)}" onclick="App.useQuickReply(${i})">${escapeHtmlAdmin(q.length > 28 ? q.slice(0,28)+'…' : q)}</button>`).join('')}
+        <button class="inbox-quick-btn" title="Gerenciar respostas rápidas" onclick="App.editQuickReplies()">＋</button>
+      </div>
+      <div class="inbox-reply">
+        <input class="input" id="salaReplyInput" placeholder="Digite sua resposta..." onkeydown="if(event.key==='Enter')App.sendSalaReply()">
+        <button class="btn btn-primary btn-sm" onclick="App.sendSalaReply()">Enviar</button>
+      </div>`;
+    const input = thread.querySelector('#salaReplyInput');
+    input.value = draft;
+    const box = thread.querySelector('.inbox-msgs');
+    if(wasNearBottom) box.scrollTop = box.scrollHeight;
   },
-  async sendAttendReply(){
-    const input = document.getElementById('attendInput');
+  renderSalaCard(data){
+    const a = data.atendimento;
+    const s = data.ficha.sessao;
+    const sim = (v)=>v ? '<span style="color:var(--green);font-weight:700;">Sim</span>' : '<span style="color:var(--text-faint);">Não</span>';
+    const tempo = s ? this.secondsToTime(s.max_segundos || 0) : '—';
+    const whats = (a.lead_whatsapp || '').replace(/\D/g, '');
+    const linha = (k, v)=>`<div class="inbox-card-row"><span>${k}</span><b>${v}</b></div>`;
+    document.getElementById('salasCard').innerHTML = `
+      <div class="inbox-card-title">Aluno</div>
+      ${linha('Nome', escapeHtmlAdmin(a.lead_nome))}
+      ${linha('E-mail', escapeHtmlAdmin(a.lead_email || '—'))}
+      ${linha('WhatsApp', whats ? `<a href="https://wa.me/${whats.length <= 11 ? '55' + whats : whats}" target="_blank" rel="noopener">${escapeHtmlAdmin(a.lead_whatsapp)}</a>` : '—')}
+      ${linha('Cadastro', this.formatDateTime(a.lead_cadastrado_em))}
+      ${linha('Outras lives', data.ficha.outrasLives)}
+      <div class="inbox-card-title">Nesta live</div>
+      ${linha('Webinar', escapeHtmlAdmin(a.webinar_nome))}
+      ${linha('Entrou', s ? this.formatDateTime(s.entrou_em) : '—')}
+      ${linha('Tempo assistido', tempo)}
+      ${linha('Chegou no pitch', sim(s?.chegou_pitch_em))}
+      ${linha('Chegou na oferta', sim(s?.chegou_oferta_em))}
+      ${linha('Clicou em comprar', s?.clicou_compra_em ? `<span style="color:var(--green);font-weight:700;">Sim (${s.cliques_compra}x)</span>` : sim(false))}
+      ${linha('Comprou', a.comprou_em ? `<span style="color:var(--green);font-weight:700;">Sim${a.valor_comprado_centavos ? ' · ' + (a.valor_comprado_centavos/100).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}) : ''}</span>` : sim(false))}
+      <div class="inbox-card-title">Conversa</div>
+      ${linha('Mensagens do aluno', a.total_mensagens_lead)}
+      ${linha('Respostas da IA', a.respostas_ia)}
+      ${linha('Integração Sino', data.ficha.sinoHabilitado ? '<span class="badge badge-blue">Ligada</span>' : '<span class="badge badge-grey">Desligada</span>')}`;
+  },
+  async salaAcao(acao){
+    const id = this.salasSelectedId;
+    if(!id) return;
+    if(acao === 'encerrar' && !confirm('Encerrar esta conversa?')) return;
+    try{
+      await this.apiFetch(`/api/atendimentos/${id}/${acao}`, {method:'POST'});
+      this._salaThreadSig = null;
+      await this.loadSalaThread();
+      this.pollSalas();
+      this.toast({atender:'Conversa assumida', 'devolver-ia':'Conversa devolvida para a IA', encerrar:'Conversa encerrada'}[acao]);
+    }catch(e){ this.toast('Erro: ' + e.message); }
+  },
+  async sendSalaReply(){
+    const input = document.getElementById('salaReplyInput');
     const mensagem = input.value.trim();
-    if(!mensagem || !this._attendId) return;
+    if(!mensagem || !this.salasSelectedId) return;
     input.value = '';
     try{
-      await this.apiFetch(`/api/atendimentos/${this._attendId}/mensagens`, {method:'POST', body: JSON.stringify({mensagem})});
-      await this.loadAttendThread();
-    }catch(e){ this.toast('Erro ao enviar: ' + e.message); }
+      await this.apiFetch(`/api/atendimentos/${this.salasSelectedId}/mensagens`, {method:'POST', body: JSON.stringify({mensagem})});
+      this._salaThreadSig = null;
+      await this.loadSalaThread();
+      this.pollSalas();
+    }catch(e){
+      input.value = mensagem;
+      this.toast('Erro ao enviar: ' + e.message);
+    }
   },
-  async encerrarAttend(){
-    if(!this._attendId) return;
+  getQuickReplies(){
+    return loadLS('wp_quick_replies', [
+      'Oi! Já te ajudo 😊',
+      'Recarregue a página que o vídeo volta ao normal.',
+      'O link de compra aparece na aba Oferta, logo abaixo do vídeo.',
+      'Vou te chamar no WhatsApp para resolver, tudo bem?',
+    ]);
+  },
+  useQuickReply(i){
+    const input = document.getElementById('salaReplyInput');
+    input.value = this.getQuickReplies()[i] || '';
+    input.focus();
+  },
+  editQuickReplies(){
+    const atual = this.getQuickReplies().join('\n');
+    const novo = prompt('Respostas rápidas (uma por linha):', atual);
+    if(novo === null) return;
+    saveLS('wp_quick_replies', novo.split('\n').map(s=>s.trim()).filter(Boolean).slice(0, 12));
+    this._salaThreadSig = null;
+    this.loadSalaThread();
+  },
+  async loadSalasSegurar(){
+    const btn = document.getElementById('salasSegurarBtn');
+    btn.style.display = 'none';
     try{
-      await this.apiFetch(`/api/atendimentos/${this._attendId}/encerrar`, {method:'POST'});
-      this.closeAttend();
-      this.renderSalas();
-      this.toast('Atendimento encerrado');
+      const cfg = await this.apiFetch(`/api/webinar-sino/${this.salasWebinarId}/config`);
+      if(!cfg.habilitado) return;
+      this._salasSegurar = cfg.segurarChat;
+      btn.style.display = '';
+      btn.textContent = cfg.segurarChat ? '▶ Soltar chat (Sino)' : '⏸ Segurar chat (Sino)';
+      btn.classList.toggle('btn-primary', !!cfg.segurarChat);
+    }catch(e){}
+  },
+  async toggleSegurarChatWebinar(){
+    const ligar = !this._salasSegurar;
+    if(ligar && !confirm('Segurar o chat deste webinar? Nada vai para o Sino em tempo real e os alunos recebem uma resposta automática até você soltar.')) return;
+    try{
+      await this.apiFetch(`/api/webinar-sino/${this.salasWebinarId}/segurar-chat`, {method:'POST', body: JSON.stringify({ligado: ligar})});
+      this.toast(ligar ? 'Chat segurado' : 'Chat liberado');
+      this.loadSalasSegurar();
     }catch(e){ this.toast('Erro: ' + e.message); }
+  },
+  // Contador de conversas esperando resposta: no menu e no titulo da aba
+  async refreshPendentesBadge(){
+    try{
+      const data = await this.apiFetch('/api/atendimentos/pendentes-count');
+      const n = data.pendentes || 0;
+      const badge = document.getElementById('navBadge-salas');
+      if(badge){ badge.textContent = n > 99 ? '99+' : n; badge.style.display = n > 0 ? '' : 'none'; }
+      document.title = (n > 0 ? `(${n}) ` : '') + 'WebnarPRO';
+    }catch(e){}
+  },
+  startPendentesBadge(){
+    this.refreshPendentesBadge();
+    clearInterval(this._pendentesTimer);
+    this._pendentesTimer = setInterval(()=>{ if(!document.hidden) this.refreshPendentesBadge(); }, 30000);
   },
 
   // ---------- PÁGINA PÚBLICA (visão do aluno) ----------

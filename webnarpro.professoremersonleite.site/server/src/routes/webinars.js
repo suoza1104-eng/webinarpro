@@ -2,6 +2,7 @@ const express = require('express');
 const { z } = require('zod');
 const pool = require('../db');
 const { requireAuth } = require('../middlewares/auth');
+const sinoChannel = require('../services/sino-channel');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -91,7 +92,8 @@ router.get('/ongoing', async (req, res) => {
             v.thumbnail_url,
             (SELECT COUNT(*) FROM view_sessions vs WHERE vs.webinar_id = w.id
                AND vs.atualizado_em > DATE_SUB(NOW(), INTERVAL 70 SECOND)) AS live_count,
-            (SELECT COUNT(*) FROM atendimentos a WHERE a.webinar_id = w.id AND a.status = 'aberto') AS pendentes,
+            (SELECT COUNT(*) FROM atendimentos a WHERE a.webinar_id = w.id AND a.status <> 'encerrado'
+               AND a.ultima_mensagem_remetente = 'lead') AS pendentes,
             (SELECT COUNT(*) FROM atendimentos a WHERE a.webinar_id = w.id AND a.status = 'em_atendimento') AS em_atendimento,
             (SELECT COUNT(*) FROM atendimentos a WHERE a.webinar_id = w.id) AS total_atendimentos
      FROM webinars w
@@ -306,6 +308,7 @@ router.put('/:id', async (req, res) => {
   );
   if (result.affectedRows === 0) return res.status(404).json({ error: 'Webinar não encontrado' });
 
+  sinoChannel.enqueueContext(Number(req.params.id)).catch((err) => req.log.error(err, 'falha ao enfileirar contexto do Sino'));
   res.json({ ok: true, slug: newSlug || undefined });
 });
 
@@ -323,6 +326,7 @@ router.post('/:id/publish', async (req, res) => {
     req.accountId,
   ]);
 
+  sinoChannel.enqueueContext(Number(req.params.id)).catch((err) => req.log.error(err, 'falha ao enfileirar contexto do Sino'));
   const [[account]] = await pool.query('SELECT subdominio FROM accounts WHERE id = ?', [req.accountId]);
   const baseDomain = process.env.APP_BASE_DOMAIN || 'webnarpro.com.br';
   const baseUrl = `https://${account.subdominio}.${baseDomain}/${rows[0].slug}`;
@@ -407,7 +411,7 @@ router.put('/:id/login-config', async (req, res) => {
   const parsed = loginConfigSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   const webinarId = await getOwnedWebinarId(req.params.id, req.accountId);
-  if (!webinarId) return res.status(404).json({ error: 'Webinar nÃ£o encontrado' });
+  if (!webinarId) return res.status(404).json({ error: 'Webinar não encontrado' });
   const data = parsed.data;
 
   await pool.query(
@@ -504,7 +508,7 @@ router.put('/:id/offer-config', async (req, res) => {
   const parsed = offerConfigSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   const webinarId = await getOwnedWebinarId(req.params.id, req.accountId);
-  if (!webinarId) return res.status(404).json({ error: 'Webinar nÃ£o encontrado' });
+  if (!webinarId) return res.status(404).json({ error: 'Webinar não encontrado' });
   const data = parsed.data;
 
   await pool.query(
@@ -562,6 +566,8 @@ router.put('/:id/offer-config', async (req, res) => {
     ],
   );
 
+  // oferta faz parte do contexto que o Sino usa pra responder - reenvia se a integracao estiver ligada
+  sinoChannel.enqueueContext(webinarId).catch((err) => req.log.error(err, 'falha ao enfileirar contexto do Sino'));
   res.json({ ok: true });
 });
 
@@ -595,7 +601,7 @@ router.put('/:id/chat-messages', async (req, res) => {
     const webinarId = await getOwnedWebinarId(req.params.id, req.accountId, connection);
     if (!webinarId) {
       await connection.rollback();
-      return res.status(404).json({ error: 'Webinar nÃ£o encontrado' });
+      return res.status(404).json({ error: 'Webinar não encontrado' });
     }
     await connection.query('DELETE FROM webinar_chat_messages WHERE webinar_id = ?', [webinarId]);
     for (const [idx, msg] of parsed.data.messages.entries()) {
@@ -687,7 +693,7 @@ router.put('/:id/sales-notifications', async (req, res) => {
     const webinarId = await getOwnedWebinarId(req.params.id, req.accountId, connection);
     if (!webinarId) {
       await connection.rollback();
-      return res.status(404).json({ error: 'Webinar nÃ£o encontrado' });
+      return res.status(404).json({ error: 'Webinar não encontrado' });
     }
     await connection.query('DELETE FROM webinar_sales_notifications WHERE webinar_id = ?', [webinarId]);
     for (const sale of parsed.data.sales) {
@@ -736,7 +742,7 @@ router.put('/:id/chatbot-keywords', async (req, res) => {
     const webinarId = await getOwnedWebinarId(req.params.id, req.accountId, connection);
     if (!webinarId) {
       await connection.rollback();
-      return res.status(404).json({ error: 'Webinar nÃ£o encontrado' });
+      return res.status(404).json({ error: 'Webinar não encontrado' });
     }
     await connection.query('DELETE FROM webinar_chatbot_keywords WHERE webinar_id = ?', [webinarId]);
     for (const keyword of parsed.data.keywords) {

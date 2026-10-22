@@ -11,7 +11,7 @@
 <script src="https://cdn.jsdelivr.net/npm/tus-js-client@4.1.0/dist/tus.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js"></script>
-<link rel="stylesheet" href="css/styles.css?v=17">
+<link rel="stylesheet" href="css/styles.css?v=18">
 </head>
 <body data-theme="dark">
 <div class="hazard-strip"></div>
@@ -754,16 +754,53 @@
             </div>
           </div>
 
-          <!-- STEP 11 — AGENTE DE IA -->
+          <!-- STEP 11 — SINO / IA DO CHAT -->
           <div class="wizard-panel" data-step="10">
-            <div class="locked-banner">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>
-              <div>O Agente de IA para atendimento automático no chat ainda não está ativo nesta versão — ele vai poder responder dúvidas dos espectadores sozinho, usando o tom de voz e as instruções que você configurar aqui.</div>
+            <p style="font-size:12px;color:var(--text-faint);margin-top:0;">Com a integração ligada, as conversas do chat deste webinar vão para o <b>Sino</b> como se fosse um número conectado: a IA responde, e o que for venda vai para vendas, o que for suporte vai para o suporte. Depois da live, o Sino continua com quem conversou pelo WhatsApp.</p>
+            <div class="card" style="margin-bottom:16px;">
+              <div class="toggle-row"><div><div class="t-title">Integrar o chat deste webinar com o Sino</div><div class="t-sub">Desligado, o chat fica só na Sala de Atendimento do WebnarPRO, como hoje.</div></div><label class="toggle"><input type="checkbox" id="sino_habilitado"><span class="track"><span class="thumb"></span></span></label></div>
+              <div class="toggle-row"><div><div class="t-title">Segurar o chat deste webinar</div><div class="t-sub">Disjuntor manual: nada vai para o Sino em tempo real; o aluno recebe uma resposta automática. Use se o sistema pesar.</div></div><label class="toggle"><input type="checkbox" id="sino_segurar"><span class="track"><span class="thumb"></span></span></label></div>
+              <div class="field-row" style="margin-top:14px;">
+                <div class="field"><label>Atuação</label><select class="input" id="sino_atuacao"><option value="ao_vivo">Só ao vivo</option><option value="ao_vivo_replay">Ao vivo e replay</option></select></div>
+                <div class="field"><label>Objetivo do webinar</label><select class="input" id="sino_objetivo"><option value="venda">Venda de produto</option><option value="captacao">Captação</option><option value="conteudo">Aula de conteúdo</option><option value="onboarding">Onboarding de alunos</option><option value="outro">Outro</option></select></div>
+                <div class="field"><label>Limite de respostas da IA por aluno</label><input class="input" type="number" id="sino_limite" min="1" max="200" value="20"></div>
+              </div>
             </div>
-            <div class="card" style="margin-top:18px;opacity:.4;pointer-events:none;filter:grayscale(.4);">
-              <div class="toggle-row"><div><div class="t-title">Ativar uso do Agente de IA</div></div><label class="toggle"><input type="checkbox" disabled><span class="track"><span class="thumb"></span></span></label></div>
-              <div class="field" style="margin-top:14px;"><label>Nome do Agente</label><input class="input" placeholder="Assistente FERA - Aula Ao Vivo" style="width:100%;"></div>
-              <div class="field"><label>Instrução para IA</label><textarea class="input" style="width:100%;min-height:70px;" placeholder="Ex: Seja cordial, profissional e prestativo..."></textarea></div>
+
+            <div class="card" style="margin-bottom:16px;">
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+                <b style="flex:1;font-size:13.5px;">Prompt do webinar</b>
+                <select class="input" id="sino_promptLib" style="max-width:220px;" onchange="App.sinoApplyPromptFromLib()"><option value="">Biblioteca de prompts…</option></select>
+                <button class="btn btn-sm" onclick="App.sinoFillModelo()">Preencher com modelo</button>
+                <button class="btn btn-sm" onclick="App.sinoSavePromptToLib()">Salvar como modelo</button>
+              </div>
+              <textarea class="input" id="sino_prompt" style="width:100%;min-height:220px;font-family:var(--font-mono);font-size:12px;" placeholder="Do que é a aula, para quem é, o que a IA pode e não pode dizer, tom, objeções comuns e respostas…"></textarea>
+              <div class="hint" style="font-size:11px;color:var(--text-faint);margin-top:6px;">É o que o Sino usa para saber exatamente o contexto deste webinar. Os dados da oferta entram sozinhos (veja a prévia abaixo).</div>
+            </div>
+
+            <div class="card" style="margin-bottom:16px;">
+              <b style="font-size:13.5px;">Agente e setores no Sino</b>
+              <div class="hint" id="sino_agentsHint" style="font-size:11px;color:var(--text-faint);margin:4px 0 12px;"></div>
+              <div class="field-row">
+                <div class="field"><label>Agente que responde</label><input class="input" id="sino_agente" list="sino_agentesList" placeholder="ex.: larissa"><datalist id="sino_agentesList"></datalist></div>
+                <div class="field"><label>Setor de vendas</label><input class="input" id="sino_setorVenda" list="sino_setoresList" placeholder="ex.: vendas"></div>
+                <div class="field"><label>Setor de suporte</label><input class="input" id="sino_setorSuporte" list="sino_setoresList" placeholder="ex.: suporte"><datalist id="sino_setoresList"></datalist></div>
+              </div>
+            </div>
+
+            <div class="card" style="margin-bottom:16px;">
+              <div class="toggle-row"><div><div class="t-title">Follow-up pós-live pelo Sino</div><div class="t-sub">O Sino busca o lead (ou cria), registra o contexto da live e faz os follow-ups pela API oficial com template aprovado. Não duplica a recuperação de quem clicou em comprar ou chegou na oferta.</div></div><label class="toggle"><input type="checkbox" id="sino_followup" checked><span class="track"><span class="thumb"></span></span></label></div>
+              <div class="field-row" style="margin-top:14px;">
+                <div class="field"><label>Dias do follow-up</label><select class="input" id="sino_followupDias"><option value="1,3">D+1 e D+3</option><option value="1,5">D+1 e D+5</option><option value="1,3,5">D+1, D+3 e D+5</option></select></div>
+                <div class="field"><label>Template do 1º follow-up</label><input class="input" id="sino_tpl1" placeholder="nome do template aprovado"></div>
+                <div class="field"><label>Template do 2º follow-up</label><input class="input" id="sino_tpl2" placeholder="nome do template aprovado"></div>
+              </div>
+              <div class="field"><label>Para quem</label><select class="input" id="sino_followupPublico"><option value="chat">Só quem conversou no chat</option><option value="todos_presentes">Todos que assistiram ao vivo</option></select></div>
+            </div>
+
+            <div class="card">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><b style="flex:1;font-size:13.5px;">Contexto automático que vai para o Sino</b><span class="badge badge-grey" id="sino_ctxStatus"></span><button class="btn btn-sm" onclick="App.loadSinoContext()">↻ Atualizar prévia</button></div>
+              <pre id="sino_ctxPreview" style="margin:0;max-height:260px;overflow:auto;background:var(--bg-elev-2);border:1px solid var(--border-soft);border-radius:var(--radius-sm);padding:12px;font-size:11px;font-family:var(--font-mono);white-space:pre-wrap;">Salve o webinar para ver a prévia.</pre>
             </div>
           </div>
 
@@ -906,21 +943,29 @@
         </div>
 
         <div id="salasQueue" style="display:none;">
-          <div class="toolbar" style="margin-bottom:14px;">
+          <div class="toolbar" style="margin-bottom:12px;flex-wrap:wrap;">
             <button class="btn btn-sm" onclick="App.backToSalasPicker()">← Todos os webinars</button>
             <b id="salasQueueTitle" style="flex:1;font-size:13.5px;"></b>
+            <label class="inbox-sound" title="Tocar um som quando chegar mensagem nova"><input type="checkbox" id="salasSom" onchange="App.toggleSalasSom()"> Som</label>
+            <button class="btn btn-sm" id="salasSegurarBtn" style="display:none;" onclick="App.toggleSegurarChatWebinar()"></button>
             <span class="badge badge-grey" id="salasQueueViewers" title="Espectadores ao vivo agora">👁 0</span>
           </div>
-          <div class="tab-pair" style="margin-bottom:16px;">
-            <button id="salasTabMine" onclick="App.setSalasTab('mine')">Meus atendimentos</button>
-            <button id="salasTabDone" onclick="App.setSalasTab('done')">Atendidos</button>
-            <button class="active" id="salasTabOpen" onclick="App.setSalasTab('open')">Sem atendimento</button>
+          <div class="inbox">
+            <div class="inbox-list">
+              <div class="inbox-search">
+                <div class="input-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="10" cy="10" r="6"/><line x1="15" y1="15" x2="20" y2="20"/></svg><input id="salasSearch" placeholder="Buscar por nome, telefone ou e-mail" oninput="App.onSalasSearch()"></div>
+                <select class="input" id="salasOrdem" onchange="App.reloadSalas()">
+                  <option value="recentes">Mais recentes</option>
+                  <option value="antigas">Esperando há mais tempo</option>
+                  <option value="mais_mensagens">Mais mensagens</option>
+                </select>
+              </div>
+              <div class="inbox-filters" id="salasFilters"></div>
+              <div class="inbox-items" id="salasList"></div>
+            </div>
+            <div class="inbox-thread" id="salasThread"><div class="empty-state">Escolha uma conversa à esquerda.</div></div>
+            <div class="inbox-card" id="salasCard"></div>
           </div>
-          <div class="toolbar">
-            <div class="input-search" style="flex:1;max-width:320px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="10" cy="10" r="6"/><line x1="15" y1="15" x2="20" y2="20"/></svg><input id="salasSearch" placeholder="Buscar pelo nome" oninput="App.renderSalas()"></div>
-            <button class="btn btn-sm" onclick="App.renderSalas()">↻ Atualizar</button>
-          </div>
-          <div class="grid-3" id="salasGrid"></div>
         </div>
       </section>
 
@@ -1156,24 +1201,6 @@
 </div>
 
 <!-- Modal: Sala de atendimento -->
-<div class="modal-backdrop" id="attendModal">
-  <div class="modal-box">
-    <div class="modal-head">
-      <h3 id="attendTitle">Sala de Atendimento</h3>
-      <button class="icon-btn" onclick="App.closeAttend()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>
-    </div>
-    <div class="attend-info-bar" id="attendInfoBar"></div>
-    <div class="modal-body">
-      <div class="attend-chat">
-        <div class="attend-msgs" id="attendMsgs"></div>
-        <div class="attend-input-row">
-          <input class="input" id="attendInput" placeholder="Digite sua resposta..." onkeydown="if(event.key==='Enter')App.sendAttendReply()">
-          <button class="btn btn-primary btn-sm" onclick="App.sendAttendReply()">Enviar</button>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
 
 <!-- Modal: Meu Perfil -->
 <div class="modal-backdrop" id="profileModal">
@@ -1272,6 +1299,7 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="js/app.js?v=24"></script>
+<script src="js/app.js?v=25"></script>
+<script src="js/alerts-ui.js?v=1"></script>
 </body>
 </html>
