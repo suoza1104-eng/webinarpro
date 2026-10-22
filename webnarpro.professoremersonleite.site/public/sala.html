@@ -97,6 +97,10 @@
   .offer-card .offer-price{font-size:34px;font-weight:800;color:#111;margin-bottom:6px;}
   .offer-card .offer-note{font-size:13px;color:#888;margin-bottom:26px;}
   .offer-card button{width:100%;padding:16px;border:none;border-radius:10px;font-weight:800;font-size:16px;color:#fff;cursor:pointer;}
+  @keyframes offerBtnPulse{0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(217,59,59,.55);}50%{transform:scale(1.035);box-shadow:0 0 0 12px rgba(217,59,59,0);}}
+  .offer-buy-urgent{animation:offerBtnPulse 1.4s ease-in-out infinite;}
+  @keyframes offerTabPulse{0%,100%{background:rgba(217,59,59,.14);color:#D93B3B;}50%{background:rgba(217,59,59,.32);color:#D93B3B;}}
+  .pub-tab.offer-active{animation:offerTabPulse 1.6s ease-in-out infinite;border-radius:999px;}
   @media (min-width:901px){
     .offer-pip{width:min(26vw,360px);aspect-ratio:16/9;}
     .offer-pip.pip-size-pequeno{width:min(16vw,220px);}
@@ -213,7 +217,7 @@
     <div class="reg-sub" id="regSub">Preencha seus dados para entrar na sala</div>
     <div class="reg-field"><label>Nome</label><input class="input" id="regNome" style="width:100%;"></div>
     <div class="reg-field"><label>E-mail</label><input class="input" id="regEmail" type="email" style="width:100%;"></div>
-    <div class="reg-field" id="regWhatsField" style="display:none;"><label>WhatsApp</label><input class="input" id="regWhats" type="tel" inputmode="numeric" placeholder="(11) 98765-4321" style="width:100%;" oninput="Sala.maskWhatsInput(this)"></div>
+    <div class="reg-field" id="regWhatsField" style="display:none;"><label>WhatsApp <span style="color:#D93B3B;">*</span></label><input class="input" id="regWhats" type="tel" inputmode="numeric" placeholder="(11) 98765-4321" style="width:100%;" oninput="Sala.maskWhatsInput(this)"></div>
     <div class="reg-field" id="regEmpresaField" style="display:none;"><label>Empresa</label><input class="input" id="regEmpresa" style="width:100%;"></div>
     <div id="regError" style="color:var(--red);font-size:12px;margin-bottom:10px;display:none;"></div>
     <button type="button" class="btn btn-primary" id="regSubmitBtn" style="width:100%;justify-content:center;" onclick="Sala.register()">Entrar na Aula</button>
@@ -300,6 +304,6 @@
   <button type="button" class="offer-close-btn" onclick="Sala.closeOfferOverlay(true)">×</button>
 </div>
 
-<script src="/js/sala.js?v=25"></script>
+<script src="/js/sala.js?v=26"></script>
 </body>
 </html>

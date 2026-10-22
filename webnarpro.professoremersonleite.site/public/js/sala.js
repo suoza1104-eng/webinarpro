@@ -221,7 +221,7 @@ const Sala = {
     if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ errEl.textContent = 'Digite um e-mail válido.'; errEl.style.display = 'block'; return; }
     if(whatsField && whatsField.style.display !== 'none'){
       const whatsDigits = whatsapp.replace(/\D/g, '');
-      if(whatsDigits.length > 0 && whatsDigits.length < 10){ errEl.textContent = 'Digite um WhatsApp válido, com DDD.'; errEl.style.display = 'block'; return; }
+      if(whatsDigits.length < 10){ errEl.textContent = 'Digite seu WhatsApp com DDD — é obrigatório.'; errEl.style.display = 'block'; return; }
     }
 
     const btn = document.getElementById('regSubmitBtn');
@@ -1241,7 +1241,7 @@ const Sala = {
     this.offerShown = true;
     if(!this.room.offerConfig) return;
     const tabBtn = document.getElementById('tabOferta');
-    if(tabBtn) tabBtn.style.display = '';
+    if(tabBtn){ tabBtn.style.display = ''; tabBtn.classList.add('offer-active'); }
     this.openOfferOverlay('offer');
   },
 
@@ -1258,23 +1258,35 @@ const Sala = {
         ${original}
         <div class="offer-price">Por ${this.formatCents(cfg.precoOfertaCentavos)}</div>
         <div class="offer-note">Por tempo limitado — Oferta só hoje!</div>
-        <button style="background:${cfg.corBotao || '#D93B3B'};" onclick="Sala.onBuyClick()">${escapeHtml(cfg.textoBotao || 'inscreva-se aqui')}</button>
+        <button class="offer-buy-btn offer-buy-urgent" style="background:${cfg.corBotao || '#D93B3B'};" onclick="Sala.onBuyClick()">${escapeHtml(cfg.textoBotao || 'inscreva-se aqui')}</button>
       </div>`;
+  },
+
+  // Manda o clique de "comprar" com sendBeacon em vez de fetch: o navegador garante a
+  // entrega mesmo que a pessoa troque de app ou feche a aba logo em seguida (pra pegar o
+  // cartao, por exemplo) - com fetch()+catch essa chamada podia ser interrompida antes de
+  // terminar e o clique se perdia, mesmo com o checkout tendo aberto normalmente pra ela.
+  trackCompraClick(){
+    if(!this.leadToken) return;
+    const url = '/api/public/webinars/' + encodeURIComponent(this.slug) + '/track-event';
+    const payload = JSON.stringify({ evento: 'compra', isReplay: !!this.isReplay, token: this.leadToken });
+    let sent = false;
+    if(navigator.sendBeacon){
+      try{
+        sent = navigator.sendBeacon(url, new Blob([payload], { type: 'application/json' }));
+      }catch(e){ sent = false; }
+    }
+    if(!sent){
+      fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload, keepalive: true }).catch(()=>{});
+    }
   },
 
   onBuyClick(){
     const cfg = this.room.offerConfig;
     if(!cfg || !cfg.linkCheckout) return;
-    if(this.leadToken){
-      fetch('/api/public/webinars/' + encodeURIComponent(this.slug) + '/track-event', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + this.leadToken },
-        body: JSON.stringify({ evento: 'compra', isReplay: !!this.isReplay }),
-      }).catch(()=>{});
-    }
+    this.trackCompraClick();
     if(cfg.modoCheckout === 'embutido'){
       this.switchOfferPanel(`<iframe src="${escapeHtml(this.buildCheckoutUrl())}" allow="payment"></iframe>`);
-      this.startCheckoutAutoCloseTimer();
     } else {
       window.location.href = cfg.linkCheckout;
     }
@@ -1291,13 +1303,6 @@ const Sala = {
     const qs = params.toString();
     if(!qs) return base;
     return base + (base.includes('?') ? '&' : '?') + qs;
-  },
-
-  startCheckoutAutoCloseTimer(){
-    clearTimeout(this._checkoutAutoCloseTimer);
-    const cfg = this.room.offerConfig;
-    const durMs = ((cfg && cfg.checkoutDuracaoSegundos) || 600) * 1000;
-    this._checkoutAutoCloseTimer = setTimeout(()=>this.closeOfferOverlay(true), durMs);
   },
 
   // Troca o conteúdo do painel com um fade suave, sem fechar o overlay nem mexer no PiP do vídeo.
@@ -1328,10 +1333,10 @@ const Sala = {
     document.getElementById('reopenCheckoutBtn')?.classList.remove('blink-show');
 
     if(mode === 'checkout'){
+      // Uma vez aberto de verdade, o checkout fica aberto ate a pessoa fechar — sem
+      // fechamento automatico por tempo, que cortava compras em andamento.
       panel.innerHTML = `<iframe src="${escapeHtml(this.buildCheckoutUrl())}" allow="payment"></iframe>`;
-      this.startCheckoutAutoCloseTimer();
     } else {
-      clearTimeout(this._checkoutAutoCloseTimer);
       panel.innerHTML = this.offerCardHtml();
     }
   },
@@ -1344,7 +1349,6 @@ const Sala = {
   closeOfferOverlay(showReopenBlink){
     const overlay = document.getElementById('offerOverlay');
     if(overlay) overlay.classList.remove('open');
-    clearTimeout(this._checkoutAutoCloseTimer);
     if(this.video && this._videoOriginalParent){
       this._videoOriginalParent.appendChild(this.video);
       this._videoOriginalParent = null;
@@ -1385,7 +1389,7 @@ const Sala = {
   startSupportPolling(){
     if(this._supportTicker) clearInterval(this._supportTicker);
     this.loadSupportMessages();
-    this._supportTicker = setInterval(()=>this.loadSupportMessages(), 4000);
+    this._supportTicker = setInterval(()=>this.loadSupportMessages(), 20000);
   },
 
   async loadSupportMessages(){

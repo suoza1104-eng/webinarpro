@@ -81,6 +81,19 @@ router.post('/webinars/:slug/register', registerLimiter, async (req, res) => {
   if (webinarRows.length === 0) return res.status(404).json({ error: 'Webinar não encontrado' });
   const webinarId = webinarRows[0].id;
 
+  // WhatsApp e obrigatorio quando o webinar pede esse campo no cadastro (sem ele, nao da
+  // pra pre-preencher o checkout nem o sino tem pra onde mandar a recuperacao de carrinho).
+  const [[loginCfg]] = await pool.query(
+    'SELECT pedir_whatsapp FROM webinar_login_config WHERE webinar_id = ? LIMIT 1',
+    [webinarId],
+  );
+  if (loginCfg?.pedir_whatsapp) {
+    const whatsDigits = (data.whatsapp || '').replace(/\D/g, '');
+    if (whatsDigits.length < 10) {
+      return res.status(400).json({ error: 'Informe um WhatsApp válido, com DDD.' });
+    }
+  }
+
   const ip = req.ip;
   await pool.query(
     `INSERT INTO leads (webinar_id, nome, email, whatsapp, empresa, ip_cadastro)

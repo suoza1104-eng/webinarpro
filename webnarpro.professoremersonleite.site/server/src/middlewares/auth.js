@@ -19,7 +19,9 @@ function requireAuth(req, res, next) {
 
 function requireLeadAuth(req, res, next) {
   const header = req.headers.authorization || '';
-  const token = header.startsWith('Bearer ') ? header.slice(7) : null;
+  // navigator.sendBeacon() nao permite setar cabecalhos (usado pro clique de compra, que
+  // precisa sobreviver a navegacao/troca de app) - aceita o token no corpo como alternativa.
+  const token = (header.startsWith('Bearer ') ? header.slice(7) : null) || req.body?.token || null;
   if (!token) return res.status(401).json({ error: 'Token ausente' });
 
   try {
