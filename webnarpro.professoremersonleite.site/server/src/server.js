@@ -11,5 +11,6 @@ app.listen(port, () => {
   logger.info(`WebnarPRO API rodando na porta ${port}`);
   sino.startOutboxWorker();
   sinoChannel.startWorker();
+  require('./services/presence-buffer').start();
   alerts.start();
 });

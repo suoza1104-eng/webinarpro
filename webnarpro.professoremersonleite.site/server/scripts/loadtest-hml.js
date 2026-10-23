@@ -20,6 +20,8 @@ if (!/_hml$/.test(process.env.DB_NAME || '')) { console.error('Recusado: so roda
 
 const agent = new http.Agent({ keepAlive: true, maxSockets: 512 });
 const lat = [];
+const porRota = {};
+const T0 = Date.now();
 let erros = 0, total = 0, status429 = 0;
 
 function call(method, path, token, body) {
@@ -31,7 +33,10 @@ function call(method, path, token, body) {
       res.resume();
       res.on('end', () => {
         total += 1;
-        lat.push(Number(process.hrtime.bigint() - start) / 1e6);
+        const ms = Number(process.hrtime.bigint() - start) / 1e6;
+        lat.push(ms);
+        const k = method + ' ' + path.split('/').pop() + (Date.now() - T0 < 15000 ? ' [entrada]' : ' [regime]');
+        (porRota[k] ||= []).push(ms);
         if (res.statusCode === 429) status429 += 1;
         else if (res.statusCode >= 400) erros += 1;
         resolve();
@@ -62,9 +67,12 @@ function call(method, path, token, body) {
     const conversa = PADRAO === 'antigo' || i % 10 === 0;
     const supportMs = PADRAO === 'antigo' ? 4000 : 20000;
     const offset = Math.random() * 4000;
+    // cada aluno esta num ponto diferente do video, que avanca em tempo real (como numa live)
+    // SINCRONIZADO=1: todos no mesmo segundo (pior caso de uma live: cruzam o marco de 5 min juntos)
+    const inicioVideo = process.env.SINCRONIZADO === '1' ? 600 : 600 + Math.floor(Math.random() * 300);
     timers.push(setTimeout(() => {
-      call('POST', base + '/presence', t, { segundos: 600 });
-      timers.push(setInterval(() => call('POST', base + '/presence', t, { segundos: 600 }), 30000));
+      call('POST', base + '/presence', t, { segundos: inicioVideo + Math.floor((Date.now() - T0) / 1000) });
+      timers.push(setInterval(() => call('POST', base + '/presence', t, { segundos: inicioVideo + Math.floor((Date.now() - T0) / 1000) }), 30000));
       if (conversa) {
         timers.push(setInterval(() => call('GET', base + '/support-messages', t), supportMs));
         if (PADRAO === 'novo') timers.push(setInterval(() => call('POST', base + '/support-message', t, { mensagem: 'pergunta de carga' }), 60000 + Math.random() * 30000));
@@ -91,6 +99,7 @@ function call(method, path, token, body) {
     alunos: ALUNOS, padrao: PADRAO, segundos: SEGUNDOS,
     requisicoes: total, reqPorSeg: Math.round(total / SEGUNDOS), erros, status429,
     latenciaMs: { p50: p(0.5), p95: p(0.95), p99: p(0.99), max: Math.round(sorted.at(-1) || 0) },
+    porRota: Object.fromEntries(Object.entries(porRota).map(([k, v]) => { const o = [...v].sort((a, b) => a - b); return [k, { n: o.length, p50: Math.round(o[Math.floor(o.length / 2)]), p95: Math.round(o[Math.floor(o.length * 0.95)]) }]; })),
     healthProbeMs: { p50: Math.round(ps[Math.floor(ps.length / 2)] || 0), max: Math.round(ps.at(-1) || 0) },
   }));
 

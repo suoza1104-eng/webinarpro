@@ -69,7 +69,41 @@ async function enqueueRetry(evento, payload, erro) {
   }
 }
 
-async function sendEvent(evento, data) {
+// Fila com limite de envios simultaneos. Numa live todo mundo esta no mesmo ponto do video,
+// entao a cada 5 min TODOS cruzam o marco de "progresso" juntos - sem limite, 3.000 alunos
+// viravam 100 consultas + 100 POSTs por segundo e esgotavam o pool do MySQL (teste de carga
+// de 22/10: ate o /api/health levou 4,8s). Com a fila, os eventos chegam todos, so espalhados.
+const CONCORRENCIA = Number(process.env.SINO_EVENT_CONCURRENCY || 6);
+const fila = [];
+let emAndamento = 0;
+
+function drain() {
+  while (emAndamento < CONCORRENCIA && fila.length > 0) {
+    const job = fila.shift();
+    emAndamento += 1;
+    Promise.resolve()
+      .then(job)
+      .catch((err) => console.error(`[sino] erro num evento da fila: ${err.message}`))
+      .finally(() => { emAndamento -= 1; drain(); });
+  }
+}
+
+// Agenda um trabalho (consulta + envio) na fila - nunca bloqueia quem chamou
+function queue(job) {
+  fila.push(job);
+  drain();
+}
+
+function queueSize() {
+  return fila.length + emAndamento;
+}
+
+// Uso direto nas rotas: entra na fila, nunca espera
+function sendEvent(evento, data) {
+  queue(() => sendEventNow(evento, data));
+}
+
+async function sendEventNow(evento, data) {
   if (!process.env.SINO_WEBHOOK_URL || !process.env.SINO_WEBHOOK_SECRET) return; // integracao nao configurada
 
   const payload = buildPayload(evento, data);
@@ -140,4 +174,4 @@ function startOutboxWorker() {
   }, 30000);
 }
 
-module.exports = { sendEvent, toSinoPhone, toBrtIso, startOutboxWorker, processOutboxBatch };
+module.exports = { sendEvent, sendEventNow, queue, queueSize, toSinoPhone, toBrtIso, startOutboxWorker, processOutboxBatch };

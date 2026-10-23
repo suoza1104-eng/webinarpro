@@ -19,7 +19,9 @@ const DOWN_AFTER = 3;
 
 // direcao: 'acima' = alerta quando valor > limite; 'abaixo' = quando valor < limite
 const DEFAULT_RULES = [
-  { metrica: 'alunos_ao_vivo', grupo: 'Negócio', label: 'Alunos ao vivo agora', unidade: '', amarelo: 500, vermelho: 800 },
+  // teste de carga de 22/10: 3.000 alunos sincronizados com p95 de 46ms (Node+MySQL) e Apache sem
+  // falhas ate 1.500 conexoes - 3.000 e o maximo ja testado, por isso vira o vermelho
+  { metrica: 'alunos_ao_vivo', grupo: 'Negócio', label: 'Alunos ao vivo agora', unidade: '', amarelo: 2000, vermelho: 3000 },
 
   { metrica: 'apache_conexoes_443', grupo: 'Apache', label: 'Conexões abertas na 443', unidade: '', amarelo: 600, vermelho: 850 },
   { metrica: 'apache_workers_ocupados', grupo: 'Apache', label: 'Workers ocupados', unidade: '', amarelo: 200, vermelho: 300 },
@@ -105,7 +107,9 @@ async function collectBusinessMetrics() {
   const [[filaEventos]] = await pool.query(
     "SELECT COUNT(*) AS n FROM sino_webhook_outbox WHERE status = 'pendente'",
   );
-  return { alunosAoVivo: Number(alunos.n), filaEventosSino: Number(filaEventos.n) };
+  // fila de reenvio no banco + fila em memoria dos eventos ainda nao enviados
+  const filaMemoria = require('./sino').queueSize();
+  return { alunosAoVivo: Number(alunos.n), filaEventosSino: Number(filaEventos.n) + filaMemoria };
 }
 
 async function collectValues() {

@@ -8,6 +8,7 @@ const bunny = require('../services/bunny');
 const sino = require('../services/sino');
 const sinoChannel = require('../services/sino-channel');
 const atendimentoSvc = require('../services/atendimento');
+const presenceBuffer = require('../services/presence-buffer');
 const { leadRateKey } = require('../middlewares/rate-key');
 
 const router = express.Router();
@@ -340,25 +341,23 @@ router.post('/webinars/:slug/presence', presenceLimiter, requireLeadAuth, async 
   const segundos = Math.max(0, Math.floor(Number(req.body?.segundos) || 0));
   const isReplay = req.body?.isReplay ? 1 : 0;
 
-  await pool.query(
-    `INSERT INTO view_sessions (webinar_id, lead_id, is_replay, max_segundos)
-     VALUES (?, ?, ?, ?)
-     ON DUPLICATE KEY UPDATE max_segundos = GREATEST(max_segundos, VALUES(max_segundos)), atualizado_em = CURRENT_TIMESTAMP`,
-    [req.webinarId, req.leadId, isReplay, segundos],
-  );
+  presenceBuffer.add(req.webinarId, req.leadId, isReplay, segundos); // gravado em lote a cada 2s
 
   // "progresso" pro sino a cada ~5min (so na live, nunca no replay) - sem guardar estado
   // novo: so dispara quando o segundo cai dentro da janela dos ~30s apos cruzar um
   // multiplo de 300s, o que acontece em 1 a cada ~10 pings de presenca.
+  // Numa live todos cruzam o marco juntos - a consulta e o envio vao pela fila limitada do sino.
   if (!isReplay && segundos > 0 && segundos % 300 < 30) {
-    leadAndWebinarForSino(req.leadId, req.webinarId).then((info) => {
+    const { leadId, webinarId } = req;
+    sino.queue(async () => {
+      const info = await leadAndWebinarForSino(leadId, webinarId);
       if (!info) return;
-      sino.sendEvent('progresso', {
+      await sino.sendEventNow('progresso', {
         webinarId: info.slug, webinarNome: info.webinar_nome, dataInicio: info.data_inicio,
-        leadId: req.leadId, nome: info.nome, email: info.email, whatsapp: info.whatsapp,
+        leadId, nome: info.nome, email: info.email, whatsapp: info.whatsapp,
         segundosAssistidos: segundos,
       });
-    }).catch(() => {});
+    });
   }
 
   res.json({ ok: true });
@@ -393,13 +392,15 @@ router.post('/webinars/:slug/track-event', trackEventLimiter, requireLeadAuth, a
 
   const sinoEvento = SINO_EVENT_MAP[evento];
   if (sinoEvento && !isReplay) {
-    leadAndWebinarForSino(req.leadId, req.webinarId).then((info) => {
+    const { leadId, webinarId } = req;
+    sino.queue(async () => {
+      const info = await leadAndWebinarForSino(leadId, webinarId);
       if (!info) return;
-      sino.sendEvent(sinoEvento, {
+      await sino.sendEventNow(sinoEvento, {
         webinarId: info.slug, webinarNome: info.webinar_nome, dataInicio: info.data_inicio,
-        leadId: req.leadId, nome: info.nome, email: info.email, whatsapp: info.whatsapp,
+        leadId, nome: info.nome, email: info.email, whatsapp: info.whatsapp,
       });
-    }).catch(() => {});
+    });
   }
 
   res.json({ ok: true });
