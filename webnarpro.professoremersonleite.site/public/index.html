@@ -11,7 +11,7 @@
 <script src="https://cdn.jsdelivr.net/npm/tus-js-client@4.1.0/dist/tus.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js"></script>
-<link rel="stylesheet" href="css/styles.css?v=18">
+<link rel="stylesheet" href="css/styles.css?v=19">
 </head>
 <body data-theme="dark">
 <div class="hazard-strip"></div>
@@ -94,23 +94,23 @@
         <div class="stat-grid">
           <div class="stat-card">
             <div class="s-label">WEBINARS ATIVOS</div>
-            <div class="s-value">0</div>
-            <div class="s-delta">Sem dados ainda</div>
+            <div class="s-value" id="dashAtivos">—</div>
+            <div class="s-delta" id="dashAtivosSub">&nbsp;</div>
           </div>
           <div class="stat-card">
             <div class="s-label">ESPECTADORES (7 DIAS)</div>
-            <div class="s-value">0</div>
-            <div class="s-delta">Sem dados ainda</div>
+            <div class="s-value" id="dashEspectadores">—</div>
+            <div class="s-delta" id="dashEspectadoresSub">&nbsp;</div>
           </div>
           <div class="stat-card">
             <div class="s-label">TAXA DE CONVERSÃO</div>
-            <div class="s-value">0%</div>
-            <div class="s-delta">Sem dados ainda</div>
+            <div class="s-value" id="dashConversao">—</div>
+            <div class="s-delta" id="dashConversaoSub">&nbsp;</div>
           </div>
           <div class="stat-card">
             <div class="s-label">FATURAMENTO DO MÊS</div>
-            <div class="s-value">R$ 0,00</div>
-            <div class="s-delta">Sem dados ainda</div>
+            <div class="s-value" id="dashFaturamento">—</div>
+            <div class="s-delta" id="dashFaturamentoSub">&nbsp;</div>
           </div>
         </div>
 
@@ -118,7 +118,10 @@
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
             <b style="font-size:13.5px;">Espectadores por sessão — últimas 8 sessões</b>
           </div>
-          <div style="height:220px;"><canvas id="dashChart"></canvas></div>
+          <div style="height:220px;position:relative;">
+            <canvas id="dashChart"></canvas>
+            <div id="dashChartEmpty" style="display:none;position:absolute;inset:0;align-items:center;justify-content:center;color:var(--text-dim);font-size:13px;">Nenhuma sessão realizada ainda.</div>
+          </div>
         </div>
 
         <div class="card">
@@ -804,8 +807,104 @@
             </div>
           </div>
 
-          <!-- STEP 12 — PRONTO -->
+          <!-- STEP 12 — SIMULAÇÃO E VALIDAÇÃO -->
           <div class="wizard-panel" data-step="11">
+            <p style="font-size:12px;color:var(--text-faint);margin-top:0;">Simulação do webinar com o que está configurado agora (inclusive o que ainda não foi salvo). Avance e volte o vídeo pra ver <b>quando</b> cada mensagem, venda, pitch, oferta e gatilho acontece. <b>Nada aqui é real</b>: nenhum webhook sai, nenhum lead é gravado, nenhuma métrica conta.</p>
+
+            <div class="card sim-check-card">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+                <b style="flex:1;font-size:13.5px;">Checklist de validação</b>
+                <span class="badge" id="simCheckSummary"></span>
+              </div>
+              <div class="sim-checks" id="simChecks"></div>
+            </div>
+
+            <div class="sim-layout">
+              <div class="sim-main">
+                <div class="sim-stage" id="simStage">
+                  <video id="simVideo" playsinline muted></video>
+                  <div class="sim-placeholder" id="simPlaceholder"></div>
+                  <div class="sim-badges">
+                    <span class="sim-badge sim-badge-sim">SIMULAÇÃO</span>
+                    <span class="sim-badge sim-badge-live" id="simLiveBadge">● AO VIVO</span>
+                    <span class="sim-badge" id="simAudience"></span>
+                  </div>
+                  <div class="sim-reactions" id="simReactions"></div>
+                  <div class="sim-sales" id="simSales"></div>
+                  <div class="sim-offer" id="simOffer"></div>
+                  <div class="sim-flash" id="simFlash"></div>
+                </div>
+
+                <div class="sim-track-wrap">
+                  <div class="sim-track" id="simTrack">
+                    <div class="sim-track-bar"></div>
+                    <div class="sim-track-prelive" id="simTrackPre"></div>
+                    <div class="sim-track-played" id="simTrackPlayed"></div>
+                    <div id="simTrackMarks"></div>
+                    <div class="sim-playhead" id="simPlayhead"></div>
+                    <div class="sim-track-tip" id="simTrackTip"></div>
+                  </div>
+                  <div class="sim-legend">
+                    <span><i class="lg-chat"></i>Chat</span><span><i class="lg-sup"></i>Suporte</span><span><i class="lg-sale"></i>Venda</span>
+                    <span><i class="lg-pitch"></i>Pitch</span><span><i class="lg-offer"></i>Oferta</span><span><i class="lg-hook"></i>Webhook Sino</span><span><i class="lg-lock"></i>Trava de avanço</span>
+                  </div>
+                </div>
+
+                <div class="sim-controls">
+                  <button class="btn btn-sm" onclick="App.simSeek(App._sim.tMin)" title="Início">⏮</button>
+                  <button class="btn btn-sm" onclick="App.simJumpEvent(-1)" title="Gatilho anterior">◀ gatilho</button>
+                  <button class="btn btn-sm" onclick="App.simSkip(-30)">-30s</button>
+                  <button class="btn btn-sm" onclick="App.simSkip(-5)">-5s</button>
+                  <button class="btn btn-primary btn-sm sim-play" id="simPlayBtn" onclick="App.simTogglePlay()">▶ Play</button>
+                  <button class="btn btn-sm" onclick="App.simSkip(5)">+5s</button>
+                  <button class="btn btn-sm" onclick="App.simSkip(30)">+30s</button>
+                  <button class="btn btn-sm" onclick="App.simJumpEvent(1)" title="Próximo gatilho">gatilho ▶</button>
+                  <select class="select sim-speed" id="simSpeed" onchange="App.simSetSpeed(this.value)" title="Velocidade">
+                    <option value="1">1x</option><option value="2">2x</option><option value="4">4x</option><option value="8">8x</option><option value="16">16x</option>
+                  </select>
+                  <button class="btn btn-sm" id="simMuteBtn" onclick="App.simToggleMute()" title="Som">🔇</button>
+                  <div class="sim-time"><span id="simTimeNow">00:00:00</span><span class="sim-time-sep">/</span><span id="simTimeDur">--:--:--</span></div>
+                </div>
+                <div class="sim-goto">
+                  <span class="sim-goto-label">Ir para</span>
+                  <input class="input sim-goto-input" id="simGotoInput" placeholder="hh:mm:ss" oninput="App.maskTimeInput(this)" onkeydown="if(event.key==='Enter')App.simGotoTyped()">
+                  <button class="btn btn-sm" onclick="App.simGotoTyped()">Ir</button>
+                  <button class="btn btn-sm" id="simGoPitch" onclick="App.simGoMarker('pitch')">Pitch</button>
+                  <button class="btn btn-sm" id="simGoOferta" onclick="App.simGoMarker('oferta')">Oferta</button>
+                  <span style="flex:1;"></span>
+                  <button class="btn btn-sm" onclick="App.simMarkHere('pitch')" title="Usa o tempo atual do vídeo como início do pitch">📍 Pitch começa aqui</button>
+                  <button class="btn btn-sm" onclick="App.simMarkHere('oferta')" title="Usa o tempo atual do vídeo como abertura da oferta">📍 Oferta abre aqui</button>
+                </div>
+                <div class="sim-next" id="simNext"></div>
+              </div>
+
+              <div class="sim-side">
+                <div class="pub-tabs">
+                  <button class="pub-tab active" id="simTabChat" onclick="App.simTab('chat')">Chat</button>
+                  <button class="pub-tab" id="simTabEventos" onclick="App.simTab('eventos')">Gatilhos</button>
+                </div>
+                <div class="sim-side-body" id="simChatPane">
+                  <div class="sim-chat" id="simChat"></div>
+                  <div class="sim-chat-input">
+                    <input class="input" id="simChatInput" placeholder="Teste o chatbot: digite como aluno…" onkeydown="if(event.key==='Enter')App.simSendChat()">
+                    <button class="btn btn-sm btn-primary" onclick="App.simSendChat()">Enviar</button>
+                  </div>
+                </div>
+                <div class="sim-side-body" id="simEventosPane" style="display:none;">
+                  <div class="sim-filter" id="simFilter">
+                    <button class="active" data-f="gatilhos" onclick="App.simSetFilter('gatilhos')">Gatilhos</button>
+                    <button data-f="chat" onclick="App.simSetFilter('chat')">Chat</button>
+                    <button data-f="vendas" onclick="App.simSetFilter('vendas')">Vendas</button>
+                    <button data-f="tudo" onclick="App.simSetFilter('tudo')">Tudo</button>
+                  </div>
+                  <div class="sim-events" id="simEvents"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- STEP 13 — PRONTO -->
+          <div class="wizard-panel" data-step="12">
             <div class="card" style="display:flex;align-items:center;gap:20px;justify-content:space-between;flex-wrap:wrap;background:var(--yellow-soft2);border-color:var(--yellow-dim);">
               <div>
                 <div style="font-weight:800;font-size:15px;margin-bottom:4px;">⚡ Seu webinar está pronto!</div>
@@ -1299,7 +1398,7 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="js/app.js?v=25"></script>
+<script src="js/app.js?v=27"></script>
 <script src="js/alerts-ui.js?v=1"></script>
 </body>
 </html>

@@ -35,6 +35,7 @@ const ICONS = {
   integ:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 12l2.3-2.3"/><path d="M7.5 11.5L5.3 13.7a3 3 0 004.2 4.2l2.2-2.2"/><path d="M16.5 12.5l2.2-2.2a3 3 0 00-4.2-4.2l-2.2 2.2"/></svg>',
   bot:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="8" width="16" height="12" rx="2"/><circle cx="9" cy="14" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="14" r="1" fill="currentColor" stroke="none"/><line x1="12" y1="4" x2="12" y2="8"/><circle cx="12" cy="3" r="1"/></svg>',
   ai:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2l1.8 4.6L18 8l-4.2 1.4L12 14l-1.8-4.6L6 8l4.2-1.4z"/><circle cx="18" cy="18" r="2.4"/></svg>',
+  shield:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6l8-3z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg>',
   rocket:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2c3 3 4 7 4 10-1 1-2 2-4 2s-3-1-4-2c0-3 1-7 4-10z"/><path d="M9 14l-3 3 1 4 4-1"/><path d="M15 14l3 3-1 4-4-1"/></svg>',
   upload:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 16V4M8 8l4-4 4 4"/><path d="M4 16v3a2 2 0 002 2h12a2 2 0 002-2v-3"/></svg>',
   lock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>',
@@ -61,7 +62,8 @@ const WIZ_STEPS = [
   {label:'Início', ico:'flag'}, {label:'Webinar', ico:'play'}, {label:'Login', ico:'login'},
   {label:'Vídeo', ico:'vid2'}, {label:'Oferta', ico:'offer'}, {label:'Chat', ico:'chat'},
   {label:'Vendas', ico:'cart'}, {label:'Audiência', ico:'audience'}, {label:'Integrações', ico:'integ'},
-  {label:'Chatbot', ico:'bot'}, {label:'Sino / IA', ico:'ai'}, {label:'Pronto', ico:'rocket'}
+  {label:'Chatbot', ico:'bot'}, {label:'Sino / IA', ico:'ai'}, {label:'Validação', ico:'shield'},
+  {label:'Pronto', ico:'rocket'}
 ];
 
 function loadLS(key, fallback){
@@ -421,6 +423,7 @@ const App = {
     document.getElementById('sidebar').classList.remove('mobile-open');
     window.scrollTo(0,0);
     this.stopSalasTimers();
+    if(id !== 'wizard') this.simClose();
     if(id === 'salas'){
       document.getElementById('salasQueue').style.display = 'none';
       document.getElementById('salasPicker').style.display = 'block';
@@ -444,19 +447,59 @@ const App = {
     tb.innerHTML = this.webinars.slice(0,3).map(w=>`
       <tr><td>${w.nome}</td><td>${w.data}</td><td>${this.statusBadge(w.status)}</td></tr>
     `).join('');
-    const ctx = document.getElementById('dashChart');
-    if(ctx && window.Chart){
-      new Chart(ctx, {
-        type:'line',
-        data:{ labels:['S1','S2','S3','S4','S5','S6','S7','S8'],
-          datasets:[{ label:'Espectadores', data:[0,0,0,0,0,0,0,0],
-            borderColor:'#FFCC00', backgroundColor:'rgba(255,204,0,.12)', tension:.35, fill:true, pointRadius:3, pointBackgroundColor:'#FFCC00'}]},
-        options:{ plugins:{legend:{display:false}}, scales:{
-          x:{grid:{color:'#232320'}, ticks:{color:'#a6a59a'}},
-          y:{grid:{color:'#232320'}, ticks:{color:'#a6a59a'}}
-        }, maintainAspectRatio:false }
-      });
+    this.loadDashboardStats();
+  },
+
+  async loadDashboardStats(){
+    let d;
+    try{
+      d = await this.apiFetch('/api/webinars/dashboard');
+    }catch(e){
+      return;
     }
+    const num = (n)=>(n||0).toLocaleString('pt-BR');
+    const brl = (c)=>((c||0)/100).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+    const set = (id, txt)=>{ const el = document.getElementById(id); if(el) el.textContent = txt; };
+
+    set('dashAtivos', num(d.webinarsAtivos));
+    set('dashAtivosSub', d.sessoes.length ? `${d.sessoes.length} sessão(ões) realizada(s)` : 'Nenhuma sessão realizada');
+    set('dashEspectadores', num(d.espectadores7d));
+    set('dashEspectadoresSub', 'Assistiram ao vivo ou replay');
+    set('dashConversao', d.assistiram30d > 0 ? ((d.compradores30d / d.assistiram30d) * 100).toFixed(1).replace('.', ',') + '%' : '—');
+    set('dashConversaoSub', `${num(d.compradores30d)} compradores de ${num(d.assistiram30d)} ao vivo (30 dias)`);
+    set('dashFaturamento', brl(d.faturamentoMesCentavos));
+    set('dashFaturamentoSub', `${num(d.vendasMes)} venda(s) aprovada(s) no mês`);
+
+    const ctx = document.getElementById('dashChart');
+    const empty = document.getElementById('dashChartEmpty');
+    if(this._dashChart){ this._dashChart.destroy(); this._dashChart = null; }
+    if(!ctx || !window.Chart) return;
+    if(d.sessoes.length === 0){
+      ctx.style.display = 'none';
+      empty.style.display = 'flex';
+      return;
+    }
+    ctx.style.display = 'block';
+    empty.style.display = 'none';
+    const sessoes = d.sessoes;
+    this._dashChart = new Chart(ctx, {
+      type:'line',
+      data:{ labels: sessoes.map(s=>new Date(s.dataInicio).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})),
+        datasets:[{ label:'Espectadores', data: sessoes.map(s=>s.espectadores),
+          borderColor:'#FFCC00', backgroundColor:'rgba(255,204,0,.12)', tension:.35, fill:true, pointRadius:4, pointBackgroundColor:'#FFCC00'}]},
+      options:{ plugins:{legend:{display:false}, tooltip:{ displayColors:false, callbacks:{
+          title: (items)=>sessoes[items[0].dataIndex].nome,
+          label: (item)=>{
+            const s = sessoes[item.dataIndex];
+            const conv = s.espectadores > 0 ? ` (${((s.compradores / s.espectadores) * 100).toFixed(1).replace('.', ',')}%)` : '';
+            return [`${num(s.espectadores)} assistiram ao vivo`, `${num(s.compradores)} compraram${conv}`];
+          },
+        }}},
+        scales:{
+          x:{grid:{color:'#232320'}, ticks:{color:'#a6a59a'}},
+          y:{beginAtZero:true, grid:{color:'#232320'}, ticks:{color:'#a6a59a', precision:0}}
+        }, maintainAspectRatio:false }
+    });
   },
 
   statusBadge(s){
@@ -768,7 +811,7 @@ const App = {
       ${this.metricFunnelArrow()}
       ${this.metricFunnelStep(ICO.cart, data.clicouBotaoOferta, 'Clicou no botão (' + clicouPct + ')')}
       ${this.metricFunnelArrow()}
-      ${this.metricFunnelStep(ICO.money, data.comprou, 'Comprou')}
+      ${this.metricFunnelStep(ICO.money, data.comprou, 'Comprou' + (data.faturamentoCentavos ? ' (' + (data.faturamentoCentavos/100).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}) + ')' : ''))}
     `;
 
     document.getElementById('metricsCards').innerHTML = [
@@ -864,6 +907,13 @@ const App = {
     document.querySelectorAll('.step-line').forEach(el=>{
       el.classList.toggle('done', +el.dataset.line <= this.wz.step);
     });
+    // Em tela estreita o stepper rola na horizontal — mantém a etapa atual à vista.
+    const stepper = document.getElementById('stepper');
+    const active = stepper && stepper.querySelector('.step-item.active');
+    if(active && stepper.scrollWidth > stepper.clientWidth){
+      const sr = stepper.getBoundingClientRect(), ar = active.getBoundingClientRect();
+      stepper.scrollLeft += (ar.left + ar.width / 2) - (sr.left + sr.width / 2);
+    }
   },
   getActiveWizardStep(){
     const activePanel = document.querySelector('.wizard-panel.active');
@@ -945,7 +995,711 @@ const App = {
     document.getElementById('wizardBanner').innerHTML='';
     this.fillSinoForm({});
     this._sinoLoadedFor = null;
+    this.simClose();
+    this._simDirty = {};
+    this._simUserMsgs = [];
     this.wzGo(0);
+  },
+
+  // ---------- ETAPA "VALIDAÇÃO" (simulador do webinar) ----------
+  // Reproduz no painel o que a sala (sala.js) e o servidor (routes/public.js) fazem em cada
+  // segundo do vídeo — mensagens, vendas, pitch, oferta, trava de avanço e os eventos que vão
+  // pro webhook do Sino — com o que está no formulário agora, mesmo sem salvar. Não chama
+  // nenhuma rota pública: nada é gravado, nenhuma métrica conta e nenhum webhook sai daqui.
+  // Se mudar a regra de algum gatilho na sala/servidor, mude aqui também (simEvents).
+  _sim: { t:0, tMin:0, dur:0, playing:false, rate:1, filter:'gatilhos', tab:'chat', sigs:{} },
+  _simDirty: {},
+  _simUserMsgs: [],
+  _simUserEvents: [],
+
+  simFmt(t){
+    const neg = t < 0;
+    t = Math.floor(Math.abs(t));
+    const hh = String(Math.floor(t/3600)).padStart(2,'0');
+    const mm = String(Math.floor((t%3600)/60)).padStart(2,'0');
+    const ss = String(t%60).padStart(2,'0');
+    return (neg ? '-' : '') + `${hh}:${mm}:${ss}`;
+  },
+  simData(){
+    const val = (id)=>document.getElementById(id)?.value ?? '';
+    const chk = (id)=>!!document.getElementById(id)?.checked;
+    const timeOrNull = (id)=>val(id).trim() ? this.parseTimeToSeconds(val(id)) : null;
+    const video = this.videos.find(v=>v.id===Number(this.wz.videoId)) || null;
+    const el = document.getElementById('simVideo');
+    const elDur = el && this._simVideoUrl && Number.isFinite(el.duration) ? el.duration : 0;
+    const dur = Math.max(1, Math.round(video?.duracaoSegundos || elDur || (Number(this.wz.duracao) || 150) * 60));
+    const scheduled = this.wz.startMode === 'scheduled';
+
+    const offer = {
+      desabilitada: chk('chkOfertaDesabilitada'),
+      pitch: timeOrNull('w_pitchInicio'),
+      oferta: timeOrNull('w_ofertaInicio'),
+      titulo: val('w_ofertaTitulo'),
+      precoOriginal: val('w_precoOriginal'),
+      preco: val('w_preco'),
+      botao: val('w_ofertaBotao') || 'inscreva-se aqui',
+      cor: val('w_ofertaBotaoCor') || '#D93B3B',
+      reopenCor: val('w_reopenCor') || '#FFCC00',
+      imagem: val('w_ofertaImagemUrl').trim(),
+      link: val('w_linkCheckout').trim(),
+      modo: this.wz.modoCheckout || 'link',
+    };
+    // Na sala, oferta desabilitada = offerConfig nulo: sem pitch, sem oferta e sem trava amarrada a eles.
+    const offerOn = !offer.desabilitada;
+
+    const modoYoutube = chk('chkModoYoutube');
+    const bloqueioTipo = val('selectBloqueioTipo');
+    let trava = null;
+    if(modoYoutube && bloqueioTipo){
+      if(bloqueioTipo === 'pitch') trava = offerOn ? offer.pitch : null;
+      else if(bloqueioTipo === 'oferta') trava = offerOn ? offer.oferta : null;
+      else trava = val('inputBloqueioMinutos') ? Math.round(Number(val('inputBloqueioMinutos')) * 60) : null;
+    }
+
+    const chat = (this.chatMsgs || []).map((c, idx)=>{
+      const seg = (c.pre ? -1 : 1) * this.parseTimeToSeconds(c.t);
+      // Pré-live só aparece antes do início na sala de espera (modo "obedecer horário");
+      // no modo imediato a sala começa no 00:00 e despeja todas juntas.
+      return { idx, seg, eff: scheduled ? seg : Math.max(0, seg), nome: c.n, msg: c.m, suporte: !!c.s, pre: !!c.pre };
+    }).sort((a,b)=>a.eff-b.eff || a.idx-b.idx);
+    const sales = (this.sales || []).map((s, idx)=>({ idx, seg: this.parseTimeToSeconds(s.t), nome: s.n }))
+      .sort((a,b)=>a.seg-b.seg);
+
+    const minPre = chat.reduce((m, c)=>Math.min(m, c.eff), 0);
+    const tMin = scheduled ? Math.min(-60, minPre - 10) : 0;
+
+    return {
+      video, dur, tMin, scheduled, offer, offerOn, modoYoutube, bloqueioTipo, trava, chat, sales,
+      nome: this.wz.nome || val('w_nome'), slug: this.wz.slug || val('w_slug'),
+      reacoes: chk('chkHabilitarReacoes'), reactionPoints: this.reactionPoints || [],
+      audiencia: { tipo: this.wz.audienceType, min: Number(val('audMin') || 0), max: Number(val('audMax') || 0), live: chk('audLiveToggle') },
+      suporteBg: this.simHexToRgba(val('w_suporteCor') || '#FFCC00', val('w_suporteCorTransparencia')),
+      keywords: this.keywords || [],
+    };
+  },
+  simHexToRgba(hex, transparenciaPct){
+    hex = (hex || '#FFCC00').replace('#', '');
+    if(hex.length === 3) hex = hex.split('').map(c=>c+c).join('');
+    const r = parseInt(hex.substring(0,2), 16) || 0, g = parseInt(hex.substring(2,4), 16) || 0, b = parseInt(hex.substring(4,6), 16) || 0;
+    return `rgba(${r},${g},${b},${1 - (Number(transparenciaPct || 0) / 100)})`;
+  },
+
+  // Gatilhos na mesma regra do servidor: "entrou" ao carregar a sala, "progresso" no 1º ping de
+  // presença (a cada 30s) depois de cada múltiplo de 5 min, pitch/oferta uma vez quando o vídeo
+  // cruza o horário, marcos de 0/25/50/75/100% só pro dashboard. Tudo pro Sino é só na live.
+  simEvents(d){
+    const ev = [];
+    ev.push({ seg: d.tMin, kind:'hook', title:'Aluno entra na sala', dest:'Webhook Sino · entrou', sino:'entrou' });
+    [0,25,50,75,100].forEach(m=>ev.push({ seg: Math.round(d.dur * m / 100), kind:'info', title:`Marco de ${m}% assistido`, dest:'Dashboard de retenção (interno, sem webhook)' }));
+    for(let s = 300; s < d.dur; s += 300){
+      ev.push({ seg: s, kind:'hook', title:`Progresso: ${Math.round(s/60)} min assistidos`, dest:'Webhook Sino · progresso (até ~30s depois, no ping de presença)', sino:'progresso', segundos: s });
+    }
+    if(d.offerOn && d.offer.pitch != null){
+      ev.push({ seg: d.offer.pitch, kind:'pitch', title:'Começa o pitch', dest:'Funil: chegou no pitch · Webhook Sino · pitch', sino:'pitch' });
+    }
+    if(d.offerOn && d.offer.oferta != null){
+      ev.push({ seg: d.offer.oferta, kind:'offer', title:'Oferta abre em tela cheia (vídeo vai pro PiP)', dest:'Funil: chegou na oferta · Webhook Sino · oferta', sino:'oferta' });
+    }
+    if(d.trava != null){
+      ev.push({ seg: d.trava, kind:'lock', title:'Trava de avanço', dest:'Sala: o aluno não consegue adiantar além deste ponto sem assistir' });
+    }
+    ev.push({ seg: d.dur, kind:'info', title:'Fim do vídeo', dest:'Sala mostra a tela de encerramento' });
+    this._simUserEvents.forEach(u=>ev.push(u));
+    return ev.sort((a,b)=>a.seg-b.seg);
+  },
+  simPayload(e){
+    const d = this._simD;
+    const p = {
+      evento: e.sino,
+      webinar: { id: d.slug || '(slug do webinar)', nome: d.nome || undefined, data_inicio: '(data de início do webinar)' },
+      aluno: { id: 0, nome: 'Aluno Simulado', email: 'aluno.simulado@exemplo.com', whatsapp: '5511999999999' },
+      em: '(horário real do disparo, -03:00)',
+    };
+    if(e.segundos != null) p.segundos_assistidos = e.segundos;
+    return JSON.stringify(p, null, 2);
+  },
+
+  simChecks(d){
+    const out = [];
+    const add = (lvl, txt, step)=>out.push({ lvl, txt, step });
+    const f = (s)=>this.simFmt(s);
+    const v = d.video;
+    if(!v) add('err', 'Nenhum vídeo selecionado — a sala vai mostrar "Vídeo ainda não configurado". A simulação segue só no relógio.', 3);
+    else if(v.status !== 'pronto' || !v.playbackUrl) add('warn', `O vídeo "${escapeHtmlAdmin(v.nome)}" ainda está processando — a simulação segue no relógio, sem imagem.`, 3);
+    else add('ok', `Vídeo "${escapeHtmlAdmin(v.nome)}" — ${f(d.dur)} de duração.`);
+
+    if(!d.offerOn){
+      add('info', 'Oferta desabilitada: a oferta não abre e os gatilhos de pitch e oferta não disparam.', 4);
+    } else {
+      const o = d.offer;
+      if(o.oferta == null) add('err', 'Horário de abertura da oferta vazio — a oferta nunca abre na sala.', 4);
+      else if(o.oferta > d.dur) add('err', `A oferta abre em ${f(o.oferta)}, depois do fim do vídeo (${f(d.dur)}) — ninguém vai ver.`, 4);
+      else add('ok', `Oferta abre em ${f(o.oferta)} (${Math.round(o.oferta / d.dur * 100)}% do vídeo).`);
+      if(o.pitch == null) add('warn', 'Início do pitch vazio — o funil não conta quem chegou no pitch e o Sino não recebe o evento "pitch".', 4);
+      else if(o.pitch > d.dur) add('err', `O pitch começa em ${f(o.pitch)}, depois do fim do vídeo.`, 4);
+      else if(o.oferta != null && o.pitch > o.oferta) add('warn', `O pitch (${f(o.pitch)}) está depois da abertura da oferta (${f(o.oferta)}).`, 4);
+      else add('ok', `Pitch começa em ${f(o.pitch)}${o.oferta != null ? ` — ${f(o.oferta - o.pitch)} antes da oferta` : ''}.`);
+      if(!o.link) add('err', 'Sem link de checkout — o botão de compra não faz nada.', 4);
+      else add('ok', `Botão de compra ${o.modo === 'embutido' ? 'abre o checkout embutido na sala' : 'redireciona pro checkout'}.`);
+    }
+
+    if(d.modoYoutube && d.bloqueioTipo){
+      if(d.trava == null) add('warn', `Trava de avanço amarrada ${d.bloqueioTipo === 'especifico' ? 'a um tempo específico vazio' : `ao ${d.bloqueioTipo}, mas esse horário está vazio (ou a oferta está desabilitada)`} — a trava não funciona.`, 3);
+      else if(d.trava > d.dur) add('warn', `A trava de avanço (${f(d.trava)}) está depois do fim do vídeo.`, 3);
+      else add('ok', `Trava de avanço em ${f(d.trava)}.`);
+    }
+
+    const chat = d.chat;
+    if(!chat.length) add('info', 'Nenhuma mensagem simulada no chat.', 5);
+    else {
+      const depois = chat.filter(c=>c.seg > d.dur);
+      if(depois.length) add('warn', `${depois.length} mensagem(ns) depois do fim do vídeo — nunca aparecem (a 1ª em ${f(depois[0].seg)}: "${escapeHtmlAdmin(String(depois[0].msg || '').slice(0, 60))}").`, 5);
+      const pre = chat.filter(c=>c.pre);
+      if(pre.length && !d.scheduled) add('warn', `${pre.length} mensagem(ns) marcada(s) "antes da live", mas o webinar começa quando o aluno entra — aparecem todas juntas no 00:00:00.`, 1);
+      let rajada = null;
+      for(let i=0, j=0; i<chat.length; i++){
+        while(chat[i].eff - chat[j].eff > 3) j++;
+        if(i - j + 1 >= 6 && chat[i].eff > 0){ rajada = { n: i - j + 1, seg: chat[j].eff }; break; }
+      }
+      if(rajada) add('info', `Rajada: ${rajada.n} mensagens em 3s perto de ${f(rajada.seg)} — confira se fica natural.`, 5);
+      const sup = chat.filter(c=>c.suporte).length;
+      add('ok', `${chat.length} mensagem(ns) no chat${sup ? ` (${sup} do suporte)` : ''}, de ${f(chat[0].eff)} a ${f(chat[chat.length - 1].eff)}.`);
+    }
+
+    if(d.sales.length){
+      const o = d.offer;
+      const antes = (d.offerOn && o.oferta != null) ? d.sales.filter(s=>s.seg < o.oferta) : [];
+      if(antes.length) add('warn', `${antes.length} notificação(ões) de venda antes da oferta abrir (a 1ª em ${f(antes[0].seg)}) — aparece "Venda confirmada" antes de existir botão de compra.`, 6);
+      const depois = d.sales.filter(s=>s.seg > d.dur);
+      if(depois.length) add('warn', `${depois.length} notificação(ões) de venda depois do fim do vídeo — nunca aparecem.`, 6);
+      if(!antes.length && !depois.length) add('ok', `${d.sales.length} notificação(ões) de venda, a 1ª em ${f(d.sales[0].seg)}.`);
+    } else add('info', 'Nenhuma notificação de venda simulada.', 6);
+
+    add('info', d.keywords.length ? `Chatbot com ${d.keywords.length} palavra(s)-chave — teste digitando no chat da simulação.` : 'Chatbot sem palavras-chave.', 9);
+    const nProg = Math.max(0, Math.ceil(d.dur / 300) - 1);
+    add('info', `Webhook do Sino (só na live, nunca no replay): entrou, progresso a cada 5 min (${nProg}x)${d.offerOn ? ', pitch, oferta' : ''}, cada clique no botão de compra e a 1ª mensagem do aluno no chat.`);
+    return out;
+  },
+  renderSimChecks(){
+    const checks = this.simChecks(this._simD);
+    const ico = { ok:'✓', warn:'!', err:'✕', info:'i' };
+    document.getElementById('simChecks').innerHTML = checks.map(c=>`
+      <div class="sim-check sim-check-${c.lvl}">
+        <span class="sim-check-ico">${ico[c.lvl]}</span>
+        <span class="sim-check-txt">${c.txt}</span>
+        ${c.step != null && c.lvl !== 'ok' ? `<button class="btn btn-ghost btn-sm" onclick="App.wzGo(${c.step})">Ajustar em ${WIZ_STEPS[c.step].label}</button>` : ''}
+      </div>`).join('');
+    const errs = checks.filter(c=>c.lvl === 'err').length, warns = checks.filter(c=>c.lvl === 'warn').length;
+    const badge = document.getElementById('simCheckSummary');
+    badge.className = 'badge ' + (errs ? 'badge-red' : warns ? 'badge-yellow' : 'badge-green');
+    badge.textContent = errs ? `${errs} erro(s)${warns ? ` · ${warns} aviso(s)` : ''}` : warns ? `${warns} aviso(s)` : 'Tudo certo';
+  },
+
+  // ----- montagem / relógio -----
+  simOpen(){
+    this.simRefresh();
+    const s = this._sim;
+    if(s.t < s.tMin || s.t > s.dur) s.t = s.tMin;
+    this.simLoadVideo();
+    this.simBindTrack();
+    this.simSetPlayingUI();
+    if(!s.raf) s.raf = requestAnimationFrame((n)=>this.simTick(n));
+  },
+  simClose(){
+    const s = this._sim;
+    if(s.playing) this.simPause();
+    if(s.raf){ cancelAnimationFrame(s.raf); s.raf = null; }
+    this.simUnloadVideo();
+  },
+  // Relê o formulário — chamado ao abrir a etapa e depois de cada ajuste feito aqui.
+  simRefresh(){
+    const d = this._simD = this.simData();
+    const s = this._sim;
+    s.tMin = d.tMin; s.dur = d.dur;
+    s.t = Math.min(Math.max(s.t, s.tMin), s.dur);
+    this._simEv = this.simEvents(d);
+    s.sigs = {};
+    this.renderSimChecks();
+    this.renderSimMarks();
+    document.getElementById('simTimeDur').textContent = this.simFmt(d.dur);
+    document.getElementById('simGoPitch').disabled = !(d.offerOn && d.offer.pitch != null);
+    document.getElementById('simGoOferta').disabled = !(d.offerOn && d.offer.oferta != null);
+    this.simRender();
+  },
+  simVideoEl(){
+    return this._simVideoUrl ? document.getElementById('simVideo') : null;
+  },
+  simLoadVideo(){
+    const v = this._simD.video;
+    const url = v && v.status === 'pronto' ? v.playbackUrl : null;
+    if(url && url === this._simVideoUrl) return;
+    this.simUnloadVideo();
+    if(!url) return;
+    const el = document.getElementById('simVideo');
+    this._simVideoUrl = url;
+    el.poster = v.thumbnailUrl || '';
+    el.muted = true;
+    document.getElementById('simMuteBtn').textContent = '🔇';
+    if(window.Hls && Hls.isSupported()){
+      this._simHls = new Hls();
+      this._simHls.loadSource(url);
+      this._simHls.attachMedia(el);
+    } else {
+      el.src = url;
+    }
+    el.addEventListener('loadedmetadata', ()=>{
+      if(!v.duracaoSegundos) this.simRefresh(); // duração só conhecida agora
+      if(this._sim.t >= 0) el.currentTime = this._sim.t;
+    }, { once: true });
+  },
+  simUnloadVideo(){
+    const el = document.getElementById('simVideo');
+    if(this._simHls){ this._simHls.destroy(); this._simHls = null; }
+    if(el && this._simVideoUrl){ el.pause(); el.removeAttribute('src'); el.removeAttribute('poster'); el.load(); }
+    this._simVideoUrl = null;
+  },
+  simTick(now){
+    const s = this._sim;
+    const dt = s.lastNow ? Math.min(0.5, (now - s.lastNow) / 1000) : 0;
+    s.lastNow = now;
+    if(s.playing){
+      const el = this.simVideoEl();
+      const prev = s.t;
+      if(el && s.t >= 0 && !el.paused && !el.ended) s.t = el.currentTime;
+      else s.t += dt * s.rate;
+      if(el && s.t >= 0 && el.paused && s.t < (el.duration || Infinity)){
+        el.currentTime = s.t;
+        el.playbackRate = s.rate;
+        el.play().catch(()=>{});
+      }
+      if(s.t >= s.dur){ s.t = s.dur; this.simPause(); }
+      this.simCrossed(prev, s.t);
+      this.simTickReactions(dt);
+    }
+    this.simRender();
+    s.raf = requestAnimationFrame((n)=>this.simTick(n));
+  },
+  simTogglePlay(){
+    this._sim.playing ? this.simPause() : this.simPlay();
+  },
+  simPlay(){
+    const s = this._sim;
+    if(s.t >= s.dur) this.simSeek(s.tMin);
+    s.playing = true;
+    s.lastNow = 0;
+    const el = this.simVideoEl();
+    if(el && s.t >= 0){
+      el.currentTime = s.t;
+      el.playbackRate = s.rate;
+      el.play().catch(()=>{});
+    }
+    this.simSetPlayingUI();
+  },
+  simPause(){
+    this._sim.playing = false;
+    const el = this.simVideoEl();
+    if(el) el.pause();
+    this.simSetPlayingUI();
+  },
+  simSetPlayingUI(){
+    const btn = document.getElementById('simPlayBtn');
+    if(btn) btn.textContent = this._sim.playing ? '❚❚ Pausar' : '▶ Play';
+  },
+  simSeek(t){
+    const s = this._sim;
+    t = Math.min(Math.max(Number(t) || 0, s.tMin), s.dur);
+    const d = this._simD;
+    if(d && d.offerOn && d.offer.oferta != null && t < d.offer.oferta){
+      s.offerDismissed = false; s.checkoutOpen = false;
+    }
+    s.t = t;
+    const el = this.simVideoEl();
+    if(el){
+      if(t >= 0 && t < (el.duration || Infinity)) el.currentTime = t;
+      if(t < 0) el.pause();
+    }
+    this.simRender();
+  },
+  simSkip(delta){
+    this.simSeek(this._sim.t + delta);
+  },
+  simSetSpeed(v){
+    this._sim.rate = Number(v) || 1;
+    const el = this.simVideoEl();
+    if(el) el.playbackRate = this._sim.rate;
+  },
+  simToggleMute(){
+    const el = document.getElementById('simVideo');
+    el.muted = !el.muted;
+    document.getElementById('simMuteBtn').textContent = el.muted ? '🔇' : '🔊';
+  },
+  simGotoTyped(){
+    const v = document.getElementById('simGotoInput').value.trim();
+    if(v) this.simSeek(this.parseTimeToSeconds(v));
+  },
+  simGoMarker(kind){
+    const o = this._simD.offer;
+    const seg = kind === 'pitch' ? o.pitch : o.oferta;
+    if(seg != null) this.simSeek(seg - 3); // 3s antes, pra ver acontecer
+  },
+  simFilteredList(){
+    const d = this._simD, f = this._sim.filter;
+    if(f === 'gatilhos') return this._simEv;
+    const chat = d.chat.map(c=>({ seg: c.eff, kind: c.suporte ? 'sup' : 'chat', title: `${c.nome}: ${c.msg}`, dest: c.suporte ? 'Mensagem do suporte' : (c.pre ? 'Mensagem pré-live' : 'Mensagem no chat'), chatIdx: c.idx }));
+    const sales = d.sales.map(s=>({ seg: s.seg, kind:'sale', title:`${s.nome} — Venda confirmada!`, dest:'Notificação de venda sobre o vídeo (6s)', saleIdx: s.idx }));
+    if(f === 'chat') return chat;
+    if(f === 'vendas') return sales;
+    return [...this._simEv, ...chat, ...sales].sort((a,b)=>a.seg-b.seg);
+  },
+  simJumpEvent(dir){
+    const t = this._sim.t;
+    const list = this.simFilteredList();
+    const target = dir > 0 ? list.find(e=>e.seg > t + 2.01) : [...list].reverse().find(e=>e.seg < t - 0.01);
+    if(target) this.simSeek(target.seg - 2);
+  },
+  // Com o vídeo rodando, pisca na tela cada gatilho que acabou de passar.
+  simCrossed(prev, t){
+    if(t <= prev || t - prev > 5) return;
+    const hit = this._simEv.filter(e=>e.seg > prev && e.seg <= t && e.kind !== 'info');
+    if(!hit.length) return;
+    const el = document.getElementById('simFlash');
+    el.innerHTML = hit.map(e=>`<div class="sim-flash-item sim-k-${e.kind}">⚡ ${escapeHtmlAdmin(e.title)}<small>${escapeHtmlAdmin(e.dest)}</small></div>`).join('');
+    el.classList.add('show');
+    clearTimeout(this._simFlashT);
+    this._simFlashT = setTimeout(()=>el.classList.remove('show'), 2600);
+  },
+  // Mesma curva e mesmo sorteio da sala (tickReactions roda a cada ~300ms de relógio).
+  simTickReactions(dt){
+    const d = this._simD, t = this._sim.t;
+    if(!d.reacoes || t < 0) return;
+    this._simReactAcc = (this._simReactAcc || 0) + dt;
+    if(this._simReactAcc < 0.3) return;
+    this._simReactAcc = 0;
+    const pts = d.reactionPoints;
+    if(!pts.length) return;
+    let intensity = pts[pts.length - 1].intensidade;
+    if(t <= pts[0].segundo) intensity = pts[0].intensidade;
+    else for(let i=0; i<pts.length-1; i++){
+      const a = pts[i], b = pts[i+1];
+      if(t >= a.segundo && t <= b.segundo){ intensity = a.intensidade + (b.intensidade - a.intensidade) * ((t - a.segundo) / (b.segundo - a.segundo || 1)); break; }
+    }
+    const spawn = ()=>{
+      const wrap = document.getElementById('simReactions');
+      const el = document.createElement('div');
+      el.className = 'pub-reaction';
+      el.textContent = ['❤️','😄','🎉','😮','💯'][Math.floor(Math.random() * 5)];
+      el.style.left = (10 + Math.random() * 80) + '%';
+      el.style.setProperty('--drift', (Math.random() * 40 - 20) + 'px');
+      wrap.appendChild(el);
+      setTimeout(()=>el.remove(), 2900);
+    };
+    if(Math.random() * 100 < intensity) spawn();
+    if(intensity > 60 && Math.random() * 100 < (intensity - 60)) spawn();
+  },
+
+  // ----- linha do tempo -----
+  simPct(seg){
+    const s = this._sim;
+    return Math.min(100, Math.max(0, (seg - s.tMin) / ((s.dur - s.tMin) || 1) * 100));
+  },
+  renderSimMarks(){
+    const d = this._simD;
+    const marks = [];
+    d.chat.forEach(c=>marks.push(`<i class="sim-m ${c.suporte ? 'm-sup' : 'm-chat'}" style="left:${this.simPct(c.eff)}%"></i>`));
+    d.sales.forEach(s=>marks.push(`<i class="sim-m m-sale" style="left:${this.simPct(s.seg)}%"></i>`));
+    this._simEv.forEach(e=>{
+      if(e.kind === 'hook') marks.push(`<i class="sim-m m-hook" style="left:${this.simPct(e.seg)}%"></i>`);
+      if(e.kind === 'pitch' || e.kind === 'offer' || e.kind === 'lock'){
+        const lbl = e.kind === 'pitch' ? 'Pitch' : e.kind === 'offer' ? 'Oferta' : 'Trava';
+        marks.push(`<i class="sim-m m-big m-${e.kind}" style="left:${this.simPct(e.seg)}%"><b>${lbl}</b></i>`);
+      }
+    });
+    document.getElementById('simTrackMarks').innerHTML = marks.join('');
+    document.getElementById('simTrackPre').style.width = this.simPct(0) + '%';
+  },
+  simBindTrack(){
+    if(this._simTrackBound) return;
+    this._simTrackBound = true;
+    const track = document.getElementById('simTrack');
+    const tip = document.getElementById('simTrackTip');
+    const timeAt = (e)=>{
+      const r = track.getBoundingClientRect();
+      const pct = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+      return { t: this._sim.tMin + pct * (this._sim.dur - this._sim.tMin), pct };
+    };
+    let dragging = false, wasPlaying = false;
+    track.addEventListener('pointerdown', (e)=>{
+      dragging = true;
+      wasPlaying = this._sim.playing;
+      if(wasPlaying) this.simPause();
+      track.setPointerCapture(e.pointerId);
+      this.simSeek(timeAt(e).t);
+    });
+    track.addEventListener('pointermove', (e)=>{
+      const { t, pct } = timeAt(e);
+      if(dragging){ this._sim.t = t; this.simRender(); }
+      const range = (this._sim.dur - this._sim.tMin) * 0.006;
+      const near = (this._simEv || []).filter(ev=>Math.abs(ev.seg - t) <= range && ev.kind !== 'info');
+      tip.innerHTML = `<b>${this.simFmt(t)}</b>${near.map(ev=>`<br>${escapeHtmlAdmin(ev.title)}`).join('')}`;
+      tip.style.left = (pct * 100) + '%';
+      tip.style.display = 'block';
+    });
+    const end = (e)=>{
+      if(!dragging) return;
+      dragging = false;
+      this.simSeek(timeAt(e).t);
+      if(wasPlaying) this.simPlay();
+    };
+    track.addEventListener('pointerup', end);
+    track.addEventListener('pointercancel', end);
+    track.addEventListener('pointerleave', ()=>{ tip.style.display = 'none'; });
+  },
+
+  // ----- desenho do estado no segundo t (só refaz cada pedaço quando ele muda) -----
+  simChanged(key, sig){
+    const s = this._sim;
+    if(s.sigs[key] === sig) return false;
+    s.sigs[key] = sig;
+    return true;
+  },
+  simRender(){
+    const d = this._simD, s = this._sim;
+    if(!d) return;
+    const t = s.t;
+    document.getElementById('simTimeNow').textContent = this.simFmt(t);
+    document.getElementById('simPlayhead').style.left = this.simPct(t) + '%';
+    const played = document.getElementById('simTrackPlayed');
+    played.style.left = this.simPct(Math.min(t, 0)) + '%';
+    played.style.width = (this.simPct(t) - this.simPct(Math.min(t, 0))) + '%';
+    const live = t >= 0;
+    document.getElementById('simLiveBadge').style.display = live ? '' : 'none';
+
+    // tela antes da live / sem vídeo
+    const hasVideo = !!this._simVideoUrl;
+    const phSig = !live ? 'pre' + Math.floor(-t) : (hasVideo ? 'video' : 'novideo');
+    if(this.simChanged('ph', phSig)){
+      const ph = document.getElementById('simPlaceholder');
+      if(!live){
+        ph.innerHTML = `<div class="sim-ph-title">SALA DE ESPERA</div><div class="sim-ph-num">${this.simFmt(-t).slice(3)}</div><div class="sim-ph-sub">para a live começar — mensagens pré-live aparecem no chat</div>`;
+        ph.style.display = 'flex';
+      } else if(!hasVideo){
+        ph.innerHTML = `<div class="sim-ph-title">${d.video ? 'VÍDEO PROCESSANDO' : 'SEM VÍDEO'}</div><div class="sim-ph-sub">A simulação segue no relógio — os tempos continuam valendo.</div>`;
+        ph.style.display = 'flex';
+      } else ph.style.display = 'none';
+    }
+
+    // audiência (mesma fórmula da sala, que usa o relógio e não o vídeo)
+    const a = d.audiencia, audEl = document.getElementById('simAudience');
+    if(!live || a.tipo === 'nenhuma' || !a.live) audEl.style.display = 'none';
+    else {
+      const min = Math.max(0, a.min), max = Math.max(min, a.max);
+      let count = max;
+      if(a.tipo === 'dinamica' && max > min){
+        const phase = (Date.now() / 1000) % 7200;
+        const pct = phase < 1800 ? phase / 1800 : phase < 3600 ? 1 : Math.max(0, 1 - (phase - 3600) / 3600);
+        count = Math.round(min + (max - min) * pct);
+      }
+      audEl.textContent = '👁 ' + count.toLocaleString('pt-BR');
+      audEl.style.display = '';
+    }
+
+    if(s.tab === 'chat') this.simRenderChat(t);
+
+    const salesOn = d.sales.filter(x=>x.seg <= t && t < x.seg + 6);
+    if(this.simChanged('sales', salesOn.map(x=>x.idx).join(','))){
+      document.getElementById('simSales').innerHTML = salesOn.map(x=>`<div class="sale-item"><span>🛒</span><span>${escapeHtmlAdmin(x.nome)} — Venda confirmada!</span></div>`).join('');
+    }
+
+    const o = d.offer;
+    const offerReached = d.offerOn && o.oferta != null && t >= o.oferta;
+    const offerOpen = offerReached && !s.offerDismissed;
+    const offerSig = offerOpen ? (s.checkoutOpen ? 'checkout' : 'card') : (offerReached ? 'dismissed' : 'off');
+    if(this.simChanged('offer', offerSig)) this.simRenderOffer(offerSig);
+
+    if(s.tab === 'eventos'){
+      const list = this.simFilteredList();
+      let fired = 0;
+      while(fired < list.length && list[fired].seg <= t) fired++;
+      if(this.simChanged('ev', s.filter + '|' + fired + '|' + list.length)) this.simRenderEvents(t, list);
+    }
+
+    const next = this._simEv.find(e=>e.seg > t && e.kind !== 'info');
+    const nextSig = next ? next.title + Math.ceil(next.seg - t) : 'none';
+    if(this.simChanged('next', nextSig)){
+      document.getElementById('simNext').innerHTML = next
+        ? `Próximo gatilho: <b>${escapeHtmlAdmin(next.title)}</b> em ${this.simFmt(next.seg - t)} <span>(no ${this.simFmt(next.seg)})</span>`
+        : 'Nenhum gatilho pela frente.';
+    }
+  },
+  simRenderChat(t){
+    const d = this._simD;
+    let nVis = 0;
+    while(nVis < d.chat.length && d.chat[nVis].eff <= t) nVis++;
+    const user = this._simUserMsgs.filter(m=>m.seg <= t);
+    const pending = this._simUserMsgs.filter(m=>m.bot && m.seg > t);
+    if(!this.simChanged('chat', nVis + '|' + user.length + '|' + pending.length)) return;
+    const rows = [
+      ...d.chat.slice(0, nVis).map(c=>({ seg: c.eff, c })),
+      ...user.map(m=>({ seg: m.seg, m })),
+    ].sort((a,b)=>a.seg-b.seg).slice(-80);
+    const box = document.getElementById('simChat');
+    box.innerHTML = (rows.length ? '' : '<div class="empty-state">Nenhuma mensagem até aqui.</div>') + rows.map(r=>{
+      const time = `<span class="sim-chat-t">${this.simFmt(r.seg)}</span>`;
+      if(r.m){
+        return r.m.bot
+          ? `<div class="pub-chat-support" style="background:${d.suporteBg};">${time}Suporte (chatbot)<br>${escapeHtmlAdmin(r.m.msg)}</div>`
+          : `<div class="pub-chat-msg mine">${time}<span class="name">Você:</span>${escapeHtmlAdmin(r.m.msg)}</div>`;
+      }
+      const c = r.c;
+      const move = `<button class="sim-move" title="Mover esta mensagem pro tempo atual do vídeo" onclick="App.simMoveToNow('chat',${c.idx})">⟲ agora</button>`;
+      return c.suporte
+        ? `<div class="pub-chat-support sim-chat-row" style="background:${d.suporteBg};">${time}${escapeHtmlAdmin(c.nome)}<br>${escapeHtmlAdmin(c.msg)}${move}</div>`
+        : `<div class="pub-chat-msg sim-chat-row">${time}<span class="name">${escapeHtmlAdmin(c.nome)}:</span>${escapeHtmlAdmin(c.msg)}${move}</div>`;
+    }).join('') + pending.map(m=>`<div class="sim-chat-pending">Chatbot responde no ${this.simFmt(m.seg)} — avance o vídeo</div>`).join('');
+    box.scrollTop = box.scrollHeight;
+  },
+  simRenderOffer(sig){
+    const o = this._simD.offer;
+    const box = document.getElementById('simOffer');
+    document.getElementById('simStage').classList.toggle('offer-open', sig === 'card' || sig === 'checkout');
+    if(sig === 'off'){ box.innerHTML = ''; return; }
+    if(sig === 'dismissed'){
+      box.innerHTML = `<button class="sim-reopen" style="background:${escapeHtmlAdmin(o.reopenCor)};" onclick="App._sim.offerDismissed=false;App.simRender()">Oferta — reabrir</button>`;
+      return;
+    }
+    const close = `<button class="sim-offer-close" onclick="App._sim.offerDismissed=true;App._sim.checkoutOpen=false;App.simRender()" title="Fechar (como o aluno fecharia)">✕</button>`;
+    if(sig === 'checkout'){
+      box.innerHTML = `<div class="sim-offer-panel">${close}
+        <div class="sim-offer-checkout"><b>Checkout embutido abriria aqui</b><span>${escapeHtmlAdmin(o.link)}</span><small>Na simulação o checkout não carrega. Na sala ele fica aberto até o aluno fechar.</small></div></div>`;
+      return;
+    }
+    box.innerHTML = `<div class="sim-offer-panel">${close}
+      ${o.imagem ? `<img src="${escapeHtmlAdmin(o.imagem)}" alt="">` : ''}
+      ${o.titulo ? `<div class="sim-offer-title">${escapeHtmlAdmin(o.titulo)}</div>` : ''}
+      ${this.parseMoneyToCents(o.precoOriginal) ? `<div class="sim-offer-orig">De ${escapeHtmlAdmin(o.precoOriginal)}</div>` : ''}
+      <div class="sim-offer-price">Por ${escapeHtmlAdmin(o.preco)}</div>
+      <div class="sim-offer-note">Por tempo limitado — Oferta só hoje!</div>
+      <button class="sim-offer-buy" style="background:${escapeHtmlAdmin(o.cor)};" onclick="App.simBuy()">${escapeHtmlAdmin(o.botao)}</button>
+    </div>`;
+  },
+  simRenderEvents(t, list){
+    const box = document.getElementById('simEvents');
+    const nowIdx = list.findIndex(e=>e.seg > t);
+    const nowLine = `<div class="sim-now-line">agora · ${this.simFmt(t)}</div>`;
+    const clear = (this._simUserEvents.length || this._simUserMsgs.length)
+      ? `<button class="btn btn-ghost btn-sm sim-clear" onclick="App.simClearUser()">Limpar cliques e mensagens de teste</button>` : '';
+    box.innerHTML = clear + (list.length ? '' : '<div class="empty-state">Nada configurado aqui.</div>') + list.map((e, i)=>{
+      const fired = e.seg <= t;
+      const recent = fired && t - e.seg < 6;
+      const move = e.chatIdx != null ? `<button class="sim-move" onclick="event.stopPropagation();App.simMoveToNow('chat',${e.chatIdx})">⟲ agora</button>`
+        : e.saleIdx != null ? `<button class="sim-move" onclick="event.stopPropagation();App.simMoveToNow('sale',${e.saleIdx})">⟲ agora</button>` : '';
+      return `${i === nowIdx ? nowLine : ''}
+        <div class="sim-ev sim-k-${e.kind}${fired ? ' fired' : ''}${recent ? ' recent' : ''}">
+          <div class="sim-ev-head" onclick="App.simSeek(${e.seg - 2})" title="Ir pra 2s antes">
+            <span class="sim-ev-t">${this.simFmt(e.seg)}</span>
+            <span class="sim-ev-st">${fired ? '✓' : '○'}</span>
+            <span class="sim-ev-body"><b>${escapeHtmlAdmin(e.title)}</b><small>${escapeHtmlAdmin(e.dest)}</small></span>
+            ${move}
+          </div>
+          ${e.sino ? `<details class="sim-ev-payload"><summary>payload do webhook</summary><pre>${escapeHtmlAdmin(this.simPayload(e))}</pre></details>` : ''}
+        </div>`;
+    }).join('') + (nowIdx === -1 && list.length ? nowLine : '');
+    const line = box.querySelector('.sim-now-line');
+    if(line) box.scrollTop = Math.max(0, line.offsetTop - box.clientHeight / 2);
+  },
+  simTab(tab){
+    this._sim.tab = tab;
+    document.getElementById('simTabChat').classList.toggle('active', tab === 'chat');
+    document.getElementById('simTabEventos').classList.toggle('active', tab === 'eventos');
+    document.getElementById('simChatPane').style.display = tab === 'chat' ? '' : 'none';
+    document.getElementById('simEventosPane').style.display = tab === 'eventos' ? '' : 'none';
+    this._sim.sigs.ev = null; this._sim.sigs.chat = null;
+    this.simRender();
+  },
+  simSetFilter(f){
+    this._sim.filter = f;
+    document.querySelectorAll('#simFilter button').forEach(b=>b.classList.toggle('active', b.dataset.f === f));
+    this.simRender();
+  },
+
+  // ----- interações do "aluno" (só na simulação) -----
+  simUserEvent(e){
+    this._simUserEvents.push(e);
+    this._simEv = this.simEvents(this._simD);
+    this.renderSimMarks();
+    this._sim.sigs.ev = null;
+    this.simCrossed(e.seg - 0.01, e.seg);
+  },
+  simBuy(){
+    const o = this._simD.offer, t = Math.max(0, Math.round(this._sim.t));
+    this.simUserEvent({ seg: t, kind:'hook', title:'Clique no botão de compra (simulado)', dest:'Funil: clicou em comprar (conta cada clique) · Webhook Sino · clicou_botao', sino:'clicou_botao' });
+    if(!o.link){ this.toast('Sem link de checkout: na sala o botão não faria nada.'); return; }
+    if(o.modo === 'embutido'){ this._sim.checkoutOpen = true; this.simRender(); }
+    else this.toast('Na sala, o aluno sairia pro checkout: ' + o.link);
+  },
+  simSendChat(){
+    const inp = document.getElementById('simChatInput');
+    const txt = inp.value.trim();
+    if(!txt) return;
+    inp.value = '';
+    const t = this._sim.t;
+    this._simUserMsgs.push({ seg: t, msg: txt });
+    if(!this._simUserEvents.some(e=>e.sino === 'chat')){
+      this.simUserEvent({ seg: Math.round(t), kind:'hook', title:'1ª mensagem do aluno no chat (simulada)', dest:'Funil: interagiu no chat · Webhook Sino · chat · abre atendimento na Sala de Atendimento', sino:'chat' });
+    }
+    const low = txt.toLowerCase();
+    const kw = this._simD.keywords.find(k=>k.kw && low.includes(String(k.kw).toLowerCase()));
+    if(kw){
+      const delay = parseInt(kw.delay, 10) || 3;
+      this._simUserMsgs.push({ seg: t + delay, msg: String(kw.resp || '').replace('#nome', 'você'), bot: true });
+    }
+    this._sim.sigs.chat = null;
+    this.simRender();
+  },
+  simClearUser(){
+    this._simUserMsgs = [];
+    this._simUserEvents = [];
+    this.simRefresh();
+  },
+
+  // ----- ajustes feitos daqui (salvos ao sair da etapa) -----
+  simMarkHere(kind){
+    const t = Math.round(this._sim.t);
+    if(t < 0) return this.toast('Avance até o vídeo começar pra marcar esse ponto.');
+    document.getElementById(kind === 'pitch' ? 'w_pitchInicio' : 'w_ofertaInicio').value = this.secondsToTime(t);
+    this._simDirty.offer = true;
+    this.renderOfertaPreview();
+    this.simRefresh();
+    this.toast(`${kind === 'pitch' ? 'Pitch' : 'Oferta'} agora em ${this.secondsToTime(t)}${this._simD.offerOn ? '' : ' (a oferta está desabilitada)'} — salva ao sair desta etapa.`);
+  },
+  simMoveToNow(kind, idx){
+    const t = Math.round(this._sim.t);
+    if(kind === 'chat'){
+      const c = this.chatMsgs[idx];
+      if(!c) return;
+      c.pre = t < 0;
+      c.t = this.secondsToTime(Math.abs(t));
+      this._simDirty.chat = true;
+      this.sortChatMsgs();
+      this.renderChatList();
+    } else {
+      const s = this.sales[idx];
+      if(!s) return;
+      if(t < 0) return this.toast('Venda só pode ficar depois do início do vídeo.');
+      s.t = this.secondsToTime(t);
+      this._simDirty.sales = true;
+      this.renderSalesList();
+    }
+    this.simRefresh();
+    this.toast(`Movida pro ${this.simFmt(t)} — salva ao sair desta etapa.`);
+  },
+  async saveSimAdjustments(){
+    const dirty = this._simDirty || {};
+    if(dirty.offer && !(await this.saveOfferConfig())) return false;
+    if(dirty.chat && !(await this.saveChatConfig())) return false;
+    if(dirty.sales && !(await this.saveSalesConfig())) return false;
+    this._simDirty = {};
+    return true;
   },
 
   // ---------- ETAPA "SINO / IA DO CHAT" ----------
@@ -1071,7 +1825,7 @@ const App = {
   },
   async wzGo(n){
     if(n<0) n=0;
-    if(n>11) n=11;
+    if(n>12) n=12;
     if(this._savingWizardStep) return;
     const leaving = this.getActiveWizardStep();
     this.wz.step = leaving;
@@ -1079,25 +1833,27 @@ const App = {
       const ok = await this.saveWizardStep(leaving);
       if(!ok) return;
     }
+    if(leaving === 11 && n !== 11) this.simClose();
     this.wz.step = n;
     document.querySelectorAll('.wizard-panel').forEach(p=>p.classList.toggle('active', +p.dataset.step===n));
     this.updateStepperUI();
     document.getElementById('wzBack').style.visibility = n===0 ? 'hidden' : 'visible';
     const nextBtn = document.getElementById('wzNext');
-    if(n===11){
+    if(n===12){
       nextBtn.textContent = 'Publicar Webinar';
       this.renderSummary();
     } else {
       nextBtn.textContent = 'Continuar';
       nextBtn.onclick = ()=>App.wzNext();
     }
-    if(n===11){
+    if(n===12){
       nextBtn.onclick = ()=>App.publishWebinar();
     }
     if(n===4) this.loadE4payCheckouts();
     if(n===5) this.renderReactionGraph();
     if(n===7) this.updateAudiencePreview();
     if(n===10) this.loadSinoStep();
+    if(n===11) this.simOpen();
     document.querySelector('.wizard-card').scrollIntoView({behavior:'smooth', block:'start'});
   },
   async saveWizardStep(step){
@@ -1122,6 +1878,7 @@ const App = {
       else if(step === 7) ok = await this.saveAudienceConfig();
       else if(step === 9) ok = await this.saveChatbotConfig();
       else if(step === 10) ok = await this.saveSinoConfig();
+      else if(step === 11) ok = await this.saveSimAdjustments();
       return ok !== false;
     }finally{
       this._savingWizardStep = false;
