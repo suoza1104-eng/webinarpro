@@ -117,6 +117,63 @@ router.get('/ongoing', async (req, res) => {
   })));
 });
 
+// Cards e grafico da tela inicial (Dashboard). Tambem precisa vir antes de GET /:id.
+// "Sessao" = um webinar que ja comecou; espectadores = quem assistiu ao vivo (replay a parte).
+router.get('/dashboard', async (req, res) => {
+  const acc = req.accountId;
+  const [[ativos]] = await pool.query(
+    "SELECT COUNT(*) AS n FROM webinars WHERE account_id = ? AND status = 'ativo'",
+    [acc],
+  );
+  const [[espectadores]] = await pool.query(
+    `SELECT COUNT(DISTINCT vs.lead_id) AS n
+     FROM view_sessions vs JOIN webinars w ON w.id = vs.webinar_id
+     WHERE w.account_id = ? AND vs.max_segundos > 0 AND vs.entrou_em >= DATE_SUB(NOW(), INTERVAL 7 DAY)`,
+    [acc],
+  );
+  // Conversao dos ultimos 30 dias: compradores / quem assistiu ao vivo, nos webinars desse periodo
+  const [[conversao]] = await pool.query(
+    `SELECT
+       (SELECT COUNT(DISTINCT vs.webinar_id, vs.lead_id) FROM view_sessions vs JOIN webinars w ON w.id = vs.webinar_id
+         WHERE w.account_id = ? AND vs.is_replay = 0 AND vs.max_segundos > 0
+           AND w.data_inicio BETWEEN DATE_SUB(NOW(), INTERVAL 30 DAY) AND NOW()) AS assistiram,
+       (SELECT COUNT(DISTINCT v.lead_id) FROM webinar_vendas v JOIN webinars w ON w.id = v.webinar_id
+         WHERE w.account_id = ? AND v.status = 'aprovada'
+           AND w.data_inicio BETWEEN DATE_SUB(NOW(), INTERVAL 30 DAY) AND NOW()) AS compradores`,
+    [acc, acc],
+  );
+  const [[mes]] = await pool.query(
+    `SELECT COUNT(*) AS vendas, COALESCE(SUM(v.valor_centavos), 0) AS total
+     FROM webinar_vendas v JOIN webinars w ON w.id = v.webinar_id
+     WHERE w.account_id = ? AND v.status = 'aprovada' AND v.pago_em >= DATE_FORMAT(NOW(), '%Y-%m-01')`,
+    [acc],
+  );
+  const [sessoes] = await pool.query(
+    `SELECT w.id, w.nome, w.data_inicio,
+            (SELECT COUNT(*) FROM view_sessions vs WHERE vs.webinar_id = w.id AND vs.is_replay = 0 AND vs.max_segundos > 0) AS espectadores,
+            (SELECT COUNT(DISTINCT v.lead_id) FROM webinar_vendas v WHERE v.webinar_id = w.id AND v.status = 'aprovada') AS compradores
+     FROM webinars w
+     WHERE w.account_id = ? AND w.data_inicio IS NOT NULL AND w.data_inicio <= NOW()
+     ORDER BY w.data_inicio DESC LIMIT 8`,
+    [acc],
+  );
+  res.json({
+    webinarsAtivos: ativos.n,
+    espectadores7d: espectadores.n,
+    assistiram30d: conversao.assistiram,
+    compradores30d: conversao.compradores,
+    vendasMes: mes.vendas,
+    faturamentoMesCentavos: Number(mes.total),
+    sessoes: sessoes.reverse().map((s) => ({
+      id: s.id,
+      nome: s.nome,
+      dataInicio: s.data_inicio,
+      espectadores: s.espectadores,
+      compradores: s.compradores,
+    })),
+  });
+});
+
 router.get('/:id', async (req, res) => {
   const [rows] = await pool.query(
     'SELECT * FROM webinars WHERE id = ? AND account_id = ? LIMIT 1',
@@ -169,6 +226,12 @@ router.get('/:id/metrics', async (req, res) => {
     [webinarId],
   );
 
+  const [[vendaRow]] = await pool.query(
+    `SELECT COUNT(DISTINCT lead_id) AS compradores, COUNT(*) AS vendas, COALESCE(SUM(valor_centavos), 0) AS total
+     FROM webinar_vendas WHERE webinar_id = ? AND status = 'aprovada'`,
+    [webinarId],
+  );
+
   const [maxSegRows] = await pool.query(
     `SELECT max_segundos FROM view_sessions WHERE webinar_id = ? AND is_replay = 0 AND max_segundos > 0`,
     [webinarId],
@@ -218,7 +281,9 @@ router.get('/:id/metrics', async (req, res) => {
     clicouBotaoOferta: live.clicouBotao,
     totalCliquesCompra: Number(live.totalCliques),
     interagiuChat: live.interagiuChat,
-    comprou: 0,
+    comprou: vendaRow.compradores,
+    totalVendas: vendaRow.vendas,
+    faturamentoCentavos: Number(vendaRow.total),
     retencao,
   });
 });

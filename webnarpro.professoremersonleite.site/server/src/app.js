@@ -17,6 +17,7 @@ const atendimentosRouter = require('./routes/atendimentos');
 const uploadsRouter = require('./routes/uploads');
 const integracaoRouter = require('./routes/integracao');
 const sinoChannelRouter = require('./routes/sino-channel');
+const e4payWebhookRouter = require('./routes/e4pay-webhook');
 const webinarSinoRouter = require('./routes/webinar-sino');
 const systemRouter = require('./routes/system');
 const metrics = require('./services/metrics');
@@ -64,8 +65,8 @@ const globalLimiter = rateLimit({
   windowMs: 60 * 1000,
   limit: 100,
   keyGenerator: leadRateKey,
-  // o Sino chama pela rede interna (sempre o mesmo IP) e tem autenticacao propria
-  skip: (req) => req.path.startsWith('/api/integracao/sino/'),
+  // o Sino chama pela rede interna (sempre o mesmo IP) e tem autenticacao propria; a E4Pay idem (HMAC)
+  skip: (req) => req.path.startsWith('/api/integracao/sino/') || req.path.startsWith('/api/integracao/e4pay/'),
 });
 app.use(globalLimiter);
 
@@ -86,8 +87,9 @@ app.use('/api/public', publicRouter);
 app.use('/api/ab-tests', abTestsRouter);
 app.use('/api/atendimentos', atendimentosRouter);
 app.use('/api/uploads', uploadsRouter);
-// antes do /api/integracao: o canal do Sino tem autenticacao propria (HMAC), nao a chave da API
+// antes do /api/integracao: o canal do Sino e o webhook da E4Pay tem autenticacao propria (HMAC), nao a chave da API
 app.use('/api/integracao/sino', sinoChannelRouter);
+app.use('/api/integracao/e4pay', e4payWebhookRouter);
 app.use('/api/integracao', integracaoRouter);
 app.use('/api/webinar-sino', webinarSinoRouter);
 app.use('/api/admin/system', systemRouter);

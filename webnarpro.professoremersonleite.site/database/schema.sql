@@ -251,6 +251,8 @@ CREATE TABLE leads (
   whatsapp          VARCHAR(30)  NULL,
   empresa           VARCHAR(150) NULL,
   ip_cadastro       VARCHAR(45)  NULL,
+  comprou_em        DATETIME NULL,                           -- 1a compra aprovada (resumo de webinar_vendas)
+  valor_comprado_centavos INT UNSIGNED NULL,                 -- soma das compras aprovadas (resumo de webinar_vendas)
   criado_em         DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_leads_webinar FOREIGN KEY (webinar_id) REFERENCES webinars(id) ON DELETE CASCADE,
   UNIQUE KEY uq_leads_webinar_email (webinar_id, email),
@@ -292,6 +294,31 @@ CREATE TABLE webinar_visits (
   CONSTRAINT fk_visit_webinar FOREIGN KEY (webinar_id) REFERENCES webinars(id) ON DELETE CASCADE,
   INDEX idx_visit_webinar (webinar_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ---------------------------------------------------------------------
+-- 13c. VENDAS REAIS (webhook compra_aprovada da E4Pay)
+-- ---------------------------------------------------------------------
+CREATE TABLE webinar_vendas (
+  id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  webinar_id      BIGINT UNSIGNED NOT NULL,
+  lead_id         BIGINT UNSIGNED NOT NULL,
+  transacao_id    VARCHAR(64)  NOT NULL,                 -- id da Transaction na E4Pay
+  checkout_slug   VARCHAR(150) NULL,
+  email           VARCHAR(160) NULL,
+  valor_centavos  INT UNSIGNED NOT NULL DEFAULT 0,
+  metodo          VARCHAR(30)  NULL,                     -- credit_card, pix, boleto...
+  status          ENUM('aprovada','reembolsada','chargeback','cancelada') NOT NULL DEFAULT 'aprovada',
+  vinculo         ENUM('email','telefone') NOT NULL DEFAULT 'email', -- como o comprador foi ligado ao aluno
+  pago_em         DATETIME NOT NULL,
+  criado_em       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  atualizado_em   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_vendas_transacao (transacao_id),
+  INDEX idx_vendas_webinar_status (webinar_id, status),
+  INDEX idx_vendas_pago_em (pago_em),
+  INDEX idx_vendas_lead (lead_id),
+  CONSTRAINT fk_vendas_webinar FOREIGN KEY (webinar_id) REFERENCES webinars(id) ON DELETE CASCADE,
+  CONSTRAINT fk_vendas_lead    FOREIGN KEY (lead_id)    REFERENCES leads(id)    ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ---------------------------------------------------------------------
 -- 13b. FILA DE REENVIO DO WEBHOOK DO SINO
