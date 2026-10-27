@@ -3059,7 +3059,7 @@ const App = {
         <button class="inbox-quick-btn" title="Gerenciar respostas rápidas" onclick="App.editQuickReplies()">＋</button>
       </div>
       <div class="inbox-reply">
-        <input class="input" id="salaReplyInput" placeholder="Digite sua resposta..." onkeydown="if(event.key==='Enter')App.sendSalaReply()">
+        <input class="input" id="salaReplyInput" autocomplete="off" data-lpignore="true" placeholder="Digite sua resposta..." onkeydown="if(event.key==='Enter')App.sendSalaReply()">
         <button class="btn btn-primary btn-sm" onclick="App.sendSalaReply()">Enviar</button>
       </div>`;
     const input = thread.querySelector('#salaReplyInput');

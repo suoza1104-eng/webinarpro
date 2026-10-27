@@ -1354,6 +1354,9 @@ const Sala = {
 
   reopenCheckout(){
     document.getElementById('reopenCheckoutBtn')?.classList.remove('blink-show');
+    // O botao piscando "Inscreva-se agora" tambem e clique de compra - sem isso metade
+    // de quem chegava no checkout nao aparecia no funil nem ia pra campanha do sino.
+    this.trackCompraClick();
     this.openOfferOverlay('checkout');
   },
 
