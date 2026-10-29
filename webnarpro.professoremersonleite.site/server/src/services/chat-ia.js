@@ -68,7 +68,15 @@ function momentoDaAula(ctx) {
   const segundo = aoVivo ? desdeInicio : Number(ctx.max_segundos || 0);
   const ofertaJaAbriu = ctx.inicio_oferta_segundos != null && segundo >= ctx.inicio_oferta_segundos;
   const pitchJaComecou = ctx.inicio_pitch_segundos != null && segundo >= ctx.inicio_pitch_segundos;
-  return { aoVivo, segundo, ofertaJaAbriu, pitchJaComecou };
+  const duracao = Number(ctx.duracao_segundos || 0);
+  const faltam = duracao ? duracao - segundo : null;
+  return { aoVivo, segundo, ofertaJaAbriu, pitchJaComecou, faltam };
+}
+
+function textoFim(m) {
+  if (m.faltam == null) return '';
+  if (m.faltam <= 0) return ' A aula JÁ TERMINOU.';
+  return ` Faltam cerca de ${Math.max(1, Math.round(m.faltam / 60))} min para a aula terminar.`;
 }
 
 function montarConversa(historico, novasIds, nome) {
@@ -83,10 +91,12 @@ async function carregarContexto(atendimentoId) {
   const [[ctx]] = await pool.query(
     `SELECT a.id, a.webinar_id, a.lead_id, a.ia_processado_ate_msg_id, l.nome AS lead_nome,
             w.nome AS webinar_nome, w.data_inicio, oc.inicio_pitch_segundos, oc.inicio_oferta_segundos, oc.link_checkout,
+            v.duracao_segundos,
             (SELECT MAX(vs.max_segundos) FROM view_sessions vs WHERE vs.webinar_id = a.webinar_id AND vs.lead_id = a.lead_id) AS max_segundos
      FROM atendimentos a
      JOIN leads l ON l.id = a.lead_id
      JOIN webinars w ON w.id = a.webinar_id
+     LEFT JOIN videos v ON v.id = w.video_id
      LEFT JOIN webinar_offer_config oc ON oc.webinar_id = a.webinar_id
      WHERE a.id = ? LIMIT 1`,
     [atendimentoId],
@@ -116,7 +126,7 @@ async function decidirResposta({ ctx, historico, novas, cfg }) {
   const momento = momentoDaAula(ctx);
   const conversa = montarConversa(historico, novasIds, nome);
   const situacao = [
-    `MOMENTO DA AULA: ${momento.aoVivo ? 'ao vivo' : 'replay/fora do horário'}, em ${fmtMin(momento.segundo)} de aula.`,
+    `MOMENTO DA AULA: ${momento.aoVivo ? 'ao vivo' : 'replay/fora do horário'}, em ${fmtMin(momento.segundo)} de aula.${textoFim(momento)}`,
     `Apresentação do FERA ${momento.pitchJaComecou ? 'JÁ COMEÇOU' : 'ainda não começou'}; oferta/botão de compra ${momento.ofertaJaAbriu ? 'JÁ APARECEU na tela' : 'AINDA NÃO apareceu'}.`,
     `Primeiro nome do aluno: ${nome || '(sem nome - não use nome)'}.`,
   ].join('\n');
@@ -148,7 +158,9 @@ async function decidirResposta({ ctx, historico, novas, cfg }) {
   };
   if (!out.responder) return out;
 
-  out.modelo = out.complexidade === 'elaborada' ? cfg.modelo_resposta : cfg.modelo_triagem;
+  // venda e tecnica sempre no modelo melhor, mesmo quando a triagem acha "simples"
+  const exigeMelhor = out.complexidade === 'elaborada' || ['vendas', 'tecnica'].includes(out.categoria);
+  out.modelo = exigeMelhor ? cfg.modelo_resposta : cfg.modelo_triagem;
   const promptBase = (cfg.prompt || PROMPTS.RESPOSTA).replace('{LINK_CHECKOUT}', ctx.link_checkout || 'clique no botão da tela');
   const gerada = await chamarOpenAI({
     modelo: out.modelo,
