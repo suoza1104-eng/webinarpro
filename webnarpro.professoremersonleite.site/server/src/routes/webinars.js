@@ -956,6 +956,25 @@ router.post('/:id/duplicate', async (req, res) => {
       );
     }
 
+    // Copiar prompt/limites do chat (painel do Sino) - a integracao com o Sino sai desligada na copia
+    await connection.query(
+      `INSERT INTO webinar_sino_config (webinar_id, habilitado, atuacao, objetivo, prompt, agente_id, agente_nome,
+         setor_venda, setor_suporte, followup_habilitado, followup_dias, followup_template_1, followup_template_2,
+         followup_publico, limite_respostas_ia, segurar_chat)
+       SELECT ?, 0, atuacao, objetivo, prompt, agente_id, agente_nome, setor_venda, setor_suporte, followup_habilitado,
+         followup_dias, followup_template_1, followup_template_2, followup_publico, limite_respostas_ia, 0
+       FROM webinar_sino_config WHERE webinar_id = ?`,
+      [newId, orig.id]
+    );
+
+    // Copiar a IA do chat (OpenAI)
+    await connection.query(
+      `INSERT INTO webinar_chat_ia_config (webinar_id, habilitado, espera_segundos, modelo_triagem, modelo_resposta, limite_respostas_por_aluno, prompt)
+       SELECT ?, habilitado, espera_segundos, modelo_triagem, modelo_resposta, limite_respostas_por_aluno, prompt
+       FROM webinar_chat_ia_config WHERE webinar_id = ?`,
+      [newId, orig.id]
+    );
+
     await connection.commit();
     connection.release();
 

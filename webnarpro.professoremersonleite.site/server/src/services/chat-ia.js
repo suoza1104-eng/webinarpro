@@ -181,7 +181,9 @@ async function decidirResposta({ ctx, historico, novas, cfg }) {
   // venda e tecnica sempre no modelo melhor, mesmo quando a triagem acha "simples"
   const exigeMelhor = out.complexidade === 'elaborada' || ['vendas', 'tecnica'].includes(out.categoria);
   out.modelo = exigeMelhor ? cfg.modelo_resposta : cfg.modelo_triagem;
-  const promptBase = (cfg.prompt || PROMPTS.RESPOSTA).replace('{LINK_CHECKOUT}', ctx.link_checkout || 'clique no botão da tela');
+  // regras fixas + conhecimento do webinar (campo "Prompt do webinar" do painel; vazio = padrao)
+  const conhecimento = (cfg.conhecimento || '').trim() || (cfg.prompt || '').trim() || PROMPTS.CONHECIMENTO_PADRAO;
+  const promptBase = `${PROMPTS.REGRAS.replace('{LINK_CHECKOUT}', ctx.link_checkout || 'clique no botão da tela')}\n\nCONHECIMENTO DO WEBINAR (use só o que está aqui):\n${conhecimento}`;
   const gerada = await chamarOpenAI({
     modelo: out.modelo,
     maxTokens: 350,
@@ -268,6 +270,28 @@ async function processarAtendimento(cand) {
   }
 }
 
+async function candidatos() {
+  // "Segurar o chat" e "Limite de respostas da IA por aluno" do painel do webinar valem aqui tambem
+  const [cands] = await pool.query(
+    `SELECT a.id, c.modelo_triagem, c.modelo_resposta, c.prompt, s.prompt AS conhecimento
+     FROM atendimentos a
+     JOIN webinar_chat_ia_config c ON c.webinar_id = a.webinar_id AND c.habilitado = 1
+     LEFT JOIN webinar_sino_config s ON s.webinar_id = a.webinar_id
+     WHERE a.atendente_id IS NULL AND a.ia_pausada = 0 AND a.status <> 'encerrado'
+       AND COALESCE(s.segurar_chat, 0) = 0
+       AND a.ultima_mensagem_remetente = 'lead'
+       AND a.ultima_mensagem_lead_em <= NOW() - INTERVAL c.espera_segundos SECOND
+       AND a.ultima_mensagem_lead_em >= NOW() - INTERVAL ? MINUTE
+       AND a.respostas_ia < COALESCE(s.limite_respostas_ia, c.limite_respostas_por_aluno)
+       AND EXISTS (SELECT 1 FROM atendimento_mensagens m
+                   WHERE m.atendimento_id = a.id AND m.remetente = 'lead' AND m.id > COALESCE(a.ia_processado_ate_msg_id, 0))
+     ORDER BY a.ultima_mensagem_lead_em ASC
+     LIMIT ?`,
+    [MAX_IDADE_MIN, LOTE],
+  );
+  return cands;
+}
+
 async function tick() {
   if (!process.env.OPENAI_API_KEY) return;
   // chat e secundario: sem folga, a IA nao gasta nada do servidor
@@ -277,21 +301,7 @@ async function tick() {
     pausaMotivo = motivo;
   }
   if (motivo) return;
-  const [cands] = await pool.query(
-    `SELECT a.id, c.modelo_triagem, c.modelo_resposta, c.prompt
-     FROM atendimentos a
-     JOIN webinar_chat_ia_config c ON c.webinar_id = a.webinar_id AND c.habilitado = 1
-     WHERE a.atendente_id IS NULL AND a.ia_pausada = 0 AND a.status <> 'encerrado'
-       AND a.ultima_mensagem_remetente = 'lead'
-       AND a.ultima_mensagem_lead_em <= NOW() - INTERVAL c.espera_segundos SECOND
-       AND a.ultima_mensagem_lead_em >= NOW() - INTERVAL ? MINUTE
-       AND a.respostas_ia < c.limite_respostas_por_aluno
-       AND EXISTS (SELECT 1 FROM atendimento_mensagens m
-                   WHERE m.atendimento_id = a.id AND m.remetente = 'lead' AND m.id > COALESCE(a.ia_processado_ate_msg_id, 0))
-     ORDER BY a.ultima_mensagem_lead_em ASC
-     LIMIT ?`,
-    [MAX_IDADE_MIN, LOTE],
-  );
+  const cands = await candidatos();
   const prontos = cands.filter((c) => !(falhas.get(c.id)?.ate > Date.now()));
   for (let i = 0; i < prontos.length; i += PARALELO) {
     await Promise.all(prontos.slice(i, i + PARALELO).map((c) => processarAtendimento(c)));

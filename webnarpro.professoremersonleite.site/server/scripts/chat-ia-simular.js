@@ -1,15 +1,20 @@
 // Simula a IA do chat em conversas reais de lives passadas, sem gravar nada (so le o banco e
 // chama a OpenAI). Pra cada conversa, pega o primeiro "lote" de mensagens do aluno (mensagens
 // com menos de 2 min entre si) e mostra a decisao da triagem e a resposta que seria enviada.
-// Uso: node scripts/chat-ia-simular.js <webinarId> [quantidade=20] [filtro-regex]
+// Uso: node scripts/chat-ia-simular.js <webinarId> [quantidade=20] [filtro-regex] [webinarId-do-prompt]
+// (o ultimo argumento usa o "Prompt do webinar" de outro webinar, ex.: testar o prompt da proxima aula
+// nas conversas da aula passada)
 require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 const pool = require('../src/db');
 const { decidirResposta, carregarContexto } = require('../src/services/chat-ia');
 
-const [webinarId, qtd = '20', filtro = ''] = process.argv.slice(2);
-const cfg = { modelo_triagem: 'gpt-4.1-mini', modelo_resposta: 'gpt-4.1', prompt: null };
+const [webinarId, qtd = '20', filtro = '', webinarPrompt] = process.argv.slice(2);
+const cfg = { modelo_triagem: 'gpt-4.1-mini', modelo_resposta: 'gpt-4.1', prompt: null, conhecimento: null };
 
 (async () => {
+  const [[s]] = await pool.query('SELECT prompt FROM webinar_sino_config WHERE webinar_id = ?', [webinarPrompt || webinarId]);
+  cfg.conhecimento = s?.prompt || null;
+  console.log(`conhecimento: ${cfg.conhecimento ? `prompt do painel (webinar ${webinarPrompt || webinarId})` : 'padrão do código'}`);
   const [ats] = await pool.query(
     `SELECT a.id FROM atendimentos a
      WHERE a.webinar_id = ? AND EXISTS (SELECT 1 FROM atendimento_mensagens m WHERE m.atendimento_id = a.id AND m.remetente = 'lead' AND m.mensagem REGEXP ?)
