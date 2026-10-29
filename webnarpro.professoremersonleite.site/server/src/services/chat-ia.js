@@ -11,7 +11,11 @@
 //  - Humano assumiu a conversa (atendente_id) ou respondeu por ultimo: a IA nao entra.
 //  - Precisa de pessoa (pagamento sem cartao, problema na compra...): a IA responde, pausa a
 //    conversa (ia_pausada) e devolve pra "Pendentes" no painel.
-//  - Chat retido (sistema no vermelho / "segurar chat"): nao responde nada.
+//  - So roda com folga: qualquer alerta de carga (amarelo ou vermelho), "segurar chat", CPU
+//    alta ou Node atrasado pausam a IA. As mensagens ficam pra equipe no painel; ao voltar a
+//    folga, nada com mais de MAX_IDADE_MIN e respondido (resposta atrasada nao faz sentido).
+const os = require('os');
+const { monitorEventLoopDelay } = require('perf_hooks');
 const pool = require('../db');
 const atendimentoSvc = require('./atendimento');
 const PROMPTS = require('./chat-ia-prompt');
@@ -21,13 +25,29 @@ const WORKER_MS = 5000;
 const LOTE = 12;
 const PARALELO = 4;
 const TIMEOUT_MS = 30000;
-const MAX_IDADE_MIN = 30; // mensagem mais velha que isso nao vale mais responder no chat
+const MAX_IDADE_MIN = 10; // mensagem mais velha que isso nao vale mais responder no chat
+const CPU_LOAD_MAX = 3; // mesmo limite do alerta amarelo de CPU (4 nucleos)
+const EVENT_LOOP_P99_MAX_MS = 200;
 const HISTORICO_MSGS = 16;
 const MAX_TENTATIVAS = 3;
 
 let timer = null;
 let rodando = false;
 const falhas = new Map(); // atendimentoId -> { tentativas, ate }
+const loopDelay = monitorEventLoopDelay({ resolution: 20 });
+let pausaMotivo = null;
+
+// null = tem folga; senao, o motivo da pausa
+function semFolga() {
+  const modo = require('./alerts').getChatMode();
+  if (modo !== 'normal') return `alertas do sistema (chat ${modo})`;
+  const load = os.loadavg()[0];
+  if (load >= CPU_LOAD_MAX) return `CPU alta (load ${load.toFixed(2)})`;
+  const p99 = loopDelay.percentile(99) / 1e6;
+  loopDelay.reset();
+  if (p99 >= EVENT_LOOP_P99_MAX_MS) return `Node atrasado (event loop p99 ${Math.round(p99)}ms)`;
+  return null;
+}
 
 function primeiroNome(nome) {
   const p = String(nome || '').trim().split(/\s+/)[0] || '';
@@ -250,7 +270,13 @@ async function processarAtendimento(cand) {
 
 async function tick() {
   if (!process.env.OPENAI_API_KEY) return;
-  if (require('./alerts').getChatMode() === 'retido') return; // chat e secundario: segurado, nada sai
+  // chat e secundario: sem folga, a IA nao gasta nada do servidor
+  const motivo = semFolga();
+  if (motivo !== pausaMotivo) {
+    console.log(motivo ? `[chat-ia] pausada: ${motivo}` : '[chat-ia] retomada: servidor com folga');
+    pausaMotivo = motivo;
+  }
+  if (motivo) return;
   const [cands] = await pool.query(
     `SELECT a.id, c.modelo_triagem, c.modelo_resposta, c.prompt
      FROM atendimentos a
@@ -274,6 +300,7 @@ async function tick() {
 
 function startWorker() {
   if (timer) return;
+  loopDelay.enable();
   timer = setInterval(() => {
     if (rodando) return;
     rodando = true;
