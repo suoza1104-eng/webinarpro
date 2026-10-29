@@ -12,5 +12,6 @@ app.listen(port, () => {
   sino.startOutboxWorker();
   sinoChannel.startWorker();
   require('./services/presence-buffer').start();
+  require('./services/chat-ia').startWorker();
   alerts.start();
 });
